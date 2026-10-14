@@ -79,5 +79,14 @@ export interface AuthRepositoryPort {
     apiKeys: ApiKeyRecord[];
     auditLogs: AuditLogRecord[];
   } | null>;
+  listActiveSessionsByUserId(userId: string): Promise<Array<{
+    familyId: string;
+    userId: string;
+    createdAtMs: number;
+    lastActiveAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }>>;
+  revokeOtherSessionsByUserId(userId: string, currentFamilyId: string, reason: string): Promise<number>;
 }
 

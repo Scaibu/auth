@@ -22,6 +22,6 @@ CREATE INDEX IF NOT EXISTS idx_auth_password_resets_deleted_at
   ON auth_password_resets (deleted_at)
   WHERE deleted_at IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_revoked_at
-  ON auth_refresh_tokens (revoked_at)
-  WHERE revoked_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_is_revoked
+  ON auth_refresh_tokens (is_revoked)
+  WHERE is_revoked = TRUE;

@@ -136,5 +136,11 @@ export class BreachedPasswordError extends AuthError {
   }
 }
 
+export class NotFoundError extends AuthError {
+  constructor(message = 'Resource not found') {
+    super(message, 'RESOURCE_NOT_FOUND', 404);
+  }
+}
+
 
 

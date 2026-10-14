@@ -6,7 +6,15 @@ export const AUTH_QUERIES = {
     CHECK_ORG_NAME: `SELECT id FROM auth_organizations WHERE name = $1 AND deleted_at IS NULL LIMIT 1`,
     INSERT_ORG: `INSERT INTO auth_organizations (id, name, slug) VALUES ($1, $2, $3)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
-    LIST_BY_USER: `SELECT DISTINCT o.id, o.name, o.slug FROM auth_organizations o LEFT JOIN auth_user_organizations uo ON uo.org_id = o.id LEFT JOIN auth_users u ON u.org_id = o.id WHERE (uo.user_id = $1 OR u.id = $1) AND o.deleted_at IS NULL`,
+    LIST_BY_USER: `
+      SELECT o.id, o.name, o.slug
+      FROM auth_organizations o
+      WHERE o.deleted_at IS NULL
+        AND (
+          EXISTS (SELECT 1 FROM auth_users u WHERE u.id = $1 AND u.org_id = o.id AND u.deleted_at IS NULL)
+          OR EXISTS (SELECT 1 FROM auth_user_organizations uo WHERE uo.user_id = $1 AND uo.org_id = o.id)
+        )
+    `,
     GET_BY_ID: `SELECT id, name, slug FROM auth_organizations WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
     UPDATE_NAME: `UPDATE auth_organizations SET name = $1 WHERE id = $2 AND deleted_at IS NULL`,
     UPDATE_SLUG: `UPDATE auth_organizations SET slug = $1 WHERE id = $2 AND deleted_at IS NULL`,
@@ -40,10 +48,16 @@ export const AUTH_QUERIES = {
     PURGE_LOGS: `DELETE FROM auth_audit_logs WHERE deleted_at < NOW() - INTERVAL '30 days'`,
     PURGE_RESETS: `DELETE FROM auth_password_resets WHERE deleted_at < NOW() - INTERVAL '30 days'`,
     PURGE_DENYLIST: `DELETE FROM auth_token_denylist WHERE expires_at_ms < $1`,
-    PURGE_REFRESH_TOKENS: `DELETE FROM auth_refresh_tokens WHERE revoked_at < NOW() - INTERVAL '30 days' OR expires_at < NOW() - INTERVAL '30 days'`,
+    PURGE_REFRESH_TOKENS: `DELETE FROM auth_refresh_tokens WHERE (is_revoked = TRUE AND created_at_ms < $1) OR expires_at_ms < $1`,
   },
   FLOW_SIGN_UP: {
-    CHECK_ORG_EXISTS: `SELECT id FROM auth_organizations WHERE (name = $1 OR slug = $2) AND deleted_at IS NULL LIMIT 1`,
+    CHECK_ORG_EXISTS: `
+      SELECT id FROM (
+        SELECT id FROM auth_organizations WHERE name = $1 AND deleted_at IS NULL LIMIT 1
+        UNION ALL
+        SELECT id FROM auth_organizations WHERE slug = $2 AND deleted_at IS NULL LIMIT 1
+      ) o LIMIT 1
+    `,
     INSERT_ORG: `INSERT INTO auth_organizations (id, name, slug) VALUES ($1, $2, $3)`,
     INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
@@ -102,5 +116,23 @@ export const AUTH_QUERIES = {
     FIND_TOKEN_BY_HASH: `SELECT token_id, family_id, user_id, token_hash, generation, is_revoked, expires_at_ms, created_at_ms, consumed_at_ms FROM auth_refresh_tokens WHERE token_hash = $1 LIMIT 1`,
     CONSUME_TOKEN: `UPDATE auth_refresh_tokens SET consumed_at_ms = $1 WHERE token_id = $2`,
     REVOKE_TOKEN_FAMILY_TOKENS: `UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE family_id = $1`,
+    LIST_ACTIVE_FAMILIES: `
+      SELECT f.id AS family_id, f.user_id, f.created_at_ms,
+             COALESCE(lat.consumed_at_ms, lat.created_at_ms, f.created_at_ms) AS last_active_at_ms,
+             lat.created_ip,
+             lat.user_agent
+      FROM auth_refresh_token_families f
+      CROSS JOIN LATERAL (
+        SELECT t.consumed_at_ms, t.created_at_ms, t.created_ip, t.user_agent
+        FROM auth_refresh_tokens t
+        WHERE t.family_id = f.id AND t.is_revoked = FALSE AND t.expires_at_ms > $2
+        ORDER BY t.generation DESC
+        LIMIT 1
+      ) lat
+      WHERE f.user_id = $1 AND f.is_revoked = FALSE
+      ORDER BY last_active_at_ms DESC
+    `,
+    REVOKE_OTHER_FAMILIES: `UPDATE auth_refresh_token_families SET is_revoked = TRUE, revoked_reason = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND id != $3 AND is_revoked = FALSE`,
+    REVOKE_OTHER_TOKENS: `UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE user_id = $1 AND family_id != $2 AND is_revoked = FALSE`,
   },
 } as const;

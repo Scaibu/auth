@@ -1,5 +1,13 @@
 # Auth Contracts Changelog
 
+## [1.5.0] - 2026-10-14
+### Added
+- Multi-Device Session Management & Remote Kill (OWASP ASVS 3.3):
+  - Added `GET /api/v1/auth/sessions`: List active concurrent sessions and devices for the authenticated user, indicating caller's current session via `is_current: true`.
+  - Added `DELETE /api/v1/auth/sessions/{id}`: Terminate a specific remote session family by unique ID.
+  - Added `DELETE /api/v1/auth/sessions`: Bulk terminate all other active remote sessions while immunizing the caller's active device session.
+  - Added component schema `UserSessionSummary`.
+
 ## [1.4.0] - 2026-10-14
 ### Added
 - GDPR Article 15 Data Subject Access Request (DSAR) JSON Export:

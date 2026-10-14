@@ -116,7 +116,8 @@ export class AuthService {
 
 
   async issueInitialRefreshToken(userId: string, ip?: string, userAgent?: string): Promise<string> {
-    return this.refreshTokenService.issueInitialRefreshToken(userId, ip, userAgent);
+    const res = await this.refreshTokenService.issueInitialRefreshToken(userId, ip, userAgent);
+    return res.rawToken;
   }
 
   async rotateRefreshToken(rawToken: string, ip?: string, userAgent?: string): Promise<RefreshTokenResult> {
@@ -288,5 +289,24 @@ export class AuthService {
 
   async exportUserData(userId: string): Promise<UserDsarExportPayload> {
     return this.userService.exportUserData(userId);
+  }
+
+  async listUserSessions(userId: string, currentFamilyId?: string): Promise<Array<{
+    id: string;
+    ip_address?: string;
+    user_agent?: string;
+    created_at: string;
+    last_active_at: string;
+    is_current: boolean;
+  }>> {
+    return this.refreshTokenService.listUserSessions(userId, currentFamilyId);
+  }
+
+  async revokeUserSession(userId: string, targetFamilyId: string): Promise<void> {
+    return this.refreshTokenService.revokeUserSession(userId, targetFamilyId);
+  }
+
+  async revokeOtherUserSessions(userId: string, currentFamilyId: string): Promise<number> {
+    return this.refreshTokenService.revokeOtherUserSessions(userId, currentFamilyId);
   }
 }

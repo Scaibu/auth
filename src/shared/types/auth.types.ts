@@ -93,3 +93,13 @@ export const UserDsarExportPayloadSchema = z.object({
   ),
 });
 export type UserDsarExportPayload = z.infer<typeof UserDsarExportPayloadSchema>;
+
+export const UserSessionSummarySchema = z.object({
+  id: z.string(),
+  ip_address: z.string().nullable().optional(),
+  user_agent: z.string().nullable().optional(),
+  created_at: z.string(),
+  last_active_at: z.string(),
+  is_current: z.boolean(),
+});
+export type UserSessionSummary = z.infer<typeof UserSessionSummarySchema>;

@@ -165,6 +165,89 @@ paths:
         '401':
           description: Unauthorized, token expired, signature invalid, or token JTI denylisted in Redis cache
 
+  /api/v1/auth/sessions:
+    get:
+      summary: List all active concurrent sessions and devices for the authenticated user (OWASP ASVS 3.3)
+      description: Returns active refresh token families with client IP, user agent, and ISO 8601 timestamps, flagging the caller device with is_current true.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: x-session-family
+          schema:
+            type: string
+          required: false
+          description: Active session family identifier of the calling user agent
+      responses:
+        '200':
+          description: List of active user sessions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserSessionSummary'
+        '401':
+          description: Unauthorized, missing or invalid bearer token
+    delete:
+      summary: Terminate all other remote sessions (OWASP ASVS 3.3)
+      description: Revokes all refresh token families for the authenticated user except the calling device session family.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: x-session-family
+          schema:
+            type: string
+          required: false
+          description: Active session family identifier of the calling user agent to preserve
+      responses:
+        '200':
+          description: All remote sessions successfully terminated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          revokedCount:
+                            type: integer
+        '401':
+          description: Unauthorized
+
+  /api/v1/auth/sessions/{id}:
+    delete:
+      summary: Terminate a specific remote session by family identifier (OWASP ASVS 3.3)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Refresh token family identifier to revoke
+      responses:
+        '200':
+          description: Session successfully terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Session family not found or belongs to another user
+
   /api/v1/auth/organizations:
     get:
       summary: List all organizations the authenticated user belongs to
@@ -1354,4 +1437,32 @@ components:
         status:
           type: string
           enum: [active, revoked]
+
+    UserSessionSummary:
+      type: object
+      required: [id, ip_address, user_agent, created_at, last_active_at, is_current]
+      properties:
+        id:
+          type: string
+          description: Session family identifier
+          example: 'fam_01J9XEXAMPLE'
+        ip_address:
+          type: string
+          description: Client IP address of most recent activity
+          example: '192.0.2.1'
+        user_agent:
+          type: string
+          description: User agent string of the client
+          example: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
+        created_at:
+          type: string
+          format: date-time
+          description: Initial authentication ISO 8601 UTC timestamp
+        last_active_at:
+          type: string
+          format: date-time
+          description: Most recent token rotation or activity ISO 8601 UTC timestamp
+        is_current:
+          type: boolean
+          description: Indicates whether this session belongs to the requesting client device
 

@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AUTH_ENDPOINTS } from '../../src/shared/constants/endpoints';
+import { AUTH_CONSTANTS } from '../../src/shared/constants/auth.constants';
 
 describe('Auth OpenAPI Contract Compliance', () => {
   it('should verify contracts/openapi/v1.yaml exists and matches declared endpoints and schemas', () => {
@@ -38,23 +39,25 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.AUDIT_LOGS);
     expect(content).toContain(AUTH_ENDPOINTS.ADMIN_PURGE_EXPIRED);
     expect(content).toContain(AUTH_ENDPOINTS.USERS_ME_EXPORT);
-    expect(content).toContain('SignUpRequest');
-    expect(content).toContain('SignInRequest');
-    expect(content).toContain('CreateApiKeyRequest');
-    expect(content).toContain('VerifyApiKeyRequest');
-    expect(content).toContain('VerifyEmailRequest');
-    expect(content).toContain('ResendVerificationRequest');
-    expect(content).toContain('expires_at_ms');
-    expect(content).toContain('API_KEY_EXPIRED');
-    expect(content).toContain('API_KEY_REVOKED');
-    expect(content).toContain('X-CSRF-Token');
-    expect(content).toContain('ip_address');
-    expect(content).toContain('ACCOUNT_LOCKED');
-    expect(content).toContain('RATE_LIMIT_EXCEEDED');
-    expect(content).toContain('PASSWORD_BREACHED');
-    expect(content).toContain('JTI');
-    expect(content).toContain("'423'");
-    expect(content).toContain("'429'");
+    expect(content).toContain(AUTH_ENDPOINTS.SESSIONS);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.USER_SESSION_SUMMARY);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_UP_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_IN_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CREATE_API_KEY_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.VERIFY_API_KEY_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.VERIFY_EMAIL_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.RESEND_VERIFICATION_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.EXPIRES_AT_MS);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.API_KEY_EXPIRED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.API_KEY_REVOKED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.X_CSRF_TOKEN);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.IP_ADDRESS);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.ACCOUNT_LOCKED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.RATE_LIMIT_EXCEEDED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSWORD_BREACHED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.JTI);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_423);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_429);
   });
 });
 

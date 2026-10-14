@@ -25,6 +25,7 @@ export const AUTH_ENDPOINTS = {
   STEP_UP_REQUEST: '/api/v1/auth/step-up/request',
   STEP_UP_VERIFY: '/api/v1/auth/step-up/verify',
   REFRESH: '/api/v1/auth/refresh',
+  SESSIONS: '/api/v1/auth/sessions',
   ROUTES: '/api/v1/auth/routes',
   ADMIN_IMPERSONATE: '/api/v1/auth/admin/impersonate',
   ADMIN_PURGE_EXPIRED: '/api/v1/auth/admin/purge-expired',

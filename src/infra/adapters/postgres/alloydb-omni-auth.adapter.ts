@@ -493,4 +493,57 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       auditLogs,
     };
   }
+
+  async listActiveSessionsByUserId(userId: string): Promise<Array<{
+    familyId: string;
+    userId: string;
+    createdAtMs: number;
+    lastActiveAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }>> {
+    const nowMs = Date.now();
+    const activeFamilies = [...this.mockRefreshFamilies.values()].filter(
+      (f) => f.user_id === userId && !f.is_revoked
+    );
+
+    return activeFamilies.map((fam) => {
+      const familyTokens = [...this.mockRefreshTokens.values()]
+        .filter((t) => t.familyId === fam.id && !t.isRevoked && t.expiresAtMs > nowMs)
+        .sort((a, b) => b.generation - a.generation);
+
+      const latestToken = familyTokens[0];
+      const lastActiveAtMs = latestToken
+        ? (latestToken.consumedAtMs ?? latestToken.createdAtMs)
+        : fam.created_at_ms;
+
+      return {
+        familyId: fam.id,
+        userId: fam.user_id,
+        createdAtMs: fam.created_at_ms,
+        lastActiveAtMs,
+        createdIp: latestToken?.createdIp,
+        userAgent: latestToken?.userAgent,
+      };
+    });
+  }
+
+  async revokeOtherSessionsByUserId(userId: string, currentFamilyId: string, reason: string): Promise<number> {
+    let count = 0;
+    for (const fam of this.mockRefreshFamilies.values()) {
+      if (fam.user_id === userId && fam.id !== currentFamilyId && !fam.is_revoked) {
+        fam.is_revoked = true;
+        fam.revoked_reason = reason;
+        count += 1;
+      }
+    }
+
+    for (const tok of this.mockRefreshTokens.values()) {
+      if (tok.userId === userId && tok.familyId !== currentFamilyId && !tok.isRevoked) {
+        tok.isRevoked = true;
+      }
+    }
+
+    return count;
+  }
 }

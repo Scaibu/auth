@@ -764,4 +764,45 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       auditLogs,
     };
   }
+
+  async listActiveSessionsByUserId(userId: string): Promise<Array<{
+    familyId: string;
+    userId: string;
+    createdAtMs: number;
+    lastActiveAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }>> {
+    const client = await this.pool.connect();
+    try {
+      const nowMs = Date.now();
+      const res = await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.LIST_ACTIVE_FAMILIES, [userId, nowMs]);
+      return res.rows.map((row: any) => ({
+        familyId: row.family_id,
+        userId: row.user_id,
+        createdAtMs: Number(row.created_at_ms),
+        lastActiveAtMs: Number(row.last_active_at_ms),
+        createdIp: row.created_ip ?? undefined,
+        userAgent: row.user_agent ?? undefined,
+      }));
+    } finally {
+      client.release();
+    }
+  }
+
+  async revokeOtherSessionsByUserId(userId: string, currentFamilyId: string, reason: string): Promise<number> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_CONSTANTS.TRANSACTION.BEGIN);
+      const res = await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.REVOKE_OTHER_FAMILIES, [reason, userId, currentFamilyId]);
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.REVOKE_OTHER_TOKENS, [userId, currentFamilyId]);
+      await client.query(AUTH_CONSTANTS.TRANSACTION.COMMIT);
+      return res.rowCount ?? 0;
+    } catch (err: unknown) {
+      await client.query(AUTH_CONSTANTS.TRANSACTION.ROLLBACK);
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }

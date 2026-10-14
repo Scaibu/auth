@@ -27,7 +27,7 @@ import {
   handleRefreshToken,
   handleExportMyData,
 } from './handlers/auth.handler';
-import { handleVerifySession } from './handlers/session.handler';
+import { handleVerifySession, handleListSessions, handleRevokeSession, handleRevokeOtherSessions } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
 import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from './handlers/api-key.handler';
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
@@ -470,5 +470,29 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresStepUp: true,
     successMessage: 'Retention purge completed successfully',
     handler: (ctx, session) => handlePurgeExpired(ctx, session),
+  },
+  {
+    name: 'list_sessions',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.SESSIONS,
+    requiresAuth: true,
+    successMessage: 'Active sessions retrieved successfully',
+    handler: (ctx, session) => handleListSessions(ctx.service, session.sub, ctx.headers?.['x-session-family']),
+  },
+  {
+    name: 'revoke_session',
+    method: HTTP_METHODS.DELETE,
+    pattern: `${AUTH_ENDPOINTS.SESSIONS}/:id`,
+    requiresAuth: true,
+    successMessage: 'Session successfully terminated',
+    handler: (ctx, session) => handleRevokeSession(ctx.service, session.sub, ctx.params?.id ?? ''),
+  },
+  {
+    name: 'revoke_other_sessions',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.SESSIONS,
+    requiresAuth: true,
+    successMessage: 'All other sessions successfully terminated',
+    handler: (ctx, session) => handleRevokeOtherSessions(ctx.service, session.sub, ctx.headers?.['x-session-family']),
   },
 ];

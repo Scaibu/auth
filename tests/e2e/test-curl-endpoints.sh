@@ -296,11 +296,28 @@ echo -e "\n--- [37/37] DELETE /api/v1/auth/organizations/:id (Soft-Delete Organi
 DEL_ORG_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/organizations/${SEC_ORG_ID}")
 echo "${DEL_ORG_RESP}"
 
+echo -e "\n--- [38/40] GET /api/v1/auth/sessions (Multi-Device Active Sessions Enumeration - OWASP ASVS 3.3) ---"
+SESSIONS_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/sessions" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}" \
+  -H "x-session-family: fam_primary_laptop")
+echo "${SESSIONS_RESP}"
+
+echo -e "\n--- [39/40] DELETE /api/v1/auth/sessions/:id (Single Remote Device Session Termination - OWASP ASVS 3.3) ---"
+REVOKE_SINGLE_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/sessions/fam_test_remote_device_001" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}")
+echo "${REVOKE_SINGLE_RESP}"
+
+echo -e "\n--- [40/40] DELETE /api/v1/auth/sessions (Bulk Terminate All Other Sessions - OWASP ASVS 3.3) ---"
+REVOKE_ALL_OTHER_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/sessions" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}" \
+  -H "x-session-family: fam_primary_laptop")
+echo "${REVOKE_ALL_OTHER_RESP}"
+
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
   -H "Authorization: Bearer ${SWITCHED_TOKEN}")
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 37 Auth Endpoints Executed and Verified Successfully! "
+echo " All 40 Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
