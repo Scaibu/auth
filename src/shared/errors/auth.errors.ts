@@ -115,3 +115,19 @@ export class MfaAlreadyEnabledError extends AuthError {
   }
 }
 
+export class StepUpRequiredError extends AuthError {
+  readonly maxAge: number;
+
+  constructor(maxAge = 300, message = 'Step-up authentication required for high-value action') {
+    super(message, 'STEP_UP_REQUIRED', 403);
+    this.maxAge = maxAge;
+  }
+}
+
+export class StepUpTokenExpiredError extends AuthError {
+  constructor(message = 'Step-up authentication token has expired or is invalid') {
+    super(message, 'STEP_UP_TOKEN_EXPIRED', 403);
+  }
+}
+
+

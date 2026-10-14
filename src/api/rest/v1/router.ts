@@ -94,10 +94,25 @@ export class AuthRestV1Router {
         const authHeader = headers?.[AUTH_CONSTANTS.HEADERS.AUTHORIZATION] ?? headers?.[AUTH_CONSTANTS.HEADERS.AUTHORIZATION_CAMEL];
         let session: any = undefined;
 
-        if (rule.requiresAuth) {
-          session = await handleVerifySession(this.service, authHeader);
-          if (session?.payload?.sub) span.setAttribute('user.id', session.payload.sub);
-          if (session?.payload?.org?.org_id) span.setAttribute('org.id', session.payload.org.org_id);
+        if (rule.requiresAuth || authHeader) {
+          try {
+            session = await handleVerifySession(this.service, authHeader);
+            const sub = session?.sub ?? session?.payload?.sub;
+            const orgId = session?.org?.org_id ?? session?.payload?.org?.org_id;
+            if (sub) span.setAttribute('user.id', sub);
+            if (orgId) span.setAttribute('org.id', orgId);
+          } catch (sessionErr) {
+            if (rule.requiresAuth) throw sessionErr;
+          }
+        }
+
+        if (rule.requiresStepUp) {
+          const reauthToken = headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN] ?? headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN_CAMEL];
+          const userId = session?.sub ?? session?.payload?.sub;
+          if (!userId) {
+            throw new UnauthorizedError('Authentication required for step-up enforcement');
+          }
+          this.service.assertStepUp(userId, reauthToken);
         }
 
         const ctx: RouteContext = {
@@ -132,7 +147,11 @@ export class AuthRestV1Router {
         span.setAttribute('error.code', errorRes.payload.error?.code ?? 'UNKNOWN_ERROR');
         span.setAttribute('error.message', errorRes.payload.message);
         span.setAttribute('http.status_code', errorRes.statusCode);
-        return errorRes;
+        return {
+          statusCode: errorRes.statusCode,
+          payload: errorRes.payload,
+          headers: errorRes.headers,
+        };
       }
     });
   }

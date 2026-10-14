@@ -35,6 +35,8 @@ export const AUTH_CONSTANTS = {
     FORWARDED_FOR: 'x-forwarded-for',
     USER_AGENT: 'user-agent',
     BEARER_PREFIX: 'Bearer ',
+    REAUTH_TOKEN: 'x-reauth-token',
+    REAUTH_TOKEN_CAMEL: 'X-Reauth-Token',
   },
 
   SECURITY_REASONS: {

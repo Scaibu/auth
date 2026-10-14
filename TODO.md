@@ -14,7 +14,7 @@
 
 | Domain | Capability | RFC / Standard | Current Status | Milestone | Priority |
 |---|---|---|---|---|---|
-| **Security & Defense** | Step-Up Authentication for High-Value Actions (incl. Impersonation) | RFC 9470 | ⏳ **Pending** | v1.1 | **P1** |
+| **Security & Defense** | Step-Up Authentication for High-Value Actions (incl. Impersonation) | RFC 9470 | ✅ **Completed (ADR 0013)** | v1.1 | **P1** |
 | **Session Management** | Refresh Token Rotation & Family Reuse Detection | RFC 6749 §10.4 | ⏳ **Pending** | v1.1 | **P1** |
 | **Core Authentication** | Breached Password Screening (HaveIBeenPwned k-Anonymity) | NIST SP 800-63B | ⏳ **Pending** | v1.1 | **P1** |
 | **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ⏳ **Pending** | v1.1 | **P1** |

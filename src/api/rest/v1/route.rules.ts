@@ -30,7 +30,9 @@ import { handleForgotPassword, handleResetPassword, handleChangePassword } from 
 import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from './handlers/api-key.handler';
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
 import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
+import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa } from './handlers/step-up.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
+import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 
 export interface RouteContext {
   service: AuthService;
@@ -46,6 +48,7 @@ export interface RouteRule {
   method: string;
   pattern: string;
   requiresAuth?: boolean;
+  requiresStepUp?: boolean;
   successStatus?: number;
   successMessage: string;
   handler: (ctx: RouteContext, session?: any) => Promise<any>;
@@ -173,6 +176,8 @@ export const ROUTE_RULES: RouteRule[] = [
     name: 'delete_organization',
     method: HTTP_METHODS.DELETE,
     pattern: `${AUTH_ENDPOINTS.ORGANIZATIONS}/:id`,
+    requiresAuth: true,
+    requiresStepUp: true,
     successMessage: 'Organization soft-deleted with 30-day backup retention',
     handler: (ctx) => handleDeleteOrganization(ctx.service, ctx.params['id']!),
   },
@@ -235,8 +240,14 @@ export const ROUTE_RULES: RouteRule[] = [
     name: 'update_user_role',
     method: HTTP_METHODS.PATCH,
     pattern: `${AUTH_ENDPOINTS.USERS}/:id/role`,
+    requiresAuth: true,
     successMessage: 'User role updated',
-    handler: async (ctx) => {
+    handler: async (ctx, session) => {
+      const targetRole = ctx.body?.role;
+      if (targetRole === 'admin' || targetRole === 'owner') {
+        const reauthToken = ctx.headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN] ?? ctx.headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN_CAMEL];
+        ctx.service.assertStepUp(session.sub, reauthToken);
+      }
       await handleUpdateUserRole(ctx.service, ctx.params['id']!, ctx.body);
       return null;
     },
@@ -286,7 +297,18 @@ export const ROUTE_RULES: RouteRule[] = [
     pattern: AUTH_ENDPOINTS.API_KEYS,
     successStatus: 201,
     successMessage: 'API key successfully created',
-    handler: (ctx) => handleCreateApiKey(ctx.service, ctx.body),
+    handler: (ctx, session) => {
+      const keyType = ctx.body?.key_type;
+      if (keyType === 'super_secret') {
+        const userId = session?.sub ?? session?.payload?.sub;
+        if (!userId) {
+          throw new UnauthorizedError('Authentication required to create super_secret keys');
+        }
+        const reauthToken = ctx.headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN] ?? ctx.headers?.[AUTH_CONSTANTS.HEADERS.REAUTH_TOKEN_CAMEL];
+        ctx.service.assertStepUp(userId, reauthToken);
+      }
+      return handleCreateApiKey(ctx.service, ctx.body);
+    },
   },
   {
     name: 'verify_api_key',
@@ -364,5 +386,31 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'MFA recovery codes regenerated',
     handler: (ctx, session) => handleMfaRegenerateRecoveryCodes(ctx, session),
+  },
+  {
+    name: 'step_up_verify',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.STEP_UP_VERIFY,
+    requiresAuth: true,
+    successMessage: 'Step-up authentication successful',
+    handler: (ctx, session) => handleStepUpVerify(ctx, session),
+  },
+  {
+    name: 'admin_impersonate',
+    method: HTTP_METHODS.POST,
+    pattern: `${AUTH_ENDPOINTS.ADMIN_IMPERSONATE}/:id`,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'User impersonated successfully',
+    handler: (ctx, session) => handleImpersonateUser(ctx, session),
+  },
+  {
+    name: 'mfa_disable',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MFA_DISABLE,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'MFA disabled successfully',
+    handler: (ctx, session) => handleDisableMfa(ctx, session),
   },
 ];

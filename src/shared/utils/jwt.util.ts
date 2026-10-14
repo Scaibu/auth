@@ -33,6 +33,41 @@ export function generateMfaChallengeToken(userId: string, email: string, orgId: 
   return `${encodedPayload}.${signature}`;
 }
 
+export function generateReauthToken(userId: string, email: string, expiresInSeconds = 300): string {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    type: 'reauth_token',
+    sub: userId,
+    email,
+    iat: now,
+    exp: now + expiresInSeconds,
+    jti: `reauth_${Math.random().toString(36).substring(2, 15)}`,
+  };
+  const encodedPayload = btoa(JSON.stringify(payload));
+  const signature = btoa(`reauth_sig_${userId}_${now}`);
+  return `${encodedPayload}.${signature}`;
+}
+
+export function verifyReauthToken(token: string): { type: string; sub: string; email: string; exp: number } {
+  const parts = token.split('.');
+  const payloadPart = parts[0];
+  if (!payloadPart) {
+    throw new TokenExpiredError();
+  }
+
+  try {
+    const json = JSON.parse(atob(payloadPart)) as any;
+    const now = Math.floor(Date.now() / 1000);
+    if (!json || json.type !== 'reauth_token' || json.exp < now) {
+      throw new TokenExpiredError();
+    }
+    return json;
+  } catch {
+    throw new TokenExpiredError();
+  }
+}
+
+
 
 export function verifyToken(token: string): AuthTokenPayload {
   const parts = token.split('.');

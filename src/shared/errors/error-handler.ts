@@ -20,10 +20,15 @@ export function createSuccessResponse<T>(data: T, message = 'Operation completed
   };
 }
 
-export function createErrorResponse(err: unknown): { statusCode: number; payload: StandardApiResponse<null> } {
+export function createErrorResponse(err: unknown): { statusCode: number; payload: StandardApiResponse<null>; headers?: Record<string, string> } {
   if (err instanceof AuthError) {
+    const headers: Record<string, string> = {};
+    if (err.code === 'STEP_UP_REQUIRED') {
+      headers['WWW-Authenticate'] = `StepUp max_age=${(err as any).maxAge ?? 300}`;
+    }
     return {
       statusCode: err.statusCode,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       payload: {
         status: 'error',
         message: err.message,
