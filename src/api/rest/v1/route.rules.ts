@@ -33,6 +33,7 @@ import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerat
 import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa } from './handlers/step-up.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
+import { UnauthorizedError } from '../../../shared/errors/auth.errors';
 
 export interface RouteContext {
   service: AuthService;

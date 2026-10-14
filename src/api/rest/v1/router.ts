@@ -3,6 +3,7 @@ import type { AuthService } from '../../../features/auth/service';
 import { handleVerifySession } from './handlers/session.handler';
 import { withSpan } from '../../../infra/tracing/tracer';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
+import { UnauthorizedError } from '../../../shared/errors/auth.errors';
 import { createSuccessResponse, createErrorResponse, type StandardApiResponse } from '../../../shared/errors/error-handler';
 import { ROUTE_RULES, type RouteContext, type RouteRule } from './route.rules';
 
