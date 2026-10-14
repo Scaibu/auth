@@ -30,6 +30,10 @@ services:
       - OTEL_EXPORTER_OTLP_GRPC_ENDPOINT=llmobs-otel-collector:4317
       - OTEL_SERVICE_NAME=auth-service
       - OTEL_EXPORTER_OTLP_INSECURE=true
+      - AUTH_BREACHED_PASSWORD_ENABLED=true
+      - AUTH_BREACHED_PASSWORD_BASE_URL=https://api.pwnedpasswords.com/range
+      - AUTH_BREACHED_PASSWORD_TIMEOUT_MS=1500
+      - AUTH_BREACHED_PASSWORD_USER_AGENT=llm-observability-auth/1.0.0
     depends_on:
       auth-db:
         condition: service_healthy

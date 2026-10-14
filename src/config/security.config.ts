@@ -22,9 +22,17 @@ export interface SessionDenylistConfig {
   defaultTtlSeconds: number;
 }
 
+export interface BreachedPasswordConfig {
+  enabled: boolean;
+  baseUrl: string;
+  timeoutMs: number;
+  userAgent: string;
+}
+
 export interface SecurityLimitsConfig {
   rateLimit: RateLimitConfig;
   sessionDenylist: SessionDenylistConfig;
+  breachedPassword: BreachedPasswordConfig;
 }
 
 export const DEFAULT_SECURITY_CONFIG: SecurityLimitsConfig = Object.freeze({
@@ -39,7 +47,14 @@ export const DEFAULT_SECURITY_CONFIG: SecurityLimitsConfig = Object.freeze({
     keyPrefix: 'auth:denylist:',
     defaultTtlSeconds: 3600,
   }),
+  breachedPassword: Object.freeze({
+    enabled: process.env.NODE_ENV !== 'test',
+    baseUrl: 'https://api.pwnedpasswords.com/range',
+    timeoutMs: 1500,
+    userAgent: 'llm-observability-auth/1.0.0',
+  }),
 });
+
 
 export function loadSecurityConfig(): SecurityLimitsConfig {
   return Object.freeze({
@@ -80,5 +95,18 @@ export function loadSecurityConfig(): SecurityLimitsConfig {
         10,
       ),
     }),
+    breachedPassword: Object.freeze({
+      enabled: process.env.AUTH_BREACHED_PASSWORD_ENABLED !== undefined
+        ? process.env.AUTH_BREACHED_PASSWORD_ENABLED === 'true'
+        : DEFAULT_SECURITY_CONFIG.breachedPassword.enabled,
+      baseUrl: process.env.AUTH_BREACHED_PASSWORD_BASE_URL || DEFAULT_SECURITY_CONFIG.breachedPassword.baseUrl,
+      timeoutMs: parseInt(
+        process.env.AUTH_BREACHED_PASSWORD_TIMEOUT_MS ||
+          String(DEFAULT_SECURITY_CONFIG.breachedPassword.timeoutMs),
+        10,
+      ),
+      userAgent: process.env.AUTH_BREACHED_PASSWORD_USER_AGENT || DEFAULT_SECURITY_CONFIG.breachedPassword.userAgent,
+    }),
   });
 }
+

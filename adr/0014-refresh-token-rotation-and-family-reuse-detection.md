@@ -270,20 +270,63 @@ stateDiagram-v2
 ### 5.1 Token Format & High-Entropy Generation
 Tokens are generated using cryptographically secure pseudorandom number generators (`crypto.randomBytes`):
 - **Raw Token String**: Prefix `rt_` followed by 32 bytes of cryptographic randomness (64 hexadecimal characters):
-  $$\text{Raw Token} = \text{"rt\_"} \parallel \text{hex}(\text{randomBytes}(32))$$
+  `Raw Token = "rt_" || hex(randomBytes(32))`
 - **Family Identifier**: Prefix `rtf_` followed by 12 bytes of randomness:
-  $$\text{Family ID} = \text{"rtf\_"} \parallel \text{hex}(\text{randomBytes}(12))$$
+  `Family ID = "rtf_" || hex(randomBytes(12))`
 - **Token Identifier**: Prefix `rtk_` followed by 12 bytes of randomness:
-  $$\text{Token ID} = \text{"rtk\_"} \parallel \text{hex}(\text{randomBytes}(12))$$
+  `Token ID = "rtk_" || hex(randomBytes(12))`
 
 ### 5.2 SHA-256 One-Way Hash at Rest Invariant
 Under zero conditions are plaintext refresh tokens stored in the database. When a token is minted:
 1. `rawToken` is transmitted to the client.
 2. The database receives strictly the hexadecimal digest of `SHA-256(rawToken)`:
-  $$\text{token\_hash} = \text{SHA-256}(\text{rawToken})$$
+  `token_hash = SHA-256(rawToken)`
 3. When rotating, incoming tokens are hashed before executing index lookups. Even a catastrophic database dump yields zero usable plaintext refresh credentials.
 
-### 5.3 Database Relational Schema & Indexing Topology
+
+### 5.3 Database Relational Schema, ERD & Indexing Topology
+
+The refresh token subsystem maintains a cryptographically isolated tree structure linked to user entities:
+
+```mermaid
+erDiagram
+    auth_users ||--o{ auth_refresh_token_families : roots
+    auth_users ||--o{ auth_refresh_tokens : owns
+    auth_refresh_token_families ||--|{ auth_refresh_tokens : tracks_generations
+
+    auth_users {
+        string id PK "usr_*"
+        string org_id FK "org_*"
+        string email UK "Normalized lowercase"
+        string password_hash "Argon2id"
+        string name "User full name"
+        string role "admin | member | viewer"
+        boolean blocked "Account locked flag"
+    }
+
+    auth_refresh_token_families {
+        string id PK "rtf_* (Family identifier)"
+        string user_id FK "References auth_users.id"
+        bigint created_at_ms "Initial family creation timestamp"
+        boolean is_revoked "Family killswitch status"
+        string revoked_reason "e.g. TOKEN_REUSE_DETECTED"
+        timestamptz updated_at "Row updated timestamp"
+    }
+
+    auth_refresh_tokens {
+        string token_id PK "rtk_* (Node identifier)"
+        string family_id FK "References auth_refresh_token_families.id"
+        string user_id FK "References auth_users.id"
+        string token_hash UK "SHA-256 digest of raw token"
+        int generation "1, 2, 3... generation sequence"
+        boolean is_revoked "Individual node revocation"
+        bigint expires_at_ms "7-day sliding expiry UTC ms"
+        bigint created_at_ms "Node creation timestamp"
+        bigint consumed_at_ms "Rotation consumption timestamp"
+        string created_ip "Ingress client IP"
+        string user_agent "Client User-Agent fingerprint"
+    }
+```
 
 ```sql
 -- Family Root Table
@@ -321,6 +364,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_refresh_tokens_expires_at ON auth_refresh_to
 ```
 
 ---
+
 
 ## 📦 6. RFC 6749 & Platform Response Envelope Conformance
 

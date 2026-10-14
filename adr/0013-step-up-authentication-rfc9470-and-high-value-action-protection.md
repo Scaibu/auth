@@ -66,21 +66,22 @@ flowchart TD
         AuditPurgeHandler["DELETE /api/v1/audit/logs<br/>(Immutable Log Purge)"]
     end
 
-    SPA -->|1. POST guarded action (Bearer only)| Router
+    SPA -->|"1. POST guarded action (Bearer only)"| Router
     Router --> AuthMiddleware
     AuthMiddleware --> PolicyGate
     PolicyGate --> HeaderCheck
 
-    HeaderCheck -- No -->|2. HTTP 403 Forbidden<br/>WWW-Authenticate: StepUp max_age=300| SPA
-    SPA -->|3. POST /api/v1/auth/step-up/reauth<br/>(Password or TOTP)| ReauthService
+    HeaderCheck -- No -->|"2. HTTP 403 Forbidden<br/>WWW-Authenticate: StepUp max_age=300"| SPA
+    SPA -->|"3. POST /api/v1/auth/step-up/reauth<br/>(Password or TOTP)"| ReauthService
     ReauthService --> TokenCrypto
-    TokenCrypto -->|4. Return 300s Re-Auth Token| SPA
+    TokenCrypto -->|"4. Return 300s Re-Auth Token"| SPA
 
-    SPA -->|5. POST guarded action<br/>Bearer + x-reauth-token| Router
+    SPA -->|"5. POST guarded action<br/>Bearer + x-reauth-token"| Router
     HeaderCheck -- Yes --> StepUpService
-    StepUpService -->|Verify signature, expiry, user binding| PolicyGate
-    PolicyGate -->|6. Authorized| ApiKeyHandler
+    StepUpService -->|"Verify signature, expiry, user binding"| PolicyGate
+    PolicyGate -->|"6. Authorized"| ApiKeyHandler
 ```
+
 
 ---
 
@@ -269,7 +270,8 @@ The re-authentication token uses standard base64url serialization with an HMAC-S
 ```
 
 Validation invariant:
-$$\text{Signature} = \text{HMAC-SHA256}(K_{\text{stepup}}, \text{Base64Url}(\text{Header}) \parallel "." \parallel \text{Base64Url}(\text{Payload}))$$
+`Signature = HMAC-SHA256(K_stepup, Base64Url(Header) + "." + Base64Url(Payload))`
+
 
 Comparison is executed via `crypto.timingSafeEqual` to eliminate side-channel timing attacks.
 
@@ -280,7 +282,72 @@ Comparison is executed via `crypto.timingSafeEqual` to eliminate side-channel ti
   `WWW-Authenticate: StepUp max_age=300`
 - Once the time window has elapsed, the token is permanently invalid; no refresh token exists for step-up tokens.
 
+### 5.3 Relational Entity Relationship Diagram (ERD)
+
+Although step-up tokens are stateless and cryptographically signed (HMAC-SHA256) without database writes to ensure zero-latency verification ($<0.01\text{ms}$), they tightly bind to the database identity schema and audit log pipeline:
+
+```mermaid
+erDiagram
+    auth_users ||--o{ auth_audit_logs : generates
+    auth_users ||--o{ auth_user_mfa : configures
+    auth_users ||--o{ auth_api_keys : owns
+    auth_organizations ||--o{ auth_users : contains
+    auth_organizations ||--o{ auth_api_keys : contains
+
+    auth_users {
+        string id PK "usr_*"
+        string org_id FK "org_*"
+        string email UK "Normalized lowercase"
+        string password_hash "Argon2id"
+        string name "User full name"
+        string role "admin | member | viewer"
+        boolean blocked "Account locked flag"
+        bigint created_at_ms "Timestamp UTC ms"
+        bigint deleted_at_ms "Soft delete timestamp"
+    }
+
+    auth_user_mfa {
+        string user_id PK,FK "References auth_users.id"
+        string secret "Base32 TOTP secret"
+        boolean enabled "MFA active state"
+        bigint verified_at_ms "Enrollment timestamp"
+    }
+
+    auth_api_keys {
+        string key_id PK "ak_*"
+        string user_id FK "Owner reference"
+        string org_id FK "Tenant reference"
+        string key_hash "Argon2id hash"
+        string tier "general | testing | super_secret"
+        boolean revoked "Active or revoked"
+        bigint expires_at_ms "Expiration timestamp"
+    }
+
+    auth_audit_logs {
+        string log_id PK "aud_*"
+        string user_id FK "Actor user"
+        string org_id FK "Tenant context"
+        string event_type "HIGH_VALUE_ACTION_EXECUTED"
+        string ip_address "Client IP"
+        string user_agent "Client User-Agent"
+        string metadata_json "Step-Up method & audit context"
+        bigint created_at_ms "Event timestamp"
+    }
+
+    ephemeral_step_up_token {
+        string sub "Bound to auth_users.id"
+        string purpose "step_up"
+        string method "password | totp"
+        bigint auth_time "Epoch issuance seconds"
+        bigint exp "auth_time + 300s TTL"
+        string hmac_sha256 "Cryptographic signature"
+    }
+
+    auth_users ..> ephemeral_step_up_token : "issues JIT proof for"
+```
+
 ---
+
 
 ## 📜 6. RFC 9470 Header Specifications & Status Envelopes
 

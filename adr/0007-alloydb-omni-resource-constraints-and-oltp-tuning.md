@@ -90,9 +90,10 @@ flowchart TD
 
         TotalRAM -.-> SiblingServices
         TotalRAM -.-> AuthStack
-        AuthApp -->|Connection Pool (max 20)| AuthDB
+        AuthApp -->|"Connection Pool (max 20)"| AuthDB
     end
 ```
+
 
 ---
 

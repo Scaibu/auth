@@ -17,7 +17,9 @@ import {
   InvalidCredentialsError,
   UserBlockedError,
   UserAlreadyExistsError,
+  BreachedPasswordError,
 } from '../../../shared/errors/auth.errors';
+
 
 export * from './login-rate-limit.rules';
 
@@ -127,9 +129,20 @@ export const DEFAULT_SESSION_VALIDATION_RULES: readonly Rule[] = Object.freeze([
 
 export const SIGN_UP_RULE_IDS = Object.freeze({
   USER_ALREADY_EXISTS: 'auth.rule.signup_user_already_exists',
+  PASSWORD_BREACHED: 'auth.rule.password_breached',
 } as const);
 
 export const DEFAULT_SIGN_UP_RULES: readonly Rule[] = Object.freeze([
+  {
+    id: SIGN_UP_RULE_IDS.PASSWORD_BREACHED,
+    name: 'Reject sign-up if candidate password was found in public data breaches',
+    category: 'security',
+    priority: 110,
+    effect: 'deny',
+    conditions: [
+      { field: 'isPasswordBreached', op: 'equals', value: true },
+    ],
+  },
   {
     id: SIGN_UP_RULE_IDS.USER_ALREADY_EXISTS,
     name: 'Reject sign-up if email is already registered',
@@ -143,8 +156,10 @@ export const DEFAULT_SIGN_UP_RULES: readonly Rule[] = Object.freeze([
 ]);
 
 export const DEFAULT_SIGN_UP_ERROR_REGISTRY: ReadonlyMap<string, AuthErrorFactory> = new Map<string, AuthErrorFactory>([
+  [SIGN_UP_RULE_IDS.PASSWORD_BREACHED, () => new BreachedPasswordError()],
   [SIGN_UP_RULE_IDS.USER_ALREADY_EXISTS, (ctx) => new UserAlreadyExistsError(String(ctx.email ?? ''))],
 ]);
+
 
 export interface AuthRule {
   id: string;

@@ -130,4 +130,11 @@ export class StepUpTokenExpiredError extends AuthError {
   }
 }
 
+export class BreachedPasswordError extends AuthError {
+  constructor(message = 'The selected password was found in known public data breaches and cannot be used.') {
+    super(message, 'PASSWORD_BREACHED', 400);
+  }
+}
+
+
 

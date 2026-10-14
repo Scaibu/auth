@@ -62,6 +62,8 @@ import {
 import type { NotificationDomainService } from './notification.service';
 import { hashApiKey } from '../../../shared/utils/argon2.util';
 
+import type { BreachedPasswordDetectorPort } from '../../../shared/ports/breached-password-detector.port';
+
 export class UserAuthDomainService {
   private readonly signInRules: readonly Rule[];
   private readonly sessionValidationRules: readonly Rule[];
@@ -76,6 +78,7 @@ export class UserAuthDomainService {
     private readonly rateLimiterService?: LoginRateLimiterService,
     customSignInRules: readonly Rule[] = [],
     private readonly notificationService?: NotificationDomainService,
+    private readonly breachedPasswordDetector?: BreachedPasswordDetectorPort,
   ) {
     this.signInRules = Object.freeze([...DEFAULT_SIGN_IN_RULES, ...customSignInRules]);
     this.sessionValidationRules = DEFAULT_SESSION_VALIDATION_RULES;
@@ -90,10 +93,15 @@ export class UserAuthDomainService {
     const orgName = normalizeString(validated.organization_name);
     const name = normalizeString(validated.name);
 
+    const isPasswordBreached = this.breachedPasswordDetector
+      ? await this.breachedPasswordDetector.checkIsPasswordPwned(validated.password)
+      : false;
+
     const existingUser = await this.repo.findUserByEmail(email);
     const evalCtx: Readonly<Record<string, unknown>> = Object.freeze({
       email,
       userExists: Boolean(existingUser),
+      isPasswordBreached,
     });
 
     const resolved = await resolveRules(this.signUpRules, evalCtx);
@@ -106,6 +114,7 @@ export class UserAuthDomainService {
       const errorFactory = this.signUpErrorRegistry.get(topDenial.id);
       throw errorFactory ? errorFactory(evalCtx) : new ValidationError('Sign up rejected');
     }
+
 
     const passwordHash = await withSpan('Argon2id Password Hash', async (span) => {
       span.setAttribute('crypto.algorithm', 'argon2id');

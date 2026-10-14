@@ -1,6 +1,13 @@
 # Auth Contracts Changelog
 
+## [1.2.0] - 2026-10-14
+### Added
+- Breached Password Screening (NIST SP 800-63B k-Anonymity):
+  - Documented `HTTP 400 Bad Request` with canonical error code `PASSWORD_BREACHED` for candidate passwords appearing in public breach dumps.
+  - Enforced across `POST /api/v1/auth/sign-up`, `POST /api/v1/auth/reset-password`, and `POST /api/v1/auth/change-password`.
+
 ## [1.1.0] - 2026-09-19
+
 ### Added
 - OpenAPI 3.0 endpoints for Email Verification:
   - `POST /api/v1/auth/verify-email`: Single-use cryptographic token verification.

@@ -54,6 +54,10 @@ import { StepUpDomainService, type StepUpVerifyInput } from './services/step-up.
 import { RefreshTokenService, type RefreshTokenResult } from './services/refresh-token.service';
 import type { MfaPort, MfaSetupResult, MfaVerificationResult } from '../../shared/ports/mfa.port';
 
+import type { BreachedPasswordDetectorPort } from '../../shared/ports/breached-password-detector.port';
+import { HaveIBeenPwnedAdapter } from '../../infra/adapters/security/pwned-passwords.adapter';
+
+
 export class AuthService {
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
@@ -74,10 +78,18 @@ export class AuthService {
     mailer?: MailerPort,
     notificationConfig?: NotificationConfig,
     mfaPort?: MfaPort,
+    breachedPasswordDetector?: BreachedPasswordDetectorPort,
   ) {
     const notificationService = mailer
       ? new NotificationDomainService(mailer, notificationConfig ?? { from: 'noreply@auth.local' })
       : undefined;
+
+    const isBreachedCheckEnabled = securityConfig?.breachedPassword?.enabled ?? (process.env.NODE_ENV !== 'test');
+    const breachedDetector = breachedPasswordDetector ?? (isBreachedCheckEnabled ? new HaveIBeenPwnedAdapter({
+      baseUrl: securityConfig?.breachedPassword?.baseUrl ?? 'https://api.pwnedpasswords.com/range',
+      timeoutMs: securityConfig?.breachedPassword?.timeoutMs ?? 1500,
+      userAgent: securityConfig?.breachedPassword?.userAgent ?? 'llm-observability-auth/1.0.0',
+    }) : undefined);
 
     this.orgService = new OrganizationDomainService(repo);
     this.userService = new UserManagementDomainService(repo, notificationService);
@@ -90,8 +102,9 @@ export class AuthService {
       rateLimiterService,
       customSignInRules,
       notificationService,
+      breachedDetector,
     );
-    this.passwordService = new PasswordDomainService(repo, notificationService);
+    this.passwordService = new PasswordDomainService(repo, notificationService, breachedDetector);
     this.apiKeyService = new ApiKeyDomainService(repo, cache);
     this.auditLogService = new AuditLogDomainService(repo);
     const mfa = mfaPort ?? new TotpMfaAdapter();
@@ -99,6 +112,7 @@ export class AuthService {
     this.stepUpService = new StepUpDomainService(repo, mfa);
     this.refreshTokenService = new RefreshTokenService(repo);
   }
+
 
   async issueInitialRefreshToken(userId: string, ip?: string, userAgent?: string): Promise<string> {
     return this.refreshTokenService.issueInitialRefreshToken(userId, ip, userAgent);

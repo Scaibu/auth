@@ -21,7 +21,18 @@ echo -e "\n--- [3/34] GET /api/v1/auth/health (V1 Health Check) ---"
 V1_HEALTH_RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "${BASE_URL}/api/v1/auth/health")
 echo "${V1_HEALTH_RESP}"
 
-echo -e "\n--- [4/34] POST /api/v1/auth/sign-up (Register Admin & Org) ---"
+echo -e "\n--- [3b/34] POST /api/v1/auth/sign-up (Negative Test: Reject Known Breached Password) ---"
+BREACHED_SIGNUP_RAW=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-up" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "breached_attempt@observability.io",
+    "password": "Password123!",
+    "name": "Breached User",
+    "organization_name": "Breached Org"
+  }')
+echo "${BREACHED_SIGNUP_RAW}"
+
+echo -e "\n--- [4/34] POST /api/v1/auth/sign-up (Register Admin & Org with Secure Password) ---"
 TIMESTAMP=$(date +%s)
 ADMIN_EMAIL="admin_${TIMESTAMP}@observability.io"
 ORG_NAME="Org Primary ${TIMESTAMP}"
@@ -42,6 +53,7 @@ PRIMARY_ORG_ID=$(echo "${SIGNUP_RAW}" | node -e "const fs=require('fs'); const d
 ADMIN_USER_ID=$(echo "${SIGNUP_RAW}" | node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(0, 'utf-8')); console.log(d.data?.user?.id || '');")
 
 echo -e "\n--- [5/34] POST /api/v1/auth/sign-in (Sign In Authenticated User) ---"
+
 SIGNIN_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-in" \
   -H "Content-Type: application/json" \
   -H "X-Forwarded-For: 198.51.100.24" \

@@ -15,8 +15,9 @@
 import type { AuthRepositoryPort } from '../repository';
 import type { ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput } from '../types';
 import type { NotificationDomainService } from './notification.service';
+import type { BreachedPasswordDetectorPort } from '../../../shared/ports/breached-password-detector.port';
 import { ResetPasswordInputSchema, ChangePasswordInputSchema } from '../schema/auth.schema';
-import { InvalidCredentialsError, ValidationError } from '../../../shared/errors/auth.errors';
+import { InvalidCredentialsError, ValidationError, BreachedPasswordError } from '../../../shared/errors/auth.errors';
 import { hashPassword, verifyPassword, hashApiKey } from '../../../shared/utils/argon2.util';
 import { normalizeString } from '../../../shared/utils/string.util';
 
@@ -24,6 +25,7 @@ export class PasswordDomainService {
   constructor(
     private readonly repo: AuthRepositoryPort,
     private readonly notificationService?: NotificationDomainService,
+    private readonly breachedPasswordDetector?: BreachedPasswordDetectorPort,
   ) {}
 
   async forgotPassword(input: ForgotPasswordInput): Promise<{ resetToken: string }> {
@@ -58,6 +60,13 @@ export class PasswordDomainService {
       throw new ValidationError('Invalid or expired password reset token');
     }
 
+    if (this.breachedPasswordDetector) {
+      const isBreached = await this.breachedPasswordDetector.checkIsPasswordPwned(validated.new_password);
+      if (isBreached) {
+        throw new BreachedPasswordError();
+      }
+    }
+
     const newHash = await hashPassword(validated.new_password);
     await this.repo.updateUserPassword(record.userId, newHash);
     await this.repo.markPasswordResetTokenUsed(tokenHash);
@@ -76,7 +85,15 @@ export class PasswordDomainService {
       throw new InvalidCredentialsError();
     }
 
+    if (this.breachedPasswordDetector) {
+      const isBreached = await this.breachedPasswordDetector.checkIsPasswordPwned(validated.new_password);
+      if (isBreached) {
+        throw new BreachedPasswordError();
+      }
+    }
+
     const newHash = await hashPassword(validated.new_password);
     await this.repo.updateUserPassword(user.id, newHash);
   }
 }
+
