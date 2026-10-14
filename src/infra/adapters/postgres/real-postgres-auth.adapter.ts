@@ -531,13 +531,12 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
   async fetchUserAuditLogs(userId: string, filters?: { event_type?: string; from_ms?: number; to_ms?: number }): Promise<AuditLogRecord[]> {
     const client = await this.pool.connect();
     try {
-      let sql = 'SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms FROM auth_audit_logs WHERE user_id = $1 AND deleted_at IS NULL';
-      const params: any[] = [userId];
-      if (filters?.event_type) { params.push(filters.event_type); sql += ` AND event_type = $${params.length}`; }
-      if (filters?.from_ms) { params.push(filters.from_ms); sql += ` AND timestamp_ms >= $${params.length}`; }
-      if (filters?.to_ms) { params.push(filters.to_ms); sql += ` AND timestamp_ms <= $${params.length}`; }
-      sql += ' ORDER BY timestamp_ms DESC LIMIT 100';
-      const res = await client.query(sql, params);
+      const res = await client.query(AUTH_QUERIES.FLOW_AUDIT_LOGS.FETCH_LOGS_BY_USER_FILTERED, [
+        userId,
+        filters?.event_type ?? null,
+        filters?.from_ms ?? null,
+        filters?.to_ms ?? null,
+      ]);
       return res.rows.map((row: any) => ({
         id: row.id,
         user_id: row.user_id,

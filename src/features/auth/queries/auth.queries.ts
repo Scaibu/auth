@@ -107,6 +107,17 @@ export const AUTH_QUERIES = {
   },
   FLOW_AUDIT_LOGS: {
     FETCH_LOGS_BY_USER: `SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms FROM auth_audit_logs WHERE user_id = $1 AND deleted_at IS NULL ORDER BY timestamp_ms DESC LIMIT 100`,
+    FETCH_LOGS_BY_USER_FILTERED: `
+      SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms
+      FROM auth_audit_logs
+      WHERE user_id = $1
+        AND deleted_at IS NULL
+        AND ($2::text IS NULL OR event_type = $2)
+        AND ($3::bigint IS NULL OR timestamp_ms >= $3)
+        AND ($4::bigint IS NULL OR timestamp_ms <= $4)
+      ORDER BY timestamp_ms DESC
+      LIMIT 100
+    `,
   },
   FLOW_REFRESH_TOKEN: {
     INSERT_FAMILY: `INSERT INTO auth_refresh_token_families (id, user_id, created_at_ms, is_revoked) VALUES ($1, $2, $3, FALSE)`,
