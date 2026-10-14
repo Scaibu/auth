@@ -18,12 +18,16 @@ export async function ensureDatabaseAndRole(options?: DbProvisionOptions): Promi
   const targetPassword = options?.targetPassword ?? AUTH_CONFIG.db.password;
   const targetDatabase = options?.targetDatabase ?? AUTH_CONFIG.db.name;
 
-  const superUsersToTry = [
-    { user: options?.superUser ?? 'alloy_admin', password: options?.superPassword ?? 'alloysecret', db: 'policy_orchestration' },
-    { user: 'postgres', password: 'postgres', db: 'postgres' },
-    { user: 'postgres', password: 'password', db: 'postgres' },
-    { user: targetUser, password: targetPassword, db: targetDatabase },
-  ];
+  const superUser = options?.superUser ?? AUTH_CONFIG.db.superUser;
+  const superPassword = options?.superPassword ?? AUTH_CONFIG.db.superPassword;
+  const superDatabase = options?.superDatabase ?? AUTH_CONFIG.db.superDatabase;
+
+  const superUsersToTry: Array<{ user: string; password?: string; db: string }> = [];
+
+  if (superUser && superPassword && superDatabase) {
+    superUsersToTry.push({ user: superUser, password: superPassword, db: superDatabase });
+  }
+  superUsersToTry.push({ user: targetUser, password: targetPassword, db: targetDatabase });
 
   let adminClient: pg.Client | null = null;
   let connectedUser = '';

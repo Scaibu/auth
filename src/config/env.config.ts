@@ -34,6 +34,9 @@ export const AUTH_CONFIG = Object.freeze({
     password: getRequiredEnv('AUTH_DB_PASSWORD'),
     name: getRequiredEnv('AUTH_DB_NAME'),
     url: getRequiredEnv('DATABASE_URL'),
+    superUser: process.env.AUTH_DB_SUPER_USER,
+    superPassword: process.env.AUTH_DB_SUPER_PASSWORD,
+    superDatabase: process.env.AUTH_DB_SUPER_DB,
   },
   redis: {
     host: getRequiredEnv('AUTH_REDIS_HOST'),
