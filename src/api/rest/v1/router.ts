@@ -46,25 +46,30 @@ export class AuthRestV1Router {
     return null;
   }
 
-  async route(method: string, path: string, body?: unknown, headers?: Record<string, string>, queryParams?: Record<string, string>): Promise<{ statusCode: number; payload: StandardApiResponse<unknown> }> {
+  async route(method: string, path: string, body?: unknown, headers?: Record<string, string>, queryParams?: Record<string, string>): Promise<{ statusCode: number; payload: StandardApiResponse<unknown>; headers?: Record<string, string> }> {
+    const startTimeMs = performance.now();
     return withSpan(`REST ${method} ${path}`, async (span) => {
       span.setAttribute('http.method', method);
       span.setAttribute('http.target', path);
 
-      if (headers) {
-        if (headers['x-request-id']) {
-          span.setAttribute('x-request-id', headers['x-request-id']);
-          span.setAttribute('request_id', headers['x-request-id']);
-        }
-        if (headers['x-correlation-id']) {
-          span.setAttribute('x-correlation-id', headers['x-correlation-id']);
-          span.setAttribute('correlation_id', headers['x-correlation-id']);
-        }
-        if (headers['x-tenant-id']) {
-          span.setAttribute('x-tenant-id', headers['x-tenant-id']);
-          span.setAttribute('tenant_id', headers['x-tenant-id']);
-        }
+      const requestId = headers?.['x-request-id'] ?? `req_${Date.now()}`;
+      const correlationId = headers?.['x-correlation-id'] ?? requestId;
+      const causationId = headers?.['x-causation-id'];
+      const tenantId = headers?.['x-tenant-id'];
+      const clientId = headers?.['x-client-id'];
+      const traceparent = headers?.['traceparent'];
+
+      span.setAttribute('x-request-id', requestId);
+      span.setAttribute('request_id', requestId);
+      span.setAttribute('x-correlation-id', correlationId);
+      span.setAttribute('correlation_id', correlationId);
+      if (causationId) span.setAttribute('x-causation-id', causationId);
+      if (tenantId) {
+        span.setAttribute('x-tenant-id', tenantId);
+        span.setAttribute('tenant_id', tenantId);
       }
+      if (clientId) span.setAttribute('x-client-id', clientId);
+      if (traceparent) span.setAttribute('traceparent', traceparent);
 
       if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
@@ -82,6 +87,15 @@ export class AuthRestV1Router {
           span.setAttribute('org_name', b['organization_name']);
         }
       }
+
+      const getMetaOptions = () => ({
+        requestId,
+        correlationId,
+        causationId,
+        timestamp: new Date().toISOString(),
+        executionTimeMs: Math.round(performance.now() - startTimeMs),
+        apiVersion: '1.0.0',
+      });
 
       try {
         const matched = this.findMatchingRule(method, path);
@@ -131,10 +145,10 @@ export class AuthRestV1Router {
         span.setAttribute('http.status_code', statusCode);
         return {
           statusCode,
-          payload: createSuccessResponse(resultData, rule.successMessage),
+          payload: createSuccessResponse(resultData, rule.successMessage, getMetaOptions(), statusCode),
         };
       } catch (err: unknown) {
-        const errorRes = createErrorResponse(err);
+        const errorRes = createErrorResponse(err, getMetaOptions());
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: errorRes.payload.message,
