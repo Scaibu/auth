@@ -39,6 +39,32 @@ export const AUTH_CONSTANTS = {
     REAUTH_TOKEN_CAMEL: 'X-Reauth-Token',
     REFRESH_TOKEN: 'x-refresh-token',
     REFRESH_TOKEN_CAMEL: 'X-Refresh-Token',
+    X_CONTENT_TYPE_OPTIONS: 'X-Content-Type-Options',
+    X_FRAME_OPTIONS: 'X-Frame-Options',
+    STRICT_TRANSPORT_SECURITY: 'Strict-Transport-Security',
+    CONTENT_SECURITY_POLICY: 'Content-Security-Policy',
+    CONTENT_SECURITY_POLICY_REPORT_ONLY: 'Content-Security-Policy-Report-Only',
+    REFERRER_POLICY: 'Referrer-Policy',
+    PERMISSIONS_POLICY: 'Permissions-Policy',
+    CROSS_ORIGIN_OPENER_POLICY: 'Cross-Origin-Opener-Policy',
+    CROSS_ORIGIN_RESOURCE_POLICY: 'Cross-Origin-Resource-Policy',
+    NOSNIFF: 'nosniff',
+  },
+
+  CSP_DIRECTIVES: {
+    DEFAULT_SRC_SELF: "default-src 'self'",
+    SCRIPT_SRC_PREFIX: "script-src 'nonce-",
+    SCRIPT_SRC_SUFFIX: "' 'strict-dynamic'",
+    OBJECT_SRC_PREFIX: 'object-src ',
+    BASE_URI_PREFIX: 'base-uri ',
+    FRAME_ANCESTORS_PREFIX: 'frame-ancestors ',
+    DELIMITER: '; ',
+  },
+
+  HSTS_DIRECTIVES: {
+    MAX_AGE_PREFIX: 'max-age=',
+    INCLUDE_SUBDOMAINS: '; includeSubDomains',
+    PRELOAD: '; preload',
   },
 
   DEFAULTS: {

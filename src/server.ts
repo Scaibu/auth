@@ -71,14 +71,18 @@ export const service = new AuthService(
   mailerAdapter,
   { from: AUTH_CONFIG.mailer.from, appName: 'LLM Observability', appUrl: process.env.APP_URL || 'http://localhost:3000' },
 );
-export const router = new AuthRestV1Router(service);
+export const router = new AuthRestV1Router(service, AUTH_CONFIG.securityHeaders);
 
 const server = http.createServer((req, res) => {
   const method = req.method ?? HTTP_METHODS.GET;
   const url = req.url ?? AUTH_CONSTANTS.ENDPOINT_ROOT;
 
   if (method === AUTH_CONSTANTS.METHOD_OPTIONS) {
-    res.writeHead(AUTH_CONSTANTS.STATUS_NO_CONTENT, AUTH_CONSTANTS.SECURITY_CONFIG.CORS_HEADERS);
+    res.writeHead(AUTH_CONSTANTS.STATUS_NO_CONTENT, {
+      ...AUTH_CONSTANTS.SECURITY_CONFIG.CORS_HEADERS,
+      [AUTH_CONSTANTS.HEADERS.X_CONTENT_TYPE_OPTIONS]: AUTH_CONSTANTS.HEADERS.NOSNIFF,
+      [AUTH_CONSTANTS.HEADERS.X_FRAME_OPTIONS]: AUTH_CONFIG.securityHeaders.frameOptions,
+    });
     res.end();
     return;
   }

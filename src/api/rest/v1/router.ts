@@ -7,6 +7,8 @@ import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
 import { createSuccessResponse, createErrorResponse, type StandardApiResponse } from '../../../shared/errors/error-handler';
 import { ROUTE_RULES, type RouteContext, type RouteRule } from './route.rules';
+import { computeSecurityHeaders } from '../../../shared/utils/security-headers.engine';
+import { loadSecurityHeadersConfig, type SecurityHeadersConfig } from '../../../config/security-headers.config';
 
 function compilePathPattern(pattern: string): { regex: RegExp; paramNames: string[] } {
   const paramNames: string[] = [];
@@ -24,8 +26,13 @@ interface CompiledRouteRule extends RouteRule {
 
 export class AuthRestV1Router {
   private readonly compiledRules: CompiledRouteRule[];
+  private readonly securityHeadersConfig: SecurityHeadersConfig;
 
-  constructor(private readonly service: AuthService) {
+  constructor(
+    private readonly service: AuthService,
+    securityHeadersConfig?: SecurityHeadersConfig
+  ) {
+    this.securityHeadersConfig = securityHeadersConfig ?? loadSecurityHeadersConfig();
     this.compiledRules = ROUTE_RULES.map((rule) => {
       const { regex, paramNames } = compilePathPattern(rule.pattern);
       return { ...rule, regex, paramNames };
@@ -131,6 +138,9 @@ export class AuthRestV1Router {
           this.service.assertStepUp(userId, reauthToken);
         }
 
+        const { headers: secHeaders, nonce: cspNonce } = computeSecurityHeaders(this.securityHeadersConfig);
+        span.setAttribute('security.csp_nonce', cspNonce);
+
         const ctx: RouteContext = {
           service: this.service,
           body,
@@ -147,9 +157,13 @@ export class AuthRestV1Router {
         return {
           statusCode,
           payload: createSuccessResponse(resultData, rule.successMessage, getMetaOptions(), statusCode),
+          headers: {
+            ...secHeaders,
+          },
         };
       } catch (err: unknown) {
         const errorRes = createErrorResponse(err, getMetaOptions());
+        const { headers: secHeaders } = computeSecurityHeaders(this.securityHeadersConfig);
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: errorRes.payload.message,
@@ -166,7 +180,10 @@ export class AuthRestV1Router {
         return {
           statusCode: errorRes.statusCode,
           payload: errorRes.payload,
-          headers: errorRes.headers,
+          headers: {
+            ...secHeaders,
+            ...(errorRes.headers || {}),
+          },
         };
       }
     });

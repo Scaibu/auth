@@ -6,24 +6,31 @@ export class SecurityEngine {
   private readonly stepUpOtps = new Map<string, { otp: string; expiresAtMs: number }>();
   private readonly ipAccountAttempts = new Map<string, { emails: Set<string>; resetAtMs: number }>();
 
-  public checkBruteForceLockout(email: string): boolean {
+  public checkBruteForceLockout(email: string, nowMs = Date.now()): boolean {
     const record = this.failedAttempts.get(email);
-    if (!record) return false;
-    if (Date.now() < record.lockedUntilMs) return true;
-    if (Date.now() >= record.lockedUntilMs && record.lockedUntilMs > 0) {
-      this.failedAttempts.delete(email);
+    if (record === undefined) {
       return false;
+    }
+
+    const isCurrentlyLocked = record.lockedUntilMs > nowMs;
+    if (isCurrentlyLocked) {
+      return true;
+    }
+
+    if (record.lockedUntilMs > 0) {
+      this.failedAttempts.delete(email);
     }
     return false;
   }
 
-  public recordFailedAttempt(email: string): void {
-    const record = this.failedAttempts.get(email) ?? { count: 0, lockedUntilMs: 0 };
-    record.count += 1;
-    if (record.count >= 5) {
-      record.lockedUntilMs = Date.now() + 15 * 60 * 1000;
-    }
-    this.failedAttempts.set(email, record);
+  public recordFailedAttempt(email: string, nowMs = Date.now()): void {
+    const existing = this.failedAttempts.get(email);
+    const count = (existing?.count ?? 0) + 1;
+    const isLockoutThresholdReached = count >= 5;
+    const lockoutDurationMs = 15 * 60 * 1000;
+    const lockedUntilMs = isLockoutThresholdReached ? nowMs + lockoutDurationMs : 0;
+
+    this.failedAttempts.set(email, { count, lockedUntilMs });
   }
 
   public clearFailedAttempts(email: string): void {

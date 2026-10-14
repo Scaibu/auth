@@ -30,12 +30,16 @@ export function validateEmailAddress(address: string): boolean {
   return EMAIL_REGEX.test(email);
 }
 
+function isNonEmptyString(val: unknown): val is string {
+  return typeof val === 'string' && val.trim().length > 0;
+}
+
 export function validateEmailMessage(message: EmailMessage | undefined | null): MessageValidationResult {
-  if (!message) {
+  if (message === null || message === undefined) {
     return { isValid: false, error: 'Email message object cannot be null or undefined' };
   }
 
-  if (!message.to || typeof message.to !== 'string' || message.to.trim() === '') {
+  if (!isNonEmptyString(message.to)) {
     return { isValid: false, error: 'Missing or empty recipient (to) address' };
   }
 
@@ -43,7 +47,7 @@ export function validateEmailMessage(message: EmailMessage | undefined | null): 
     return { isValid: false, error: `Invalid recipient email address format: '${message.to}'` };
   }
 
-  if (!message.from || typeof message.from !== 'string' || message.from.trim() === '') {
+  if (!isNonEmptyString(message.from)) {
     return { isValid: false, error: 'Missing or empty sender (from) address' };
   }
 
@@ -51,18 +55,18 @@ export function validateEmailMessage(message: EmailMessage | undefined | null): 
     return { isValid: false, error: `Invalid sender email address format: '${message.from}'` };
   }
 
-  if (!message.subject || typeof message.subject !== 'string' || message.subject.trim() === '') {
+  if (!isNonEmptyString(message.subject)) {
     return { isValid: false, error: 'Missing or empty email subject' };
   }
 
-  const hasText = typeof message.textBody === 'string' && message.textBody.trim().length > 0;
-  const hasHtml = typeof message.htmlBody === 'string' && message.htmlBody.trim().length > 0;
+  const hasText = isNonEmptyString(message.textBody);
+  const hasHtml = isNonEmptyString(message.htmlBody);
 
   if (!hasText && !hasHtml) {
     return { isValid: false, error: 'Email message must provide at least textBody or htmlBody content' };
   }
 
-  if (message.replyTo && !validateEmailAddress(message.replyTo)) {
+  if (isNonEmptyString(message.replyTo) && !validateEmailAddress(message.replyTo)) {
     return { isValid: false, error: `Invalid replyTo email address format: '${message.replyTo}'` };
   }
 
