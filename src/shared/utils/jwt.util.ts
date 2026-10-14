@@ -16,6 +16,24 @@ export function createToken(userId: string, email: string, org: TenantContext, e
   return `${encodedPayload}.${signature}`;
 }
 
+export function generateMfaChallengeToken(userId: string, email: string, orgId: string, role: string, expiresInSeconds = 600): string {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    type: 'mfa_challenge',
+    sub: userId,
+    email,
+    org_id: orgId,
+    role,
+    iat: now,
+    exp: now + expiresInSeconds,
+    jti: `mfa_${Math.random().toString(36).substring(2, 15)}`,
+  };
+  const encodedPayload = btoa(JSON.stringify(payload));
+  const signature = btoa(`mfa_sig_${userId}_${now}`);
+  return `${encodedPayload}.${signature}`;
+}
+
+
 export function verifyToken(token: string): AuthTokenPayload {
   const parts = token.split('.');
   const payloadPart = parts[0];
@@ -35,3 +53,23 @@ export function verifyToken(token: string): AuthTokenPayload {
     throw new TokenExpiredError();
   }
 }
+
+export function verifyMfaChallengeToken(token: string): { type: string; sub: string; email: string; org_id: string; role: string; exp: number } {
+  const parts = token.split('.');
+  const payloadPart = parts[0];
+  if (!payloadPart) {
+    throw new TokenExpiredError();
+  }
+
+  try {
+    const json = JSON.parse(atob(payloadPart)) as any;
+    const now = Math.floor(Date.now() / 1000);
+    if (!json || json.type !== 'mfa_challenge' || json.exp < now) {
+      throw new TokenExpiredError();
+    }
+    return json;
+  } catch {
+    throw new TokenExpiredError();
+  }
+}
+

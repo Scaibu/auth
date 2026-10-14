@@ -21,7 +21,7 @@ export const AUTH_QUERIES = {
     FIND_ORG_BY_ID: `SELECT id, name FROM auth_organizations WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
     INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
-    LIST_BY_ORG: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified FROM auth_users WHERE org_id = $1 AND deleted_at IS NULL`,
+    LIST_BY_ORG: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE org_id = $1 AND deleted_at IS NULL`,
     UNBLOCK_USER: `UPDATE auth_users SET blocked = FALSE, blocked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`,
     UPDATE_PROFILE_NAME: `UPDATE auth_users SET name = $1 WHERE id = $2 AND deleted_at IS NULL`,
     UPDATE_ROLE: `UPDATE auth_users SET role = $1 WHERE id = $2 AND deleted_at IS NULL`,
@@ -48,11 +48,11 @@ export const AUTH_QUERIES = {
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
   },
   FLOW_SIGN_IN: {
-    FIND_USER_BY_EMAIL: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified FROM auth_users WHERE email = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_USER_BY_EMAIL: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE email = $1 AND deleted_at IS NULL LIMIT 1`,
     RECORD_AUDIT_LOG: `INSERT INTO auth_audit_logs (id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
   },
   FLOW_SESSION_VERIFY: {
-    FIND_USER_BY_ID: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified FROM auth_users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_USER_BY_ID: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
     ADD_TOKEN_DENYLIST: `INSERT INTO auth_token_denylist (token_hash, expires_at_ms) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
     CHECK_TOKEN_DENYLIST: `SELECT 1 FROM auth_token_denylist WHERE token_hash = $1 AND expires_at_ms > $2 LIMIT 1`,
   },
@@ -82,6 +82,13 @@ export const AUTH_QUERIES = {
     FIND_TOKEN: `SELECT token_hash, user_id, email, expires_at_ms, used FROM auth_email_verifications WHERE token_hash = $1 AND deleted_at IS NULL LIMIT 1`,
     MARK_VERIFIED: `UPDATE auth_email_verifications SET used = TRUE, updated_at = CURRENT_TIMESTAMP WHERE token_hash = $1 AND deleted_at IS NULL`,
     SET_USER_EMAIL_VERIFIED: `UPDATE auth_users SET email_verified = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`,
+  },
+  FLOW_MFA: {
+    SET_SECRET: `UPDATE auth_users SET mfa_secret = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL`,
+    ENABLE_MFA: `UPDATE auth_users SET mfa_enabled = TRUE, mfa_enrolled_at_ms = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL`,
+    INSERT_RECOVERY_CODE: `INSERT INTO auth_recovery_codes (id, user_id, code_hash, used, created_at_ms) VALUES ($1, $2, $3, FALSE, $4)`,
+    FIND_RECOVERY_CODE: `SELECT id, user_id, code_hash, used FROM auth_recovery_codes WHERE user_id = $1 AND code_hash = $2 AND deleted_at IS NULL LIMIT 1`,
+    CONSUME_RECOVERY_CODE: `UPDATE auth_recovery_codes SET used = TRUE, used_at_ms = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL`,
   },
   FLOW_AUDIT_LOGS: {
     FETCH_LOGS_BY_USER: `SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms FROM auth_audit_logs WHERE user_id = $1 AND deleted_at IS NULL ORDER BY timestamp_ms DESC LIMIT 100`,

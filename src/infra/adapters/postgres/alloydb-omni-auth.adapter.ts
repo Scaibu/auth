@@ -344,4 +344,50 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
     return true;
   }
+
+  private readonly mockRecoveryCodes = new Map<string, { id: string; user_id: string; code_hash: string; used: boolean }>();
+
+  async setMfaSecret(userId: string, secret: string): Promise<void> {
+    for (const user of this.mockUsers.values()) {
+      if (user.id === userId && !user.deleted_at) {
+        (user as any).mfa_secret = secret;
+      }
+    }
+  }
+
+  async enableMfa(userId: string, enrolledAtMs: number): Promise<void> {
+    for (const user of this.mockUsers.values()) {
+      if (user.id === userId && !user.deleted_at) {
+        (user as any).mfa_enabled = true;
+        (user as any).mfa_enrolled_at_ms = enrolledAtMs;
+      }
+    }
+  }
+
+  async saveRecoveryCodes(userId: string, codeHashes: string[]): Promise<void> {
+    for (const hash of codeHashes) {
+      const id = `rc_${Math.random().toString(36).substring(2, 15)}`;
+      this.mockRecoveryCodes.set(`${userId}:${hash}`, {
+        id,
+        user_id: userId,
+        code_hash: hash,
+        used: false,
+      });
+    }
+  }
+
+  async findRecoveryCode(userId: string, codeHash: string): Promise<{ id: string; user_id: string; code_hash: string; used: boolean } | null> {
+    const record = this.mockRecoveryCodes.get(`${userId}:${codeHash}`);
+    if (!record) return null;
+    return { ...record };
+  }
+
+  async consumeRecoveryCode(id: string, usedAtMs: number): Promise<void> {
+    for (const record of this.mockRecoveryCodes.values()) {
+      if (record.id === id) {
+        record.used = true;
+        (record as any).used_at_ms = usedAtMs;
+      }
+    }
+  }
 }

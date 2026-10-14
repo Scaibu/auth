@@ -29,6 +29,7 @@ import { handleVerifySession } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
 import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from './handlers/api-key.handler';
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
+import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 
 export interface RouteContext {
@@ -332,5 +333,36 @@ export const ROUTE_RULES: RouteRule[] = [
     pattern: AUTH_ENDPOINTS.RESEND_VERIFICATION,
     successMessage: 'Verification email resent',
     handler: (ctx) => handleResendVerification(ctx.service, ctx.body),
+  },
+  {
+    name: 'mfa_setup',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MFA_SETUP,
+    requiresAuth: true,
+    successMessage: 'MFA setup initiated',
+    handler: (ctx, session) => handleMfaSetup(ctx, session),
+  },
+  {
+    name: 'mfa_verify',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MFA_VERIFY,
+    requiresAuth: true,
+    successMessage: 'MFA verified and enabled',
+    handler: (ctx, session) => handleMfaVerify(ctx, session),
+  },
+  {
+    name: 'mfa_challenge',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MFA_CHALLENGE,
+    successMessage: 'MFA challenge verified',
+    handler: (ctx) => handleMfaChallenge(ctx),
+  },
+  {
+    name: 'mfa_regenerate_recovery_codes',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MFA_RECOVERY_CODES,
+    requiresAuth: true,
+    successMessage: 'MFA recovery codes regenerated',
+    handler: (ctx, session) => handleMfaRegenerateRecoveryCodes(ctx, session),
   },
 ];

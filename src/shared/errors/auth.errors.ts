@@ -87,3 +87,31 @@ export class RateLimitExceededError extends AuthError {
     super(message, 'RATE_LIMIT_EXCEEDED', 429);
   }
 }
+
+export class MfaRequiredError extends AuthError {
+  readonly mfaToken: string;
+
+  constructor(mfaToken: string) {
+    super('Multi-factor authentication required', 'MFA_REQUIRED', 200);
+    this.mfaToken = mfaToken;
+  }
+}
+
+export class InvalidMfaCodeError extends AuthError {
+  constructor(message = 'Invalid or expired MFA verification code') {
+    super(message, 'INVALID_MFA_CODE', 400);
+  }
+}
+
+export class MfaNotConfiguredError extends AuthError {
+  constructor() {
+    super('MFA is not configured or enabled for this user', 'MFA_NOT_CONFIGURED', 400);
+  }
+}
+
+export class MfaAlreadyEnabledError extends AuthError {
+  constructor() {
+    super('MFA is already enabled on this account', 'MFA_ALREADY_ENABLED', 409);
+  }
+}
+

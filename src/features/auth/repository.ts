@@ -42,4 +42,10 @@ export interface AuthRepositoryPort {
   fetchUserAuditLogs(userId: string, filters?: { event_type?: string; from_ms?: number; to_ms?: number }): Promise<AuditLogRecord[]>;
   addTokenToDenylist(token: string, expiresAtMs: number): Promise<void>;
   isTokenDenylisted(token: string): Promise<boolean>;
+  setMfaSecret(userId: string, secret: string): Promise<void>;
+  enableMfa(userId: string, enrolledAtMs: number): Promise<void>;
+  saveRecoveryCodes(userId: string, codeHashes: string[]): Promise<void>;
+  findRecoveryCode(userId: string, codeHash: string): Promise<{ id: string; user_id: string; code_hash: string; used: boolean } | null>;
+  consumeRecoveryCode(id: string, usedAtMs: number): Promise<void>;
 }
+

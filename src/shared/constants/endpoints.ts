@@ -16,6 +16,10 @@ export const AUTH_ENDPOINTS = {
   USERS_INVITE: '/api/v1/auth/users/invite',
   VERIFY_EMAIL: '/api/v1/auth/verify-email',
   RESEND_VERIFICATION: '/api/v1/auth/resend-verification',
+  MFA_SETUP: '/api/v1/auth/mfa/setup',
+  MFA_VERIFY: '/api/v1/auth/mfa/verify',
+  MFA_CHALLENGE: '/api/v1/auth/mfa/challenge',
+  MFA_RECOVERY_CODES: '/api/v1/auth/mfa/recovery-codes',
   HEALTH: '/health',
 } as const;
 

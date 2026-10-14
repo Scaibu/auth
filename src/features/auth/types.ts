@@ -19,6 +19,8 @@ import {
   AuditLogFilterSchema,
   VerifyEmailInputSchema,
   ResendVerificationInputSchema,
+  MfaVerifyInputSchema,
+  MfaChallengeInputSchema,
 } from './schema/auth.schema';
 
 export type CreateOrganizationInput = z.input<typeof CreateOrganizationInputSchema>;
@@ -40,4 +42,6 @@ export type UpdateOrganizationInput = z.input<typeof UpdateOrganizationInputSche
 export type AuditLogFilter = z.input<typeof AuditLogFilterSchema>;
 export type VerifyEmailInput = z.input<typeof VerifyEmailInputSchema>;
 export type ResendVerificationInput = z.input<typeof ResendVerificationInputSchema>;
+export type MfaVerifyInput = z.input<typeof MfaVerifyInputSchema>;
+export type MfaChallengeInput = z.input<typeof MfaChallengeInputSchema>;
 

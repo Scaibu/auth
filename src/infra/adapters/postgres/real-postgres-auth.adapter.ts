@@ -569,4 +569,66 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       client.release();
     }
   }
+
+  async setMfaSecret(userId: string, secret: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_MFA.SET_SECRET, [secret, userId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async enableMfa(userId: string, enrolledAtMs: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_MFA.ENABLE_MFA, [enrolledAtMs, userId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async saveRecoveryCodes(userId: string, codeHashes: string[]): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const now = Date.now();
+      for (const hash of codeHashes) {
+        const id = `rc_${Math.random().toString(36).substring(2, 15)}`;
+        await client.query(AUTH_QUERIES.FLOW_MFA.INSERT_RECOVERY_CODE, [id, userId, hash, now]);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async findRecoveryCode(userId: string, codeHash: string): Promise<{ id: string; user_id: string; code_hash: string; used: boolean } | null> {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(AUTH_QUERIES.FLOW_MFA.FIND_RECOVERY_CODE, [userId, codeHash]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        code_hash: row.code_hash,
+        used: row.used,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  async consumeRecoveryCode(id: string, usedAtMs: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_MFA.CONSUME_RECOVERY_CODE, [usedAtMs, id]);
+    } finally {
+      client.release();
+    }
+  }
 }

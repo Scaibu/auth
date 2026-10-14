@@ -48,6 +48,10 @@ import type { SecurityLimitsConfig } from '../../config/env.config';
 import { SessionDenylistService } from './services/session-denylist.service';
 import { LoginRateLimiterService } from './services/login-rate-limiter.service';
 
+import { TotpMfaAdapter } from '../../infra/adapters/mfa/totp-mfa.adapter';
+import { MfaDomainService } from './services/mfa.service';
+import type { MfaPort, MfaSetupResult, MfaVerificationResult } from '../../shared/ports/mfa.port';
+
 export class AuthService {
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
@@ -55,6 +59,7 @@ export class AuthService {
   private readonly passwordService: PasswordDomainService;
   private readonly apiKeyService: ApiKeyDomainService;
   private readonly auditLogService: AuditLogDomainService;
+  private readonly mfaService: MfaDomainService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -64,6 +69,7 @@ export class AuthService {
     customSignInRules?: readonly Rule[],
     mailer?: MailerPort,
     notificationConfig?: NotificationConfig,
+    mfaPort?: MfaPort,
   ) {
     const notificationService = mailer
       ? new NotificationDomainService(mailer, notificationConfig ?? { from: 'noreply@auth.local' })
@@ -84,6 +90,26 @@ export class AuthService {
     this.passwordService = new PasswordDomainService(repo, notificationService);
     this.apiKeyService = new ApiKeyDomainService(repo, cache);
     this.auditLogService = new AuditLogDomainService(repo);
+    this.mfaService = new MfaDomainService(repo, mfaPort ?? new TotpMfaAdapter());
+  }
+
+  async setupMfa(userId: string): Promise<MfaSetupResult> {
+    return this.mfaService.setupMfa(userId);
+  }
+
+  async verifyAndEnableMfa(userId: string, code: string): Promise<MfaVerificationResult> {
+    return this.mfaService.verifyAndEnableMfa(userId, code);
+  }
+
+  async challengeMfa(
+    mfaToken: string,
+    codeOrRecoveryCode: string
+  ): Promise<{ token: string; user: { id: string; email: string; organization_id: string; role: string }; usedRecoveryCode: boolean }> {
+    return this.mfaService.challengeMfa(mfaToken, codeOrRecoveryCode);
+  }
+
+  async regenerateRecoveryCodes(userId: string, totpCode: string): Promise<{ recoveryCodes: string[] }> {
+    return this.mfaService.regenerateRecoveryCodes(userId, totpCode);
   }
 
   async listOrganizations(userId: string): Promise<OrganizationRecord[]> {

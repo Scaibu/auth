@@ -136,7 +136,20 @@ export const AuthUserEntitySchema = z.object({
   blocked: z.boolean().default(false),
   user_permissions: z.array(z.string()).default([]),
   email_verified: z.boolean().default(false).optional(),
+  mfa_enabled: z.boolean().default(false).optional(),
+  mfa_secret: z.string().nullable().optional(),
+  mfa_enrolled_at_ms: z.number().int().nullable().optional(),
 });
+
+export const MfaVerifyInputSchema = z.object({
+  code: z.string().min(6).max(8, 'Verification code must be 6 digits (or recovery code)'),
+});
+
+export const MfaChallengeInputSchema = z.object({
+  mfa_token: z.string().min(1, 'MFA challenge token is required'),
+  code: z.string().min(6, 'TOTP code or recovery code is required'),
+});
+
 
 export const ApiKeyEntitySchema = z.object({
   key_id: z.string().min(1),

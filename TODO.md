@@ -14,16 +14,7 @@
 
 | Domain | Capability | RFC / Standard | Current Status | Milestone | Priority |
 |---|---|---|---|---|---|
-| **Session Management** | Scoped JWT Issuance (`sub`, `org`, `role`) | RFC 7519 | ✅ **Completed** | Production v1.0 | Core |
-| **Session Management** | Direct Redis $O(1)$ Denylist TTL (ADR 0004 Kill Switch) | ADR 0004 | ✅ **Completed** | v1.0-hotfix | **P0** |
-| **Security & Defense** | Login Rate Limiting (IP Lockout + Email CAPTCHA/Backoff) | RFC 6585 | ✅ **Completed** | v1.0-hotfix | **P0** |
-| **API Key Engine** | 3-Tier API Keys (`ak_gen_`, `ak_tst_`, `ak_sec_`) | Structured Prefixes | ✅ **Completed** | Production v1.0 | Core |
-| **API Key Engine** | Key Expiration (`expires_at_ms`) & Instant Revocation for `ak_sec_` | TTL Enforced | ✅ **Completed** | v1.1.0 / ADR 0011 | **P0** |
-| **Notifications** | Transactional Mailer Adapter (SMTP / SES / SendGrid / Mock) | MIME RFC 2045 | ✅ **Completed** | v1.1.0 / ADR 0011 | **P0** |
-| **Core Authentication** | Email Verification (Token Lifecycle & Atomic Confirmation) | Single-Use SHA-256 | ✅ **Completed** | v1.1.0 / ADR 0011 | **P0** |
-| **Core Authentication** | Email & Password Registration & Login (Argon2id) | RFC 9106 | ✅ **Completed** | Production v1.0 | Core |
 | **Security & Defense** | Step-Up Authentication for High-Value Actions (incl. Impersonation) | RFC 9470 | ⏳ **Pending** | v1.1 | **P1** |
-| **Core Authentication** | Multi-Factor Authentication (RFC 6238 TOTP + Hashed Recovery Codes) | RFC 6238 | ⏳ **Pending** | v1.1 | **P1** |
 | **Session Management** | Refresh Token Rotation & Family Reuse Detection | RFC 6749 §10.4 | ⏳ **Pending** | v1.1 | **P1** |
 | **Core Authentication** | Breached Password Screening (HaveIBeenPwned k-Anonymity) | NIST SP 800-63B | ⏳ **Pending** | v1.1 | **P1** |
 | **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ⏳ **Pending** | v1.1 | **P1** |
@@ -40,12 +31,6 @@
 | **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ⏳ **Pending** | v1.2 | **P2** |
 | **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ⏳ **Pending** | v1.2 | **P2** |
 | **Security & Defense** | Webhook Cryptographic Signatures & Anti-Replay Nonces | RFC 2104 HMAC-SHA256 | ⏳ **Pending** | v1.2 | **P2** |
-| **Multi-Tenancy** | Organization CRUD & Multi-Tenant Context Switch | Multi-Tenant Isolated | ✅ **Completed** | Production v1.0 | Core |
-| **Multi-Tenancy** | Row-Level Security (RLS) Tenant Isolation | Postgres RLS | ✅ **Completed** | Production v1.0 | Core |
-| **Access Control (RBAC/ABAC)** | Role Hierarchy Engine (Owner > Admin > Member > Viewer) | Hierarchical RBAC | ✅ **Completed** | Production v1.0 | Core |
-| **User Lifecycle** | Member Invites, Roles, Permissions Table | Team Collaboration | ✅ **Completed** | Production v1.0 | Core |
-| **User Lifecycle** | Account Blocking & 30-Day Cascade Soft-Delete Marking | Lifecycle State Machine | ✅ **Completed** | Production v1.0 | Core |
-| **Audit & Compliance** | Event Audit Logging & Parameterized Query Filters | SOC 2 / HIPAA CC7.2 | ✅ **Completed** | Production v1.0 | Core |
 | **Enterprise Identity** | Full OAuth 2.0 / OIDC Identity Provider (Auth Code + PKCE) | RFC 7636 / RFC 6749 | ⏳ **Pending** | v1.3 | **P3** |
 | **Enterprise Identity** | SCIM 2.0 Automated User & Group Directory Provisioning | RFC 7643 / RFC 7644 | ⏳ **Pending** | v1.3 | **P3** |
 | **Enterprise Identity** | Enterprise SAML 2.0 Service Provider Federation | SAML 2.0 Core | ⏳ **Pending** | v1.3 | **P3** |
@@ -63,38 +48,6 @@
 
 ---
 
-## 🚨 2. Live Production Gaps (V1.0 Operational Risks & Remediation Status)
-
-### 2.1 Real-Time Token Revocation (ADR 0004 Redis Denylist)
-- **Status**: ✅ **Resolved (v1.0-hotfix / ADR 0004)**
-- **Remediation Delivered**:
-  - Connected sign-out and session revocation directly to Redis (`llmobs-redis-ledger:6379`).
-  - Stored revoked tokens as Redis keys `auth:denylist:{token_hash}` with TTL set to the token's remaining lifetime.
-  - Exposed sub-millisecond edge verification endpoint `/api/v1/auth/verify-session` for Traefik ForwardAuth and gateway checks.
-
-### 2.2 Adaptive Login Rate Limiting & DoS Defense
-- **Status**: ✅ **Resolved (v1.0-hotfix / ADR 0010)**
-- **Remediation Delivered**:
-  - **Email-Keyed Track (Anti-DoS)**: Progressive delays and sliding-window failure checks without hard account lockouts based on email alone.
-  - **IP/Subnet-Keyed Track (Brute-Force Defense)**: Sliding-window token bucket in Redis tracking failed attempts per `/24` IP subnet returning `HTTP 429 Too Many Requests`.
-
-### 2.3 Ephemeral Secret-Tier API Keys (`ak_sec_`) & Instant Revocation
-- **Status**: ✅ **Resolved (v1.1.0 / ADR 0011)**
-- **Remediation Delivered**:
-  - Enforced mandatory non-null `expires_at_ms` (maximum 90-day TTL) for `super_secret` (`ak_sec_`) API keys.
-  - Implemented dual-layer instant key revocation: database update `revoked = true` and edge cache `auth:revoked_api_key:{key_id}` with 90-day TTL.
-  - Added real-time usage telemetry recording `last_used_at_ms` and `last_used_ip` asynchronously on every key verification.
-  - Delivered migration `0007_add_api_key_expiration_and_usage.sql`.
-
-### 2.4 Transactional Mailer Subsystem & Email Verification
-- **Status**: ✅ **Resolved (v1.1.0 / ADR 0011)**
-- **Remediation Delivered**:
-  - Implemented provider-agnostic `MailerPort` with Mock, SMTP (RFC 5321 / STARTTLS), AWS SES (native SigV4 signed REST), and SendGrid (Bearer token REST) adapters.
-  - Enforced fail-fast envelope validation and decoupled endpoint configuration (`src/config/mailer.config.ts`).
-  - Integrated `@chief-strategist-j/shared-infra/http` (`ScalableHttpClient`) for circuit breaking, retries, and rate limiting.
-  - Added email verification endpoints (`POST /api/v1/auth/verify-email`, `POST /api/v1/auth/resend-verification`) backed by migration `0008_create_email_verifications_table.sql` and atomic SQL transactions.
-
----
 
 ## 🔐 3. Deep-Dive: Security-Related Features
 
@@ -309,16 +262,6 @@
 
 ## 🛠 5. Compliance & Operational Sequencing
 
-- [x] **API Key Expiration & Instant Edge Revocation (Delivered in v1.1.0 / ADR 0011)**:
-  - Enforced 90-day maximum TTL for `super_secret` API keys (`ak_sec_`).
-  - Added Redis edge revocation denylist (`auth:revoked_api_key:{key_id}`) and database `revoked = true`.
-  - Delivered telemetry tracking for `last_used_at_ms` and `last_used_ip`.
-- [x] **Transactional Mailer Adapters & Email Verification Flow (Delivered in v1.1.0 / ADR 0011)**:
-  - Hexagonal `MailerPort` with Mock, SMTP (RFC 5321 / STARTTLS), AWS SES (SigV4 signed REST), and SendGrid adapters.
-  - Endpoints `POST /api/v1/auth/verify-email` and `POST /api/v1/auth/resend-verification`.
-  - RFC 2045 multipart/alternative MIME message construction and decoupled configuration (`mailer.config.ts`).
-- [x] **Host DX TypeScript Binary Linkage**:
-  - TypeScript binary linked in local `node_modules/.bin` so `npm run typecheck` executes natively outside containers.
 - [ ] **Automated 30-Day Cascade Soft-Delete Purge Cron Worker (Promoted to P1 / v1.1)**:
   - Eliminates the compliance timeline gap between soft-delete marking and physical record purging.
   - Runs nightly: hard-deletes user records and cascading dependencies where `deleted_at_ms < (now - 30 days)`.

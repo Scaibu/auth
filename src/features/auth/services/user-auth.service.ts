@@ -42,7 +42,7 @@ import {
   ValidationError,
 } from '../../../shared/errors/auth.errors';
 import { hashPassword, verifyPassword } from '../../../shared/utils/argon2.util';
-import { createToken, verifyToken } from '../../../shared/utils/jwt.util';
+import { createToken, verifyToken, generateMfaChallengeToken } from '../../../shared/utils/jwt.util';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../../infra/tracing/tracer';
 import { normalizeString } from '../../../shared/utils/string.util';
@@ -221,6 +221,15 @@ export class UserAuthDomainService {
       }
       const errorFactory = this.signInErrorRegistry.get(topDenial.id);
       throw errorFactory ? errorFactory(fullCtx) : new InvalidCredentialsError();
+    }
+
+    if (user.mfa_enabled) {
+      const mfaToken = generateMfaChallengeToken(user.id, user.email, user.org_id, user.role);
+      await this.recordSuccess(ip, email);
+      return {
+        mfa_required: true,
+        mfa_token: mfaToken,
+      } as any;
     }
 
     const { token, payload } = this.issueTokenAndPayload(user);
