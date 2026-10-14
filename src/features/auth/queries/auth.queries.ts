@@ -93,4 +93,13 @@ export const AUTH_QUERIES = {
   FLOW_AUDIT_LOGS: {
     FETCH_LOGS_BY_USER: `SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms FROM auth_audit_logs WHERE user_id = $1 AND deleted_at IS NULL ORDER BY timestamp_ms DESC LIMIT 100`,
   },
+  FLOW_REFRESH_TOKEN: {
+    INSERT_FAMILY: `INSERT INTO auth_refresh_token_families (id, user_id, created_at_ms, is_revoked) VALUES ($1, $2, $3, FALSE)`,
+    FIND_FAMILY: `SELECT id, user_id, is_revoked, revoked_reason FROM auth_refresh_token_families WHERE id = $1 LIMIT 1`,
+    REVOKE_FAMILY: `UPDATE auth_refresh_token_families SET is_revoked = TRUE, revoked_reason = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    INSERT_TOKEN: `INSERT INTO auth_refresh_tokens (token_id, family_id, user_id, token_hash, generation, is_revoked, expires_at_ms, created_at_ms, created_ip, user_agent) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, $8, $9)`,
+    FIND_TOKEN_BY_HASH: `SELECT token_id, family_id, user_id, token_hash, generation, is_revoked, expires_at_ms, created_at_ms, consumed_at_ms FROM auth_refresh_tokens WHERE token_hash = $1 LIMIT 1`,
+    CONSUME_TOKEN: `UPDATE auth_refresh_tokens SET consumed_at_ms = $1 WHERE token_id = $2`,
+    REVOKE_TOKEN_FAMILY_TOKENS: `UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE family_id = $1`,
+  },
 } as const;

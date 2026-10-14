@@ -23,6 +23,8 @@ export const AUTH_ENDPOINTS = {
   MFA_DISABLE: '/api/v1/auth/mfa/disable',
   STEP_UP_REQUEST: '/api/v1/auth/step-up/request',
   STEP_UP_VERIFY: '/api/v1/auth/step-up/verify',
+  REFRESH: '/api/v1/auth/refresh',
+  ROUTES: '/api/v1/auth/routes',
   ADMIN_IMPERSONATE: '/api/v1/auth/admin/impersonate',
   HEALTH: '/health',
 } as const;

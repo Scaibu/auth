@@ -47,5 +47,31 @@ export interface AuthRepositoryPort {
   saveRecoveryCodes(userId: string, codeHashes: string[]): Promise<void>;
   findRecoveryCode(userId: string, codeHash: string): Promise<{ id: string; user_id: string; code_hash: string; used: boolean } | null>;
   consumeRecoveryCode(id: string, usedAtMs: number): Promise<void>;
+  createRefreshTokenFamily(familyId: string, userId: string, createdAtMs: number): Promise<void>;
+  findRefreshTokenFamily(familyId: string): Promise<{ id: string; user_id: string; is_revoked: boolean; revoked_reason?: string } | null>;
+  revokeRefreshTokenFamily(familyId: string, reason: string): Promise<void>;
+  saveRefreshToken(token: {
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    expiresAtMs: number;
+    createdAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }): Promise<void>;
+  findRefreshTokenByHash(tokenHash: string): Promise<{
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    isRevoked: boolean;
+    expiresAtMs: number;
+    createdAtMs: number;
+    consumedAtMs?: number;
+  } | null>;
+  consumeRefreshToken(tokenId: string, consumedAtMs: number): Promise<void>;
 }
 

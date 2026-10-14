@@ -13,6 +13,21 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   private readonly mockResets = new Map<string, { tokenHash: string; userId: string; expiresAtMs: number; used: boolean; deleted_at?: number }>();
   private readonly mockEmailVerifications = new Map<string, { tokenHash: string; userId: string; email: string; expiresAtMs: number; used: boolean; deleted_at?: number }>();
   private readonly tokenDenylist = new Map<string, number>();
+  private readonly mockRecoveryCodes = new Map<string, { id: string; user_id: string; code_hash: string; used: boolean; used_at_ms?: number }>();
+  private readonly mockRefreshFamilies = new Map<string, { id: string; user_id: string; is_revoked: boolean; revoked_reason?: string; created_at_ms: number }>();
+  private readonly mockRefreshTokens = new Map<string, {
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    isRevoked: boolean;
+    expiresAtMs: number;
+    createdAtMs: number;
+    consumedAtMs?: number;
+    createdIp?: string;
+    userAgent?: string;
+  }>();
   public readonly queries = AUTH_QUERIES;
 
   constructor() {
@@ -345,8 +360,6 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     return true;
   }
 
-  private readonly mockRecoveryCodes = new Map<string, { id: string; user_id: string; code_hash: string; used: boolean }>();
-
   async setMfaSecret(userId: string, secret: string): Promise<void> {
     for (const user of this.mockUsers.values()) {
       if (user.id === userId && !user.deleted_at) {
@@ -387,6 +400,75 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       if (record.id === id) {
         record.used = true;
         (record as any).used_at_ms = usedAtMs;
+      }
+    }
+  }
+
+  async createRefreshTokenFamily(familyId: string, userId: string, createdAtMs: number): Promise<void> {
+    this.mockRefreshFamilies.set(familyId, {
+      id: familyId,
+      user_id: userId,
+      created_at_ms: createdAtMs,
+      is_revoked: false,
+    });
+  }
+
+  async findRefreshTokenFamily(familyId: string): Promise<{ id: string; user_id: string; is_revoked: boolean; revoked_reason?: string } | null> {
+    const record = this.mockRefreshFamilies.get(familyId);
+    if (!record) return null;
+    return { ...record };
+  }
+
+  async revokeRefreshTokenFamily(familyId: string, reason: string): Promise<void> {
+    const family = this.mockRefreshFamilies.get(familyId);
+    if (family) {
+      family.is_revoked = true;
+      family.revoked_reason = reason;
+    }
+    for (const token of this.mockRefreshTokens.values()) {
+      if (token.familyId === familyId) {
+        token.isRevoked = true;
+      }
+    }
+  }
+
+  async saveRefreshToken(token: {
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    expiresAtMs: number;
+    createdAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    this.mockRefreshTokens.set(token.tokenHash, {
+      ...token,
+      isRevoked: false,
+    });
+  }
+
+  async findRefreshTokenByHash(tokenHash: string): Promise<{
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    isRevoked: boolean;
+    expiresAtMs: number;
+    createdAtMs: number;
+    consumedAtMs?: number;
+  } | null> {
+    const token = this.mockRefreshTokens.get(tokenHash);
+    if (!token) return null;
+    return { ...token };
+  }
+
+  async consumeRefreshToken(tokenId: string, consumedAtMs: number): Promise<void> {
+    for (const token of this.mockRefreshTokens.values()) {
+      if (token.tokenId === tokenId) {
+        token.consumedAtMs = consumedAtMs;
       }
     }
   }

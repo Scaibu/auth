@@ -1,13 +1,14 @@
 import type { AuthService } from '../../../../features/auth/service';
-import type { CreateApiKeyInput, VerifyApiKeyInput } from '../../../../features/auth/types';
+import { CreateApiKeyInputSchema, VerifyApiKeyInputSchema } from '../../../../features/auth/schema/auth.schema';
+import { validateSchema } from '../../../../shared/utils/validation.util';
 
 export async function handleCreateApiKey(service: AuthService, body: unknown): Promise<unknown> {
-  const input = body as CreateApiKeyInput;
+  const input = validateSchema(CreateApiKeyInputSchema, body);
   return service.generateApiKey(input);
 }
 
 export async function handleVerifyApiKey(service: AuthService, body: unknown): Promise<unknown> {
-  const input = body as VerifyApiKeyInput;
+  const input = validateSchema(VerifyApiKeyInputSchema, body);
   return service.verifyApiKey(input);
 }
 

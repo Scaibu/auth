@@ -51,6 +51,7 @@ import { LoginRateLimiterService } from './services/login-rate-limiter.service';
 import { TotpMfaAdapter } from '../../infra/adapters/mfa/totp-mfa.adapter';
 import { MfaDomainService } from './services/mfa.service';
 import { StepUpDomainService, type StepUpVerifyInput } from './services/step-up.service';
+import { RefreshTokenService, type RefreshTokenResult } from './services/refresh-token.service';
 import type { MfaPort, MfaSetupResult, MfaVerificationResult } from '../../shared/ports/mfa.port';
 
 export class AuthService {
@@ -62,6 +63,7 @@ export class AuthService {
   private readonly auditLogService: AuditLogDomainService;
   private readonly mfaService: MfaDomainService;
   private readonly stepUpService: StepUpDomainService;
+  private readonly refreshTokenService: RefreshTokenService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -95,6 +97,15 @@ export class AuthService {
     const mfa = mfaPort ?? new TotpMfaAdapter();
     this.mfaService = new MfaDomainService(repo, mfa);
     this.stepUpService = new StepUpDomainService(repo, mfa);
+    this.refreshTokenService = new RefreshTokenService(repo);
+  }
+
+  async issueInitialRefreshToken(userId: string, ip?: string, userAgent?: string): Promise<string> {
+    return this.refreshTokenService.issueInitialRefreshToken(userId, ip, userAgent);
+  }
+
+  async rotateRefreshToken(rawToken: string, ip?: string, userAgent?: string): Promise<RefreshTokenResult> {
+    return this.refreshTokenService.rotateRefreshToken(rawToken, ip, userAgent);
   }
 
   async issueReauthToken(userId: string, input: StepUpVerifyInput): Promise<{ reauthToken: string; expiresInSeconds: number }> {

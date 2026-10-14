@@ -1,5 +1,20 @@
 import type { AuthService } from '../../../../features/auth/service';
-import type { SignUpInput, SignInInput, CreateOrganizationInput, CreateUserInput, UpdateUserProfileInput, InviteUserInput, UpdateUserRoleInput, UpdateUserPermissionsInput, UpdateOrganizationInput, AuditLogFilter } from '../../../../features/auth/types';
+import {
+  CreateOrganizationInputSchema,
+  UpdateOrganizationInputSchema,
+  CreateUserInputSchema,
+  UpdateUserProfileInputSchema,
+  InviteUserInputSchema,
+  UpdateUserRoleInputSchema,
+  UpdateUserPermissionsInputSchema,
+  SignUpInputSchema,
+  SignInInputSchema,
+  AuditLogFilterSchema,
+} from '../../../../features/auth/schema/auth.schema';
+import { extractClientContext } from '../../../../shared/utils/request-context.util';
+import { validateSchema } from '../../../../shared/utils/validation.util';
+import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
+import { ValidationError } from '../../../../shared/errors/auth.errors';
 
 export async function handleListOrganizations(service: AuthService, userId: string): Promise<unknown> {
   return service.listOrganizations(userId);
@@ -10,12 +25,12 @@ export async function handleGetOrganization(service: AuthService, orgId: string)
 }
 
 export async function handleCreateOrganization(service: AuthService, body: unknown, creatorUserId?: string): Promise<unknown> {
-  const input = body as CreateOrganizationInput;
+  const input = validateSchema(CreateOrganizationInputSchema, body);
   return service.createOrganization(input, creatorUserId);
 }
 
 export async function handleUpdateOrganization(service: AuthService, orgId: string, body: unknown): Promise<unknown> {
-  const input = body as UpdateOrganizationInput;
+  const input = validateSchema(UpdateOrganizationInputSchema, body);
   return service.updateOrganization(orgId, input);
 }
 
@@ -41,17 +56,17 @@ export async function handleGetMyProfile(service: AuthService, userId: string): 
 }
 
 export async function handleUpdateMyProfile(service: AuthService, userId: string, body: unknown): Promise<unknown> {
-  const input = body as UpdateUserProfileInput;
+  const input = validateSchema(UpdateUserProfileInputSchema, body);
   return service.updateMyProfile(userId, input);
 }
 
 export async function handleInviteUser(service: AuthService, body: unknown, orgId: string, orgName: string): Promise<unknown> {
-  const input = body as InviteUserInput;
+  const input = validateSchema(InviteUserInputSchema, body);
   return service.inviteUser(input, orgId, orgName);
 }
 
 export async function handleUpdateUserRole(service: AuthService, userId: string, body: unknown): Promise<void> {
-  const input = body as UpdateUserRoleInput;
+  const input = validateSchema(UpdateUserRoleInputSchema, body);
   return service.updateUserRole(userId, input);
 }
 
@@ -60,12 +75,12 @@ export async function handleGetUserPermissions(service: AuthService, userId: str
 }
 
 export async function handleUpdateUserPermissions(service: AuthService, userId: string, body: unknown): Promise<void> {
-  const input = body as UpdateUserPermissionsInput;
+  const input = validateSchema(UpdateUserPermissionsInputSchema, body);
   return service.updateUserPermissions(userId, input);
 }
 
 export async function handleCreateUser(service: AuthService, body: unknown): Promise<unknown> {
-  const input = body as CreateUserInput;
+  const input = validateSchema(CreateUserInputSchema, body);
   return service.createUser(input);
 }
 
@@ -85,20 +100,39 @@ export async function handleDeleteUser(service: AuthService, userId: string): Pr
 }
 
 export async function handleSignUp(service: AuthService, body: unknown): Promise<unknown> {
-  const input = body as SignUpInput;
+  const input = validateSchema(SignUpInputSchema, body);
   return service.signUp(input);
 }
 
 export async function handleSignIn(service: AuthService, body: unknown, headers?: Record<string, string>): Promise<unknown> {
-  const input = body as SignInInput;
-  const ipAddress = headers?.['x-forwarded-for'] ?? '127.0.0.1';
-  const userAgent = headers?.['user-agent'] ?? 'unknown';
-  return service.signIn({ ...input, ip_address: ipAddress, user_agent: userAgent });
+  const input = validateSchema(SignInInputSchema, body);
+  const { ipAddress, userAgent } = extractClientContext(headers);
+  const result: any = await service.signIn({ ...input, ip_address: ipAddress, user_agent: userAgent });
+  if (result && result.user && result.user.id) {
+    const refreshToken = await service.issueInitialRefreshToken(result.user.id, ipAddress, userAgent);
+    return { ...result, refreshToken };
+  }
+  return result;
 }
 
 export async function handleSignOut(service: AuthService, authHeader?: string): Promise<void> {
   const token = authHeader?.replace('Bearer ', '') ?? '';
   return service.signOut(token);
+}
+
+export async function handleRefreshToken(service: AuthService, body: unknown, headers?: Record<string, string>): Promise<unknown> {
+  const rawBody = (body && typeof body === 'object') ? (body as Record<string, unknown>) : {};
+  const rawToken =
+    (typeof rawBody.refreshToken === 'string' && rawBody.refreshToken.trim()) ||
+    headers?.[AUTH_CONSTANTS.HEADERS.REFRESH_TOKEN] ||
+    headers?.[AUTH_CONSTANTS.HEADERS.REFRESH_TOKEN_CAMEL];
+
+  if (!rawToken) {
+    throw new ValidationError('Refresh token is required');
+  }
+
+  const { ipAddress, userAgent } = extractClientContext(headers);
+  return service.rotateRefreshToken(rawToken, ipAddress, userAgent);
 }
 
 export async function handleListApiKeys(service: AuthService, orgId: string): Promise<unknown> {
@@ -110,12 +144,6 @@ export async function handleRevokeApiKey(service: AuthService, keyId: string): P
 }
 
 export async function handleFetchAuditLogs(service: AuthService, userId: string, queryParams?: Record<string, string>): Promise<unknown> {
-  const filters: AuditLogFilter | undefined = queryParams
-    ? {
-        event_type: queryParams['event_type'],
-        from: queryParams['from'],
-        to: queryParams['to'],
-      }
-    : undefined;
+  const filters = queryParams ? validateSchema(AuditLogFilterSchema, queryParams) : undefined;
   return service.fetchUserAuditLogs(userId, filters);
 }

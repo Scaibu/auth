@@ -631,4 +631,115 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       client.release();
     }
   }
+
+  async createRefreshTokenFamily(familyId: string, userId: string, createdAtMs: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.INSERT_FAMILY, [familyId, userId, createdAtMs]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async findRefreshTokenFamily(familyId: string): Promise<{ id: string; user_id: string; is_revoked: boolean; revoked_reason?: string } | null> {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.FIND_FAMILY, [familyId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        is_revoked: row.is_revoked,
+        revoked_reason: row.revoked_reason,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  async revokeRefreshTokenFamily(familyId: string, reason: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.REVOKE_FAMILY, [reason, familyId]);
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.REVOKE_TOKEN_FAMILY_TOKENS, [familyId]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async saveRefreshToken(token: {
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    expiresAtMs: number;
+    createdAtMs: number;
+    createdIp?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.INSERT_TOKEN, [
+        token.tokenId,
+        token.familyId,
+        token.userId,
+        token.tokenHash,
+        token.generation,
+        token.expiresAtMs,
+        token.createdAtMs,
+        token.createdIp ?? null,
+        token.userAgent ?? null,
+      ]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async findRefreshTokenByHash(tokenHash: string): Promise<{
+    tokenId: string;
+    familyId: string;
+    userId: string;
+    tokenHash: string;
+    generation: number;
+    isRevoked: boolean;
+    expiresAtMs: number;
+    createdAtMs: number;
+    consumedAtMs?: number;
+  } | null> {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.FIND_TOKEN_BY_HASH, [tokenHash]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        tokenId: row.token_id,
+        familyId: row.family_id,
+        userId: row.user_id,
+        tokenHash: row.token_hash,
+        generation: row.generation,
+        isRevoked: row.is_revoked,
+        expiresAtMs: Number(row.expires_at_ms),
+        createdAtMs: Number(row.created_at_ms),
+        consumedAtMs: row.consumed_at_ms ? Number(row.consumed_at_ms) : undefined,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  async consumeRefreshToken(tokenId: string, consumedAtMs: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_REFRESH_TOKEN.CONSUME_TOKEN, [consumedAtMs, tokenId]);
+    } finally {
+      client.release();
+    }
+  }
 }

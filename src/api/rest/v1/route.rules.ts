@@ -24,6 +24,7 @@ import {
   handleDeleteUser,
   handleListApiKeys,
   handleRevokeApiKey,
+  handleRefreshToken,
 } from './handlers/auth.handler';
 import { handleVerifySession } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
@@ -68,14 +69,26 @@ export const ROUTE_RULES: RouteRule[] = [
     method: HTTP_METHODS.GET,
     pattern: '/health',
     successMessage: 'Auth service is healthy',
-    handler: async () => ({ status: 'ok' }),
+    handler: async () => ({
+      status: 'ok',
+      service: 'auth-service',
+      version: '1.0.0',
+      routesEndpoint: AUTH_ENDPOINTS.ROUTES,
+      totalActiveRoutes: ROUTE_RULES.length,
+    }),
   },
   {
     name: 'health_check_v1',
     method: HTTP_METHODS.GET,
     pattern: '/api/v1/auth/health',
     successMessage: 'Auth service is healthy',
-    handler: async () => ({ status: 'ok' }),
+    handler: async () => ({
+      status: 'ok',
+      service: 'auth-service',
+      version: '1.0.0',
+      routesEndpoint: AUTH_ENDPOINTS.ROUTES,
+      totalActiveRoutes: ROUTE_RULES.length,
+    }),
   },
   {
     name: 'sign_up',
@@ -100,6 +113,32 @@ export const ROUTE_RULES: RouteRule[] = [
     handler: async (ctx) => {
       await handleSignOut(ctx.service, ctx.authHeader);
       return null;
+    },
+  },
+  {
+    name: 'refresh_token',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.REFRESH,
+    successMessage: 'Token refreshed and rotated successfully',
+    handler: (ctx) => handleRefreshToken(ctx.service, ctx.body, ctx.headers),
+  },
+  {
+    name: 'list_routes',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.ROUTES,
+    successMessage: 'Active API route catalog retrieved successfully',
+    handler: async () => {
+      return {
+        totalRoutes: ROUTE_RULES.length,
+        routes: ROUTE_RULES.map((r) => ({
+          name: r.name,
+          method: r.method,
+          pattern: r.pattern,
+          requiresAuth: Boolean(r.requiresAuth),
+          requiresStepUp: Boolean(r.requiresStepUp),
+          successStatus: r.successStatus ?? 200,
+        })),
+      };
     },
   },
   {

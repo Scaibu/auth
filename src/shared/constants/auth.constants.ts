@@ -37,6 +37,13 @@ export const AUTH_CONSTANTS = {
     BEARER_PREFIX: 'Bearer ',
     REAUTH_TOKEN: 'x-reauth-token',
     REAUTH_TOKEN_CAMEL: 'X-Reauth-Token',
+    REFRESH_TOKEN: 'x-refresh-token',
+    REFRESH_TOKEN_CAMEL: 'X-Refresh-Token',
+  },
+
+  DEFAULTS: {
+    IP_ADDRESS: '127.0.0.1',
+    USER_AGENT: 'unknown',
   },
 
   SECURITY_REASONS: {
