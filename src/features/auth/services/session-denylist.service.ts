@@ -43,12 +43,16 @@ export class SessionDenylistService {
 
     return withSpan('SessionDenylistService.isTokenDenied', async (span) => {
       span.setAttribute('token.jti', normalizedJti);
-      const denied = await this.cache.exists(`${this.keyPrefix}${normalizedJti}`);
-      if (denied) return true;
-      if (this.keyPrefix !== 'denylist:jti:') {
-        return await this.cache.exists(`denylist:jti:${normalizedJti}`);
+      try {
+        const denied = await this.cache.exists(`${this.keyPrefix}${normalizedJti}`);
+        if (denied) return true;
+        if (this.keyPrefix !== 'denylist:jti:') {
+          return await this.cache.exists(`denylist:jti:${normalizedJti}`);
+        }
+        return false;
+      } catch {
+        return false;
       }
-      return false;
     });
   }
 }

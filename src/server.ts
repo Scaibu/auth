@@ -111,6 +111,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(result.statusCode, {
         ...AUTH_CONSTANTS.SECURITY_CONFIG.CORS_HEADERS,
         [AUTH_CONSTANTS.HEADER_CONTENT_TYPE]: AUTH_CONSTANTS.HEADERS.CONTENT_TYPE_JSON,
+        ...(result.headers || {}),
       });
       res.end(JSON.stringify(result.payload));
     });
