@@ -1,4 +1,5 @@
 import { SpanStatusCode } from '@chief-strategist-j/shared-infra';
+import { HTTP_CONSTANTS } from '@chief-strategist-j/shared-infra/http';
 import type { AuthService } from '../../../features/auth/service';
 import { handleVerifySession } from './handlers/session.handler';
 import { withSpan } from '../../../infra/tracing/tracer';
@@ -52,12 +53,12 @@ export class AuthRestV1Router {
       span.setAttribute('http.method', method);
       span.setAttribute('http.target', path);
 
-      const requestId = headers?.['x-request-id'] ?? `req_${Date.now()}`;
-      const correlationId = headers?.['x-correlation-id'] ?? requestId;
+      const requestId = headers?.[HTTP_CONSTANTS.HEADER_X_REQUEST_ID] ?? `req_${Date.now()}`;
+      const correlationId = headers?.[HTTP_CONSTANTS.HEADER_X_CORRELATION_ID] ?? requestId;
       const causationId = headers?.['x-causation-id'];
-      const tenantId = headers?.['x-tenant-id'];
+      const tenantId = headers?.[HTTP_CONSTANTS.HEADER_X_TENANT_ID];
       const clientId = headers?.['x-client-id'];
-      const traceparent = headers?.['traceparent'];
+      const traceparent = headers?.[HTTP_CONSTANTS.HEADER_TRACEPARENT];
 
       span.setAttribute('x-request-id', requestId);
       span.setAttribute('request_id', requestId);
@@ -69,7 +70,7 @@ export class AuthRestV1Router {
         span.setAttribute('tenant_id', tenantId);
       }
       if (clientId) span.setAttribute('x-client-id', clientId);
-      if (traceparent) span.setAttribute('traceparent', traceparent);
+      if (traceparent) span.setAttribute(HTTP_CONSTANTS.HEADER_TRACEPARENT, traceparent);
 
       if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
