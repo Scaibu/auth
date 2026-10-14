@@ -9,7 +9,7 @@ describe('MFA Performance & Latency Benchmarks', () => {
   const recoveryCode = 'A1B2C-D3E4F';
 
   it('verifies TOTP code in < 0.2ms per call under sustained load', () => {
-    const iterations = 5000;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       adapter.verifyTotpCode(secret, validOtp, 1);
@@ -21,7 +21,7 @@ describe('MFA Performance & Latency Benchmarks', () => {
   });
 
   it('hashes recovery codes with SHA-256 in < 0.05ms per call', () => {
-    const iterations = 5000;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       adapter.hashRecoveryCode(recoveryCode);
@@ -33,7 +33,7 @@ describe('MFA Performance & Latency Benchmarks', () => {
   });
 
   it('generates 10 recovery codes in < 0.5ms', () => {
-    const iterations = 1000;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       adapter.generateRecoveryCodes(10);

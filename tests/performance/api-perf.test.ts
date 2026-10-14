@@ -23,7 +23,7 @@ describe('Router & API Performance Benchmarks', () => {
   });
 
   it('evaluates GET /health route dispatch in < 0.35ms per call under sustained load', async () => {
-    const iterations = 2000;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       const res = await router.route(HTTP_METHODS.GET, AUTH_ENDPOINTS.HEALTH);
@@ -36,7 +36,7 @@ describe('Router & API Performance Benchmarks', () => {
   });
 
   it('authenticates session and evaluates route rules in < 3.0ms per call under sustained load', async () => {
-    const iterations = 500;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       const res = await router.route(
@@ -51,5 +51,5 @@ describe('Router & API Performance Benchmarks', () => {
     const avgLatencyMs = totalElapsed / iterations;
 
     expect(avgLatencyMs).toBeLessThan(3.0);
-  });
+  }, 30000);
 });

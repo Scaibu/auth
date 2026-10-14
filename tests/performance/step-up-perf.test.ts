@@ -11,7 +11,7 @@ describe('Step-Up Authentication Performance & Latency Benchmarks', () => {
   const token = generateReauthToken('usr_benchmark_001', 'benchmark@company.io', 300);
 
   it('validates x-reauth-token in < 0.05ms per call under sustained load', () => {
-    const iterations = 5000;
+    const iterations = 10000;
     const start = performance.now();
     for (let i = 0; i < iterations; i++) {
       service.assertStepUpToken('usr_benchmark_001', token);
