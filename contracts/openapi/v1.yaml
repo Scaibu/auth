@@ -1005,6 +1005,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
 
+  /api/v1/auth/admin/purge-expired:
+    post:
+      summary: GDPR Article 17 automated and manual 30-day cascade soft-delete hard purge (Admin + Step-Up Auth)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Reauth-Token
+          required: true
+          schema:
+            type: string
+          description: Ephemeral step-up reauthentication token (RFC 9470)
+      responses:
+        '200':
+          description: Retention purge executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Missing or invalid administrator bearer session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+        '403':
+          description: Missing or invalid step-up authentication token (STEP_UP_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:

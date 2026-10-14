@@ -10,6 +10,7 @@ import { RedisCacheAdapter } from './infra/adapters/redis/redis-cache.adapter';
 import { RealRedisCacheAdapter } from './infra/adapters/redis/real-redis-cache.adapter';
 import type { ICachePort } from './shared/ports/cache.interface';
 import { createMailer } from './infra/adapters/mailer/mailer.factory';
+import { PurgeRetentionWorker } from './infra/workers/purge-retention.worker';
 
 import type { AuthRepositoryPort } from './features/auth/repository';
 import { AuthEventProducer } from './shared/messaging/producers/auth-event.producer';
@@ -51,6 +52,13 @@ authEventConsumer.init().catch((err: any) => {
 export const cacheAdapter: ICachePort = isMockRedis
   ? new RedisCacheAdapter()
   : new RealRedisCacheAdapter(AUTH_CONFIG.redis.url);
+
+export const purgeRetentionWorker = new PurgeRetentionWorker(
+  repositoryAdapter,
+  cacheAdapter,
+  { enabled: process.env.NODE_ENV !== 'test' }
+);
+purgeRetentionWorker.start();
 
 const mailerAdapter = createMailer(AUTH_CONFIG.mailer);
 

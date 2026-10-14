@@ -40,6 +40,7 @@ export const AUTH_QUERIES = {
     PURGE_LOGS: `DELETE FROM auth_audit_logs WHERE deleted_at < NOW() - INTERVAL '30 days'`,
     PURGE_RESETS: `DELETE FROM auth_password_resets WHERE deleted_at < NOW() - INTERVAL '30 days'`,
     PURGE_DENYLIST: `DELETE FROM auth_token_denylist WHERE expires_at_ms < $1`,
+    PURGE_REFRESH_TOKENS: `DELETE FROM auth_refresh_tokens WHERE revoked_at < NOW() - INTERVAL '30 days' OR expires_at < NOW() - INTERVAL '30 days'`,
   },
   FLOW_SIGN_UP: {
     CHECK_ORG_EXISTS: `SELECT id FROM auth_organizations WHERE (name = $1 OR slug = $2) AND deleted_at IS NULL LIMIT 1`,

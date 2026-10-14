@@ -24,9 +24,9 @@ export interface SessionDenylistConfig {
 
 export interface BreachedPasswordConfig {
   enabled: boolean;
-  baseUrl: string;
+  baseUrl?: string;
   timeoutMs: number;
-  userAgent: string;
+  userAgent?: string;
 }
 
 export interface SecurityLimitsConfig {

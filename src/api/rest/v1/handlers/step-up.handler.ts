@@ -30,3 +30,17 @@ export async function handleDisableMfa(ctx: RouteContext, session?: any) {
   await ctx.service.verifyAndEnableMfa(userId, '000000').catch(() => {});
   return { mfaEnabled: false };
 }
+
+export async function handlePurgeExpired(ctx: RouteContext, session?: any) {
+  const userId = session?.sub ?? session?.payload?.sub;
+  if (!userId) {
+    throw new UnauthorizedError('Session required');
+  }
+  const startTime = Date.now();
+  const purgedRecords = await ctx.service.purgeExpiredSoftDeletes();
+  return {
+    purged_records: purgedRecords,
+    cutoff_timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    duration_ms: Date.now() - startTime,
+  };
+}

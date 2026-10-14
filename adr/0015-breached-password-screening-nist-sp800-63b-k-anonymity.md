@@ -185,7 +185,7 @@ erDiagram
         bigint ttl_ms "In-memory / edge cache TTL"
     }
 
-    auth_users ..> hibp_k_anonymity_range_bucket : "k-Anonymity pre-hash screening gate"
+    auth_users ||--o{ hibp_k_anonymity_range_bucket : "screened against"
 ```
 
 ---

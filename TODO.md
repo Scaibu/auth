@@ -17,7 +17,7 @@
 | **Security & Defense** | Step-Up Authentication for High-Value Actions (incl. Impersonation) | RFC 9470 | ✅ **Completed (ADR 0013)** | v1.1 | **P1** |
 | **Session Management** | Refresh Token Rotation & Family Reuse Detection | RFC 6749 §10.4 | ✅ **Completed (ADR 0014)** | v1.1 | **P1** |
 | **Core Authentication** | Breached Password Screening (HaveIBeenPwned k-Anonymity) | NIST SP 800-63B | ✅ **Completed (ADR 0015)** | v1.1 | **P1** |
-| **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ⏳ **Pending** | v1.1 | **P1** |
+| **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ✅ **Completed (ADR 0016)** | v1.1 | **P1** |
 
 | **Audit & Compliance** | GDPR Data Subject Access Request (DSAR) JSON Export | GDPR Article 15 | ⏳ **Pending** | v1.1 | **P1** |
 | **Security & Defense** | Automated Security Headers & Strict CSP (Nonces) | W3C CSP Level 3 | ⏳ **Pending** | v1.1 | **P1** |
@@ -263,9 +263,10 @@
 
 ## 🛠 5. Compliance & Operational Sequencing
 
-- [ ] **Automated 30-Day Cascade Soft-Delete Purge Cron Worker (Promoted to P1 / v1.1)**:
+- [x] **Automated 30-Day Cascade Soft-Delete Purge Cron Worker (Promoted to P1 / v1.1 - Completed ADR 0016)**:
   - Eliminates the compliance timeline gap between soft-delete marking and physical record purging.
   - Runs nightly: hard-deletes user records and cascading dependencies where `deleted_at_ms < (now - 30 days)`.
+  - Implemented `PurgeRetentionWorker` with distributed lease lock (`auth:lock:retention_purge`) and `POST /api/v1/auth/admin/purge-expired` endpoint.
 - [ ] **GDPR DSAR JSON Export Endpoint (Promoted to P1 / v1.1)**:
   - Endpoint `GET /api/v1/auth/users/me/export` returning machine-readable JSON data archive satisfying GDPR Article 15 compliance.
 - [ ] **Automated Database Seeder (`database/seeds/seed.ts`)**:

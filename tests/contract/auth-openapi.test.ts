@@ -36,6 +36,7 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.RESEND_VERIFICATION);
     expect(content).toContain(AUTH_ENDPOINTS.PERMISSIONS);
     expect(content).toContain(AUTH_ENDPOINTS.AUDIT_LOGS);
+    expect(content).toContain(AUTH_ENDPOINTS.ADMIN_PURGE_EXPIRED);
     expect(content).toContain('SignUpRequest');
     expect(content).toContain('SignInRequest');
     expect(content).toContain('CreateApiKeyRequest');

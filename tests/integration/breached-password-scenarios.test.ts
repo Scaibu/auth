@@ -27,7 +27,12 @@ describe('Breached Password Screening Scenarios & Attack Vectors', () => {
       {
         rateLimit: { maxAttemptsPerIp: 10, ipWindowMs: 60000, maxFailedPerEmail: 5, emailLockoutMs: 60000, emailCaptchaThreshold: 3 },
         sessionDenylist: { keyPrefix: 'auth:denylist:', defaultTtlSeconds: 3600 },
-        breachedPassword: { enabled: true, timeoutMs: 1000 },
+        breachedPassword: {
+          enabled: true,
+          baseUrl: 'https://api.pwnedpasswords.com/range',
+          timeoutMs: 1000,
+          userAgent: 'llm-observability-auth/1.0.0',
+        },
       },
       undefined,
       undefined,

@@ -338,12 +338,10 @@ erDiagram
         string sub "Bound to auth_users.id"
         string purpose "step_up"
         string method "password | totp"
-        bigint auth_time "Epoch issuance seconds"
-        bigint exp "auth_time + 300s TTL"
         string hmac_sha256 "Cryptographic signature"
     }
 
-    auth_users ..> ephemeral_step_up_token : "issues JIT proof for"
+    auth_users ||--o{ ephemeral_step_up_token : "issues JIT proof for"
 ```
 
 ---

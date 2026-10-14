@@ -1,5 +1,11 @@
 # Auth Contracts Changelog
 
+## [1.3.0] - 2026-10-14
+### Added
+- Automated & Manual 30-Day Cascade Soft-Delete Purge (GDPR Article 17):
+  - Documented `POST /api/v1/auth/admin/purge-expired` endpoint requiring Bearer admin authentication and RFC 9470 Step-Up Authentication (`X-Reauth-Token`).
+  - Returns `StandardApiResponse` with total purged records count and duration telemetry.
+
 ## [1.2.0] - 2026-10-14
 ### Added
 - Breached Password Screening (NIST SP 800-63B k-Anonymity):

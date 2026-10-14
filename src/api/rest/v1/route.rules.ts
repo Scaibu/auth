@@ -31,7 +31,7 @@ import { handleForgotPassword, handleResetPassword, handleChangePassword } from 
 import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from './handlers/api-key.handler';
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
 import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
-import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa } from './handlers/step-up.handler';
+import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa, handlePurgeExpired } from './handlers/step-up.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -452,5 +452,14 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresStepUp: true,
     successMessage: 'MFA disabled successfully',
     handler: (ctx, session) => handleDisableMfa(ctx, session),
+  },
+  {
+    name: 'admin_purge_expired',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.ADMIN_PURGE_EXPIRED,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'Retention purge completed successfully',
+    handler: (ctx, session) => handlePurgeExpired(ctx, session),
   },
 ];
