@@ -4,6 +4,7 @@ import { AUTH_CONFIG } from '../src/config/env.config';
 export interface DbProvisionOptions {
   superUser?: string;
   superPassword?: string;
+  superDatabase?: string;
   targetUser?: string;
   targetPassword?: string;
   targetDatabase?: string;
