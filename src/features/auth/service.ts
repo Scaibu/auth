@@ -12,6 +12,7 @@
  */
 
 import type { AuthRepositoryPort, OrganizationRecord } from './repository';
+import type { UserDsarExportPayload } from '../../shared/types/auth.types';
 import type {
   SignUpInput,
   SignInInput,
@@ -283,5 +284,9 @@ export class AuthService {
 
   getSystemPermissions(): string[] {
     return this.apiKeyService.getSystemPermissions();
+  }
+
+  async exportUserData(userId: string): Promise<UserDsarExportPayload> {
+    return this.userService.exportUserData(userId);
   }
 }

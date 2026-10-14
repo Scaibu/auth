@@ -32,6 +32,9 @@ import { hashPassword } from '../../../shared/utils/argon2.util';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { normalizeString } from '../../../shared/utils/string.util';
 import type { NotificationDomainService } from './notification.service';
+import type { UserDsarExportPayload } from '../../../shared/types/auth.types';
+import { withSpan } from '../../../infra/tracing/tracer';
+import { SpanStatusCode } from '@chief-strategist-j/shared-infra';
 
 export class UserManagementDomainService {
   constructor(
@@ -158,5 +161,69 @@ export class UserManagementDomainService {
   async deleteUser(userId: string): Promise<void> {
     const normalizedUserId = normalizeString(userId);
     await this.repo.deleteUser(normalizedUserId);
+  }
+
+  async exportUserData(userId: string): Promise<UserDsarExportPayload> {
+    const normalizedUserId = normalizeString(userId);
+    return withSpan('UserManagementDomainService.exportUserData', async (span) => {
+      span.setAttribute('user.id', normalizedUserId);
+      span.setAttribute('gdpr.standard', 'Article_15');
+
+      const raw = await this.repo.exportUserData(normalizedUserId);
+      if (!raw || !raw.user) {
+        throw new ValidationError('User not found');
+      }
+
+      const nowIso = new Date().toISOString();
+      const mfaEnrolledAt = raw.user.mfa_enrolled_at_ms
+        ? new Date(raw.user.mfa_enrolled_at_ms).toISOString()
+        : null;
+
+      const payload: UserDsarExportPayload = {
+        export_metadata: {
+          format_version: '1.0',
+          compliance_standard: 'GDPR_Article_15',
+          exported_at: nowIso,
+          data_subject_id: raw.user.id,
+        },
+        profile: {
+          id: raw.user.id,
+          email: raw.user.email,
+          name: raw.user.name,
+          role: raw.user.role,
+          email_verified: Boolean(raw.user.email_verified),
+          mfa_enabled: Boolean(raw.user.mfa_enabled),
+          mfa_enrolled_at: mfaEnrolledAt,
+          permissions: Array.isArray(raw.user.user_permissions) ? [...raw.user.user_permissions] : [],
+        },
+        organizations: raw.organizations.map((org) => ({
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          role: raw.user.role,
+        })),
+        api_keys: raw.apiKeys.map((key) => ({
+          key_id: key.key_id,
+          name: key.name,
+          key_type: key.key_type,
+          created_at: new Date(key.created_at_ms).toISOString(),
+          last_used_at: key.last_used_at_ms ? new Date(key.last_used_at_ms).toISOString() : null,
+          last_used_ip: key.last_used_ip ?? null,
+        })),
+        audit_logs: raw.auditLogs.map((log) => ({
+          id: log.id,
+          event_type: log.event_type,
+          ip_address: log.ip_address,
+          timestamp: new Date(log.timestamp_ms).toISOString(),
+        })),
+      };
+
+      span.setAttribute('export.orgs_count', payload.organizations.length);
+      span.setAttribute('export.keys_count', payload.api_keys.length);
+      span.setAttribute('export.logs_count', payload.audit_logs.length);
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return payload;
+    });
   }
 }

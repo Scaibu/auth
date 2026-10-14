@@ -25,6 +25,7 @@ import {
   handleListApiKeys,
   handleRevokeApiKey,
   handleRefreshToken,
+  handleExportMyData,
 } from './handlers/auth.handler';
 import { handleVerifySession } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
@@ -236,6 +237,14 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'User profile updated',
     handler: (ctx, session) => handleUpdateMyProfile(ctx.service, session.sub, ctx.body),
+  },
+  {
+    name: 'get_my_data_export',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.USERS_ME_EXPORT,
+    requiresAuth: true,
+    successMessage: 'User data exported successfully',
+    handler: (ctx, session) => handleExportMyData(ctx.service, session.sub),
   },
   {
     name: 'list_users',

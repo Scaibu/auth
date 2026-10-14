@@ -73,5 +73,11 @@ export interface AuthRepositoryPort {
     consumedAtMs?: number;
   } | null>;
   consumeRefreshToken(tokenId: string, consumedAtMs: number): Promise<void>;
+  exportUserData(userId: string): Promise<{
+    user: AuthUserRecord;
+    organizations: OrganizationRecord[];
+    apiKeys: ApiKeyRecord[];
+    auditLogs: AuditLogRecord[];
+  } | null>;
 }
 

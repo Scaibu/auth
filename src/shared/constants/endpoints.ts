@@ -13,6 +13,7 @@ export const AUTH_ENDPOINTS = {
   ORGANIZATIONS: '/api/v1/auth/organizations',
   USERS: '/api/v1/auth/users',
   USERS_ME: '/api/v1/auth/users/me',
+  USERS_ME_EXPORT: '/api/v1/auth/users/me/export',
   USERS_INVITE: '/api/v1/auth/users/invite',
   VERIFY_EMAIL: '/api/v1/auth/verify-email',
   RESEND_VERIFICATION: '/api/v1/auth/resend-verification',

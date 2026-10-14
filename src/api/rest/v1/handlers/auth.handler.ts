@@ -147,3 +147,7 @@ export async function handleFetchAuditLogs(service: AuthService, userId: string,
   const filters = queryParams ? validateSchema(AuditLogFilterSchema, queryParams) : undefined;
   return service.fetchUserAuditLogs(userId, filters);
 }
+
+export async function handleExportMyData(service: AuthService, userId: string): Promise<unknown> {
+  return service.exportUserData(userId);
+}

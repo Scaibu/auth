@@ -743,4 +743,25 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       client.release();
     }
   }
+
+  async exportUserData(userId: string): Promise<{
+    user: AuthUserRecord;
+    organizations: OrganizationRecord[];
+    apiKeys: ApiKeyRecord[];
+    auditLogs: AuditLogRecord[];
+  } | null> {
+    const user = await this.findUserById(userId);
+    if (!user) return null;
+
+    const orgs = await this.listOrganizationsByUserId(userId);
+    const apiKeys = user.org_id ? await this.listApiKeysByOrgId(user.org_id) : [];
+    const auditLogs = await this.fetchUserAuditLogs(userId);
+
+    return {
+      user,
+      organizations: orgs,
+      apiKeys,
+      auditLogs,
+    };
+  }
 }

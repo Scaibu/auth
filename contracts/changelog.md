@@ -1,5 +1,11 @@
 # Auth Contracts Changelog
 
+## [1.4.0] - 2026-10-14
+### Added
+- GDPR Article 15 Data Subject Access Request (DSAR) JSON Export:
+  - Added `GET /api/v1/auth/users/me/export` requiring Bearer user authentication.
+  - Returns `StandardApiResponse` containing machine-readable export of user identity, organization memberships, API keys metadata, MFA enrollment status, and historical audit events with zero credential leakage.
+
 ## [1.3.0] - 2026-10-14
 ### Added
 - Automated & Manual 30-Day Cascade Soft-Delete Purge (GDPR Article 17):

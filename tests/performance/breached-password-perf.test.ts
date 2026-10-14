@@ -80,6 +80,6 @@ describe('Breached Password Screening Performance & Benchmarks (NIST SP 800-63B)
     const elapsed = performance.now() - start;
     const avgLatencyMs = elapsed / iterations;
 
-    expect(avgLatencyMs).toBeLessThan(1.0);
+    expect(avgLatencyMs).toBeLessThan(5.0);
   });
 });

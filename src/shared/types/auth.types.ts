@@ -47,3 +47,49 @@ export const ApiKeyRecordSchema = z.object({
   last_used_ip: z.string().nullable().optional(),
 });
 export type ApiKeyRecord = z.infer<typeof ApiKeyRecordSchema>;
+
+export const UserDsarExportPayloadSchema = z.object({
+  export_metadata: z.object({
+    format_version: z.string(),
+    compliance_standard: z.string(),
+    exported_at: z.string(),
+    data_subject_id: z.string(),
+  }),
+  profile: z.object({
+    id: z.string(),
+    email: z.string(),
+    name: z.string(),
+    role: z.string(),
+    email_verified: z.boolean(),
+    mfa_enabled: z.boolean(),
+    mfa_enrolled_at: z.string().nullable().optional(),
+    permissions: z.array(z.string()),
+  }),
+  organizations: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      slug: z.string(),
+      role: z.string(),
+    })
+  ),
+  api_keys: z.array(
+    z.object({
+      key_id: z.string(),
+      name: z.string(),
+      key_type: z.string(),
+      created_at: z.string(),
+      last_used_at: z.string().nullable().optional(),
+      last_used_ip: z.string().nullable().optional(),
+    })
+  ),
+  audit_logs: z.array(
+    z.object({
+      id: z.string(),
+      event_type: z.string(),
+      ip_address: z.string(),
+      timestamp: z.string(),
+    })
+  ),
+});
+export type UserDsarExportPayload = z.infer<typeof UserDsarExportPayloadSchema>;

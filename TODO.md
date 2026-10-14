@@ -19,7 +19,7 @@
 | **Core Authentication** | Breached Password Screening (HaveIBeenPwned k-Anonymity) | NIST SP 800-63B | ✅ **Completed (ADR 0015)** | v1.1 | **P1** |
 | **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ✅ **Completed (ADR 0016)** | v1.1 | **P1** |
 
-| **Audit & Compliance** | GDPR Data Subject Access Request (DSAR) JSON Export | GDPR Article 15 | ⏳ **Pending** | v1.1 | **P1** |
+| **Audit & Compliance** | GDPR Data Subject Access Request (DSAR) JSON Export | GDPR Article 15 | ✅ **Completed (ADR 0017)** | v1.1 | **P1** |
 | **Security & Defense** | Automated Security Headers & Strict CSP (Nonces) | W3C CSP Level 3 | ⏳ **Pending** | v1.1 | **P1** |
 | **Enterprise Identity** | OAuth2 / OIDC Social Login (Google, GitHub, GitLab) | RFC 6749 / OIDC | ⏳ **Pending** | v1.1 | **P1** |
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ⏳ **Pending** | v1.2 | **P2** |
