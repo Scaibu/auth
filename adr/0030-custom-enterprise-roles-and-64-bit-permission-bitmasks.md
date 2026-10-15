@@ -182,22 +182,76 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    Req([Request: Evaluate User Permissions]) --> Fetch[Query User Custom Roles for Org]
-    Fetch --> RolesFound{Any roles assigned?}
+    Req(["Request: Evaluate User Permissions"]) --> Fetch["Query User Custom Roles for Org"]
+    Fetch --> RolesFound{"Any roles assigned?"}
     
-    RolesFound -- No --> LegacyCheck{Legacy role fallback?}
-    LegacyCheck -- 'admin'/'owner' --> FullAccess[Grant All System Bits: (1n << 37n) - 1n]
-    LegacyCheck -- Other/None --> DenyZero[EffectiveMask = 0n]
+    RolesFound -- No --> LegacyCheck{"Legacy role fallback?"}
+    LegacyCheck -- "'admin' or 'owner'" --> FullAccess["Grant All System Bits: (1n &lt;&lt; 37n) - 1n"]
+    LegacyCheck -- "Other or None" --> DenyZero["EffectiveMask = 0n"]
     FullAccess --> CompareBits
     DenyZero --> CompareBits
     
-    RolesFound -- Yes --> Aggregate[Aggregate EffectiveMask = Bitwise OR of all Role Masks]
-    Aggregate --> MapRequired[Map Required Permission Strings to BigInt RequiredMask]
+    RolesFound -- Yes --> Aggregate["Aggregate EffectiveMask = Bitwise OR of all Role Masks"]
+    Aggregate --> MapRequired["Map Required Permission Strings to BigInt RequiredMask"]
     
-    MapRequired --> CompareBits{"(EffectiveMask & RequiredMask) == RequiredMask"}
-    CompareBits -- True --> Allow([Result: GRANTED = TRUE])
-    CompareBits -- False --> Diff[MissingBits = RequiredMask & (~EffectiveMask)]
-    Diff --> Deny([Result: GRANTED = FALSE, Return MissingBits])
+    MapRequired --> CompareBits{"(EffectiveMask &amp; RequiredMask) == RequiredMask"}
+    CompareBits -- True --> Allow(["Result: GRANTED = TRUE"])
+    CompareBits -- False --> Diff["MissingBits = RequiredMask &amp; (~EffectiveMask)"]
+    Diff --> Deny(["Result: GRANTED = FALSE, Return MissingBits"])
+```
+
+---
+
+### 5. Detailed End-to-End Runtime Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as API Consumer / Frontend
+    participant Gateway as API Gateway / Router
+    participant Service as CustomRoleService
+    participant Tracing as OpenTelemetry Tracer
+    participant DB as AlloyDB Omni (PostgreSQL 16)
+    participant Audit as Append-Only Audit Log
+
+    Note over Client, DB: Phase 1: Role Provisioning
+    Client->>Gateway: POST /api/v1/auth/roles (Name, Description, Mask)
+    Gateway->>Service: createCustomRole(orgId, params, actorId)
+    Service->>Tracing: withSpan("CustomRoleService.createCustomRole")
+    Service->>DB: Query existing role by name (tenant scoped)
+    DB-->>Service: NULL (Unique name confirmed)
+    Service->>DB: INSERT INTO auth_custom_roles (id, public_id, org_id, mask, version=1)
+    DB-->>Service: Row inserted
+    Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_CREATED, new_mask)
+    Audit-->>Service: Audit event locked
+    Service-->>Gateway: Return CustomRoleRecord
+    Gateway-->>Client: 201 Created (id, public_id, permission_mask)
+
+    Note over Client, DB: Phase 2: Role Assignment
+    Client->>Gateway: POST /api/v1/auth/users/{userId}/roles (role_ids)
+    Gateway->>Service: assignUserCustomRoles(orgId, userId, roleIds, actorId)
+    Service->>DB: BEGIN Transaction
+    Service->>DB: Soft-delete obsolete user role mappings
+    loop For each role_id
+        Service->>DB: INSERT INTO auth_user_custom_roles (org_id, user_id, role_id)
+        Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_ASSIGNED)
+    end
+    Service->>DB: COMMIT Transaction
+    Service-->>Gateway: Success (200 OK)
+    Gateway-->>Client: 200 OK
+
+    Note over Client, DB: Phase 3: Sub-Millisecond Bitmask Evaluation
+    Client->>Gateway: POST /api/v1/auth/permissions/evaluate (org_id, user_id, required_permissions)
+    Gateway->>Service: evaluateUserPermissions(orgId, userId, requiredPermissions)
+    Service->>DB: SELECT permission_mask FROM auth_custom_roles WHERE user_id
+    DB-->>Service: [maskA, maskB]
+    Note over Service: EffectiveMask = maskA | maskB<br/>RequiredMask = perm1 | perm2<br/>isGranted = (Effective &amp; Required) == Required
+    alt Permissions Satisfied
+        Service-->>Gateway: { granted: true, effective_mask, missing_bits: "0" }
+    else Missing Permissions
+        Service-->>Gateway: { granted: false, effective_mask, missing_bits }
+    end
+    Gateway-->>Client: 200 OK
 ```
 
 ---
