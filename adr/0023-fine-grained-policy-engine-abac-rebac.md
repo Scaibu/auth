@@ -53,7 +53,7 @@ flowchart TD
 
 Authorization state is modeled as 6-ary relationship tuples:
 
-$$\langle \text{tenant\_id}, \text{subject\_type}, \text{subject\_id}, \text{relation}, \text{object\_type}, \text{object\_id} \rangle$$
+$$\langle \mathrm{tenant\_id}, \mathrm{subject\_type}, \mathrm{subject\_id}, \mathrm{relation}, \mathrm{object\_type}, \mathrm{object\_id} \rangle$$
 
 ### 2.1 Standard Relations & Hierarchy
 - `owner`: Transitive super-relation implies `editor`, `viewer`, and `admin`.
