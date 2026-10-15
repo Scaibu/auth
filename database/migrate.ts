@@ -47,13 +47,21 @@ export async function runMigrations() {
     const { rows } = await client.query<{ name: string }>('SELECT name FROM schema_migrations');
     const appliedSet = new Set(rows.map((r) => r.name));
 
-    const migrationsDir = path.join(__dirname, 'migrations');
+    const candidateDirs = [
+      path.join(__dirname, 'migrations'),
+      path.join(process.cwd(), 'database', 'migrations'),
+      path.join(__dirname, '..', 'database', 'migrations'),
+    ];
+    const migrationsDir = candidateDirs.find((dir) => fs.existsSync(dir));
+    if (!migrationsDir) {
+      throw new Error(`[db-migrate] Could not locate migrations directory in candidate paths: ${candidateDirs.join(', ')}`);
+    }
     const files = fs
       .readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql') && !f.endsWith('.rollback.sql'))
       .sort();
 
-    console.log(`[db-migrate] Found ${files.length} migration file(s).`);
+    console.log(`[db-migrate] Found ${files.length} migration file(s) in ${migrationsDir}.`);
 
     for (const file of files) {
       if (appliedSet.has(file)) {
