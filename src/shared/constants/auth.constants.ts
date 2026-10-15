@@ -396,6 +396,31 @@ export const AUTH_CONSTANTS = {
     REASON_NO_RELATION_FOUND: 'No matching relationship tuple satisfies target action',
     REASON_MFA_REQUIRED: 'Action requires active multi-factor authentication (MFA)',
   },
+
+  SCIM: {
+    CONTENT_TYPE: 'application/scim+json',
+    SCHEMA_USER: 'urn:ietf:params:scim:schemas:core:2.0:User',
+    SCHEMA_GROUP: 'urn:ietf:params:scim:schemas:core:2.0:Group',
+    SCHEMA_SERVICE_PROVIDER_CONFIG: 'urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig',
+    SCHEMA_RESOURCE_TYPE: 'urn:ietf:params:scim:schemas:core:2.0:ResourceType',
+    SCHEMA_SCHEMA: 'urn:ietf:params:scim:schemas:core:2.0:Schema',
+    SCHEMA_LIST_RESPONSE: 'urn:ietf:params:scim:api:messages:2.0:ListResponse',
+    SCHEMA_ERROR: 'urn:ietf:params:scim:api:messages:2.0:Error',
+    ERROR_UNIQUENESS: 'uniqueness',
+    ERROR_INVALID_VALUE: 'invalidValue',
+    ERROR_INVALID_SYNTAX: 'invalidSyntax',
+    ERROR_NO_TARGET: 'noTarget',
+    RESOURCE_TYPE_USER: 'User',
+    RESOURCE_TYPE_GROUP: 'Group',
+    DEFAULT_PAGE_SIZE: 100,
+  },
+
+  AUDIT_EVENT_SCIM_USER_PROVISIONED: 'SCIM_USER_PROVISIONED',
+  AUDIT_EVENT_SCIM_USER_UPDATED: 'SCIM_USER_UPDATED',
+  AUDIT_EVENT_SCIM_USER_DEPROVISIONED: 'SCIM_USER_DEPROVISIONED',
+  AUDIT_EVENT_SCIM_GROUP_CREATED: 'SCIM_GROUP_CREATED',
+  AUDIT_EVENT_SCIM_GROUP_UPDATED: 'SCIM_GROUP_UPDATED',
+  AUDIT_EVENT_SCIM_GROUP_DELETED: 'SCIM_GROUP_DELETED',
 } as const;
 
 

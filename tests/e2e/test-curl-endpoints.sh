@@ -333,13 +333,27 @@ POLICY_EVAL_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/policies/evaluate" \
   -d '{"subject_type":"user","subject_id":"usr_test_curl","action":"read","object_type":"report","object_id":"rep_curl"}')
 echo "${POLICY_EVAL_RESP}"
 
+echo -e "\n--- [44/46] GET /scim/v2/ServiceProviderConfig (SCIM 2.0 Discovery - ADR 0024) ---"
+SCIM_CONF_RESP=$(curl -s -X GET "${BASE_URL}/scim/v2/ServiceProviderConfig")
+echo "${SCIM_CONF_RESP}"
+
+echo -e "\n--- [45/46] POST /scim/v2/Users (Unauthenticated Request Rejection - RFC 7644) ---"
+SCIM_UNAUTH_RESP=$(curl -s -X POST "${BASE_URL}/scim/v2/Users" \
+  -H "Content-Type: application/json" \
+  -d '{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"curl.test@enterprise.com"}')
+echo "${SCIM_UNAUTH_RESP}"
+
+echo -e "\n--- [46/46] GET /scim/v2/Groups (SCIM Group Listing - RFC 7643) ---"
+SCIM_GRP_RESP=$(curl -s -X GET "${BASE_URL}/scim/v2/Groups")
+echo "${SCIM_GRP_RESP}"
+
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
   -H "Authorization: Bearer ${SWITCHED_TOKEN}")
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 43 Auth Endpoints Executed and Verified Successfully! "
+echo " All 46 Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
 
 

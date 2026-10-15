@@ -72,6 +72,8 @@ import { DomainClaimService, type ClaimDomainInput, type ClaimDomainResult, type
 import type { DnsResolverPort } from './ports/dns-resolver.port';
 import { NodeDnsAdapter } from '../../infra/adapters/dns/node-dns.adapter';
 import type { GeoIpPort } from './ports/geo-ip.port';
+import { ScimProvisioningService } from './services/scim-provisioning.service';
+import type { CreateScimUserInput, CreateScimGroupInput, ScimUserRecord, ScimGroupRecord, ScimListResponse, ScimPatchRequest } from './ports/scim-repository.port';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -87,6 +89,7 @@ export class AuthService {
   private readonly oauthService: OAuthDomainService;
   private readonly domainClaimService: DomainClaimService;
   private readonly policyEngineService: PolicyEngineService;
+  private readonly scimService: ScimProvisioningService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -103,6 +106,7 @@ export class AuthService {
     policyEnginePort?: PolicyEnginePort,
   ) {
     this.repo = repo;
+    this.scimService = new ScimProvisioningService(repo);
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
     this.policyEngineService = new PolicyEngineService(policyEngine, repo);
 
@@ -467,6 +471,54 @@ export class AuthService {
     },
   ): Promise<readonly RelationTuple[]> {
     return this.policyEngineService.listRelations(orgId, filter);
+  }
+
+  async authenticateScimBearer(tokenHeader?: string): Promise<string> {
+    return this.scimService.authenticateScimBearer(tokenHeader);
+  }
+
+  async getScimServiceProviderConfig(): Promise<Record<string, unknown>> {
+    return this.scimService.getServiceProviderConfig();
+  }
+
+  async createScimUser(orgId: string, input: CreateScimUserInput): Promise<ScimUserRecord> {
+    return this.scimService.createUser(orgId, input);
+  }
+
+  async getScimUser(orgId: string, userId: string): Promise<ScimUserRecord> {
+    return this.scimService.getUser(orgId, userId);
+  }
+
+  async listScimUsers(orgId: string, filter?: string, startIndex?: number, count?: number): Promise<ScimListResponse<ScimUserRecord>> {
+    return this.scimService.listUsers(orgId, filter, startIndex, count);
+  }
+
+  async patchScimUser(orgId: string, userId: string, patch: ScimPatchRequest): Promise<ScimUserRecord> {
+    return this.scimService.patchUser(orgId, userId, patch);
+  }
+
+  async deleteScimUser(orgId: string, userId: string): Promise<void> {
+    return this.scimService.deleteUser(orgId, userId);
+  }
+
+  async createScimGroup(orgId: string, input: CreateScimGroupInput): Promise<ScimGroupRecord> {
+    return this.scimService.createGroup(orgId, input);
+  }
+
+  async getScimGroup(orgId: string, groupId: string): Promise<ScimGroupRecord> {
+    return this.scimService.getGroup(orgId, groupId);
+  }
+
+  async listScimGroups(orgId: string, filter?: string, startIndex?: number, count?: number): Promise<ScimListResponse<ScimGroupRecord>> {
+    return this.scimService.listGroups(orgId, filter, startIndex, count);
+  }
+
+  async patchScimGroup(orgId: string, groupId: string, patch: ScimPatchRequest): Promise<ScimGroupRecord> {
+    return this.scimService.patchGroup(orgId, groupId, patch);
+  }
+
+  async deleteScimGroup(orgId: string, groupId: string): Promise<void> {
+    return this.scimService.deleteGroup(orgId, groupId);
   }
 }
 

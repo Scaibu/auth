@@ -1,5 +1,20 @@
 # Auth Contracts Changelog
 
+## [1.10.0] - 2026-10-15
+### Added
+- SCIM 2.0 User & Group Provisioning API (RFC 7643 / RFC 7644 / ADR 0024):
+  - Added `GET /scim/v2/ServiceProviderConfig`: Discovers SCIM service provider capabilities, supported filters, and authentication schemes.
+  - Added `POST /scim/v2/Users`: Provisions enterprise employee from Okta / Entra ID with `externalId` mapping.
+  - Added `GET /scim/v2/Users`: Filters and enumerates users via SCIM filter syntax (`userName eq "..."`).
+  - Added `GET /scim/v2/Users/{id}`: Retrieves SCIM user record.
+  - Added `PATCH /scim/v2/Users/{id}`: RFC 7644 patch operations (`active: false` deprovisions user and blocks access).
+  - Added `DELETE /scim/v2/Users/{id}`: Deprovisions user from tenant organization.
+  - Added `POST /scim/v2/Groups`: Creates SCIM team group with initial membership.
+  - Added `GET /scim/v2/Groups`: Lists directory groups.
+  - Added `GET /scim/v2/Groups/{id}`: Retrieves SCIM group by ID.
+  - Added `PATCH /scim/v2/Groups/{id}`: Differential membership sync (`add` / `remove` members).
+  - Added `DELETE /scim/v2/Groups/{id}`: Deletes SCIM group.
+
 ## [1.9.0] - 2026-10-15
 ### Added
 - Fine-Grained Policy Engine (ABAC / ReBAC) with Zanzibar-Style Relationship Tuples (ADR 0023):

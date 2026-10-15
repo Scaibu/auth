@@ -149,6 +149,17 @@ export interface AuthRepositoryPort {
       object_id?: string;
     },
   ): Promise<RelationTuple[]>;
+  saveScimToken(record: { id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null }): Promise<void>;
+  findScimTokenByHash(tokenHash: string): Promise<{ id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null } | null>;
+  saveExternalMapping(orgId: string, resourceType: 'user' | 'group', internalId: string, externalId: string): Promise<void>;
+  findExternalMapping(orgId: string, resourceType: 'user' | 'group', externalId: string): Promise<string | null>;
+  saveScimGroup(orgId: string, group: { id: string; displayName: string; externalId?: string }): Promise<void>;
+  findScimGroupById(orgId: string, groupId: string): Promise<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } } | null>;
+  listScimGroups(orgId: string, filter?: string, startIndex?: number, count?: number): Promise<{ groups: ReadonlyArray<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } }>; total: number }>;
+  deleteScimGroup(orgId: string, groupId: string): Promise<void>;
+  addScimGroupMember(groupId: string, userId: string): Promise<void>;
+  removeScimGroupMember(groupId: string, userId: string): Promise<void>;
+  listScimGroupMembers(groupId: string): Promise<ReadonlyArray<{ value: string; display?: string }>>;
 }
 
 

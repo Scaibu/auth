@@ -1230,6 +1230,133 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }));
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveScimToken(record: { id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveScimToken', async () => {
+      const sql = `INSERT INTO auth_scim_tokens (id, org_id, token_hash, description, status, created_at_ms, expires_at_ms, last_used_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`;
+      await this.pool.query(sql, [record.id, record.org_id, record.token_hash, record.description, record.status, record.created_at_ms, record.expires_at_ms, record.last_used_at_ms]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findScimTokenByHash(tokenHash: string): Promise<{ id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null } | null> {
+    return withSpan('RealPostgresAuthAdapter.findScimTokenByHash', async () => {
+      const sql = `SELECT id, org_id, token_hash, description, status, created_at_ms, expires_at_ms, last_used_at_ms FROM auth_scim_tokens WHERE token_hash = $1 AND deleted_at IS NULL AND status = 'ACTIVE'`;
+      const res = await this.pool.query(sql, [tokenHash]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        token_hash: row.token_hash,
+        description: row.description,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+        expires_at_ms: row.expires_at_ms !== null ? Number(row.expires_at_ms) : null,
+        last_used_at_ms: row.last_used_at_ms !== null ? Number(row.last_used_at_ms) : null,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveExternalMapping(orgId: string, resourceType: 'user' | 'group', internalId: string, externalId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveExternalMapping', async () => {
+      const now = Date.now();
+      const sql = `INSERT INTO auth_scim_external_mappings (id, org_id, resource_type, internal_id, external_id, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (org_id, resource_type, external_id) DO UPDATE SET internal_id = $4, updated_at_ms = $7`;
+      const id = `map_${now}_${Math.random().toString(36).substring(2, 9)}`;
+      await this.pool.query(sql, [id, orgId, resourceType, internalId, externalId, now, now]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findExternalMapping(orgId: string, resourceType: 'user' | 'group', externalId: string): Promise<string | null> {
+    return withSpan('RealPostgresAuthAdapter.findExternalMapping', async () => {
+      const sql = `SELECT internal_id FROM auth_scim_external_mappings WHERE org_id = $1 AND resource_type = $2 AND external_id = $3`;
+      const res = await this.pool.query(sql, [orgId, resourceType, externalId]);
+      return res.rows.length > 0 ? res.rows[0].internal_id : null;
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveScimGroup(orgId: string, group: { id: string; displayName: string; externalId?: string }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveScimGroup', async () => {
+      const now = Date.now();
+      const sql = `INSERT INTO auth_groups (id, org_id, display_name, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET display_name = $3, updated_at_ms = $5`;
+      await this.pool.query(sql, [group.id, orgId, group.displayName, now, now]);
+      if (group.externalId) {
+        await this.saveExternalMapping(orgId, 'group', group.id, group.externalId);
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findScimGroupById(orgId: string, groupId: string): Promise<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } } | null> {
+    return withSpan('RealPostgresAuthAdapter.findScimGroupById', async () => {
+      const groupSql = `SELECT g.id, g.display_name, g.created_at_ms, g.updated_at_ms, m.external_id FROM auth_groups g LEFT JOIN auth_scim_external_mappings m ON m.internal_id = g.id AND m.resource_type = 'group' WHERE g.id = $1 AND g.org_id = $2 AND g.deleted_at IS NULL`;
+      const res = await this.pool.query(groupSql, [groupId, orgId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+
+      const membersSql = `SELECT gm.user_id, u.name, u.email FROM auth_group_members gm JOIN auth_users u ON u.id = gm.user_id WHERE gm.group_id = $1`;
+      const memRes = await this.pool.query(membersSql, [groupId]);
+      const members = memRes.rows.map((m: any) => ({
+        value: m.user_id,
+        display: m.name || m.email || m.user_id,
+      }));
+
+      return {
+        id: row.id,
+        externalId: row.external_id ?? undefined,
+        displayName: row.display_name,
+        members,
+        meta: {
+          resourceType: 'Group',
+          created: new Date(Number(row.created_at_ms)).toISOString(),
+          lastModified: new Date(Number(row.updated_at_ms)).toISOString(),
+          location: `/scim/v2/Groups/${row.id}`,
+        },
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listScimGroups(orgId: string, _filter?: string, _startIndex?: number, _count?: number): Promise<{ groups: ReadonlyArray<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } }>; total: number }> {
+    return withSpan('RealPostgresAuthAdapter.listScimGroups', async () => {
+      const sql = `SELECT id FROM auth_groups WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at_ms ASC`;
+      const res = await this.pool.query(sql, [orgId]);
+      const groups = await Promise.all(res.rows.map((r: any) => this.findScimGroupById(orgId, r.id)));
+      const nonNull = groups.filter((g): g is NonNullable<typeof g> => g !== null);
+      return { groups: nonNull, total: nonNull.length };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteScimGroup(orgId: string, groupId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.deleteScimGroup', async () => {
+      const sql = `UPDATE auth_groups SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2`;
+      await this.pool.query(sql, [groupId, orgId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async addScimGroupMember(groupId: string, userId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.addScimGroupMember', async () => {
+      const now = Date.now();
+      const id = `gm_${now}_${Math.random().toString(36).substring(2, 9)}`;
+      const sql = `INSERT INTO auth_group_members (id, group_id, user_id, added_at_ms) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, user_id) DO NOTHING`;
+      await this.pool.query(sql, [id, groupId, userId, now]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async removeScimGroupMember(groupId: string, userId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.removeScimGroupMember', async () => {
+      const sql = `DELETE FROM auth_group_members WHERE group_id = $1 AND user_id = $2`;
+      await this.pool.query(sql, [groupId, userId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listScimGroupMembers(groupId: string): Promise<ReadonlyArray<{ value: string; display?: string }>> {
+    return withSpan('RealPostgresAuthAdapter.listScimGroupMembers', async () => {
+      const sql = `SELECT gm.user_id, u.name, u.email FROM auth_group_members gm JOIN auth_users u ON u.id = gm.user_id WHERE gm.group_id = $1`;
+      const res = await this.pool.query(sql, [groupId]);
+      return res.rows.map((m: any) => ({
+        value: m.user_id,
+        display: m.name || m.email || m.user_id,
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

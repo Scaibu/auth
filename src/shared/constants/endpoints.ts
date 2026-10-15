@@ -41,6 +41,13 @@ export const AUTH_ENDPOINTS = {
   CHALLENGE_RESOLVE: '/api/v1/auth/challenge/resolve',
   POLICIES_EVALUATE: '/api/v1/auth/policies/evaluate',
   POLICIES_RELATIONS: '/api/v1/auth/policies/relations',
+  SCIM_SERVICE_PROVIDER_CONFIG: '/scim/v2/ServiceProviderConfig',
+  SCIM_SCHEMAS: '/scim/v2/Schemas',
+  SCIM_RESOURCE_TYPES: '/scim/v2/ResourceTypes',
+  SCIM_USERS: '/scim/v2/Users',
+  SCIM_USER_ITEM: '/scim/v2/Users/:id',
+  SCIM_GROUPS: '/scim/v2/Groups',
+  SCIM_GROUP_ITEM: '/scim/v2/Groups/:id',
   HEALTH: '/health',
 } as const;
 

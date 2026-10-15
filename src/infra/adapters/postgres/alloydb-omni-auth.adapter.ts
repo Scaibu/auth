@@ -803,6 +803,102 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     return results.map((t) => ({ ...t }));
   }
 
+  private readonly mockScimTokens = new Map<string, { id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null }>();
+  private readonly mockScimMappings = new Map<string, string>();
+  private readonly mockScimGroups = new Map<string, { id: string; org_id: string; displayName: string; externalId?: string; created_at_ms: number; updated_at_ms: number }>();
+  private readonly mockGroupMembers = new Map<string, Set<string>>();
+
+  async saveScimToken(record: { id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null }): Promise<void> {
+    this.mockScimTokens.set(record.token_hash, { ...record });
+  }
+
+  async findScimTokenByHash(tokenHash: string): Promise<{ id: string; org_id: string; token_hash: string; description: string; status: 'ACTIVE' | 'REVOKED'; created_at_ms: number; expires_at_ms: number | null; last_used_at_ms: number | null } | null> {
+    const token = this.mockScimTokens.get(tokenHash);
+    return token ? { ...token } : null;
+  }
+
+  async saveExternalMapping(orgId: string, resourceType: 'user' | 'group', internalId: string, externalId: string): Promise<void> {
+    const key = `${orgId}:${resourceType}:${externalId}`;
+    this.mockScimMappings.set(key, internalId);
+  }
+
+  async findExternalMapping(orgId: string, resourceType: 'user' | 'group', externalId: string): Promise<string | null> {
+    const key = `${orgId}:${resourceType}:${externalId}`;
+    return this.mockScimMappings.get(key) || null;
+  }
+
+  async saveScimGroup(orgId: string, group: { id: string; displayName: string; externalId?: string }): Promise<void> {
+    const now = Date.now();
+    this.mockScimGroups.set(group.id, {
+      id: group.id,
+      org_id: orgId,
+      displayName: group.displayName,
+      externalId: group.externalId,
+      created_at_ms: now,
+      updated_at_ms: now,
+    });
+  }
+
+  async findScimGroupById(orgId: string, groupId: string): Promise<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } } | null> {
+    const g = this.mockScimGroups.get(groupId);
+    if (!g || g.org_id !== orgId) {
+      return null;
+    }
+    const memberIds = [...(this.mockGroupMembers.get(groupId) || new Set())];
+    const members = memberIds.map((userId) => {
+      const u = [...this.mockUsers.values()].find((usr) => usr.id === userId);
+      return { value: userId, display: u?.name || u?.email || userId };
+    });
+    return {
+      id: g.id,
+      externalId: g.externalId,
+      displayName: g.displayName,
+      members,
+      meta: {
+        resourceType: 'Group',
+        created: new Date(g.created_at_ms).toISOString(),
+        lastModified: new Date(g.updated_at_ms).toISOString(),
+        location: `/scim/v2/Groups/${g.id}`,
+      },
+    };
+  }
+
+  async listScimGroups(orgId: string, _filter?: string, _startIndex?: number, _count?: number): Promise<{ groups: ReadonlyArray<{ id: string; externalId?: string; displayName: string; members: ReadonlyArray<{ value: string; display?: string }>; meta: { resourceType: 'Group'; created: string; lastModified: string; location: string } }>; total: number }> {
+    const matching = [...this.mockScimGroups.values()].filter((g) => g.org_id === orgId);
+    const groups = await Promise.all(matching.map((g) => this.findScimGroupById(orgId, g.id)));
+    const nonNull = groups.filter((g): g is NonNullable<typeof g> => g !== null);
+    return { groups: nonNull, total: nonNull.length };
+  }
+
+  async deleteScimGroup(orgId: string, groupId: string): Promise<void> {
+    const g = this.mockScimGroups.get(groupId);
+    if (g && g.org_id === orgId) {
+      this.mockScimGroups.delete(groupId);
+      this.mockGroupMembers.delete(groupId);
+    }
+  }
+
+  async addScimGroupMember(groupId: string, userId: string): Promise<void> {
+    if (!this.mockGroupMembers.has(groupId)) {
+      this.mockGroupMembers.set(groupId, new Set());
+    }
+    this.mockGroupMembers.get(groupId)!.add(userId);
+  }
+
+  async removeScimGroupMember(groupId: string, userId: string): Promise<void> {
+    const set = this.mockGroupMembers.get(groupId);
+    if (set) {
+      set.delete(userId);
+    }
+  }
+
+  async listScimGroupMembers(groupId: string): Promise<ReadonlyArray<{ value: string; display?: string }>> {
+    const memberIds = [...(this.mockGroupMembers.get(groupId) || new Set())];
+    return memberIds.map((userId) => {
+      const u = [...this.mockUsers.values()].find((usr) => usr.id === userId);
+      return { value: userId, display: u?.name || u?.email || userId };
+    });
+  }
 }
 
 
