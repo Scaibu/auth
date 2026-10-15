@@ -57,6 +57,12 @@ import type { MfaPort, MfaSetupResult, MfaVerificationResult } from '../../share
 
 import type { BreachedPasswordDetectorPort } from '../../shared/ports/breached-password-detector.port';
 import { HaveIBeenPwnedAdapter } from '../../infra/adapters/security/pwned-passwords.adapter';
+import { OAuthDomainService, type OAuthSessionResult } from './services/oauth.service';
+import type { OAuthProviderPort } from './ports/oauth-provider.port';
+import { GoogleOAuthAdapter } from '../../infra/adapters/oauth/google-oauth.adapter';
+import { GitHubOAuthAdapter } from '../../infra/adapters/oauth/github-oauth.adapter';
+import type { FederatedIdentityRecord } from '../../shared/types/auth.types';
+import { AUTH_CONFIG } from '../../config/env.config';
 
 
 export class AuthService {
@@ -69,6 +75,7 @@ export class AuthService {
   private readonly mfaService: MfaDomainService;
   private readonly stepUpService: StepUpDomainService;
   private readonly refreshTokenService: RefreshTokenService;
+  private readonly oauthService: OAuthDomainService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -112,6 +119,14 @@ export class AuthService {
     this.mfaService = new MfaDomainService(repo, mfa);
     this.stepUpService = new StepUpDomainService(repo, mfa);
     this.refreshTokenService = new RefreshTokenService(repo);
+
+    const googleAdapter = new GoogleOAuthAdapter(AUTH_CONFIG.oauth.google);
+    const githubAdapter = new GitHubOAuthAdapter(AUTH_CONFIG.oauth.github);
+    const providers = new Map<string, OAuthProviderPort>([
+      [googleAdapter.providerName, googleAdapter],
+      [githubAdapter.providerName, githubAdapter],
+    ]);
+    this.oauthService = new OAuthDomainService(providers, repo, this.refreshTokenService, AUTH_CONFIG.jwt.secret);
   }
 
 
@@ -308,5 +323,21 @@ export class AuthService {
 
   async revokeOtherUserSessions(userId: string, currentFamilyId: string): Promise<number> {
     return this.refreshTokenService.revokeOtherUserSessions(userId, currentFamilyId);
+  }
+
+  async getOAuthAuthorizationUrl(provider: string, redirectUri?: string): Promise<{ url: string; state: string }> {
+    return this.oauthService.getAuthorizationUrl(provider, redirectUri);
+  }
+
+  async handleOAuthCallback(provider: string, code: string, state: string, ip?: string, userAgent?: string): Promise<OAuthSessionResult> {
+    return this.oauthService.handleCallback(provider, code, state, ip, userAgent);
+  }
+
+  async listLinkedOAuthIdentities(userId: string): Promise<FederatedIdentityRecord[]> {
+    return this.oauthService.listLinkedIdentities(userId);
+  }
+
+  async unlinkOAuthIdentity(userId: string, provider: string): Promise<void> {
+    return this.oauthService.unlinkIdentity(userId, provider);
   }
 }

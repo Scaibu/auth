@@ -103,3 +103,24 @@ export const UserSessionSummarySchema = z.object({
   is_current: z.boolean(),
 });
 export type UserSessionSummary = z.infer<typeof UserSessionSummarySchema>;
+
+export const FederatedIdentityRecordSchema = z.object({
+  id: z.string().min(1),
+  user_id: z.string().min(1),
+  provider: z.string().min(1),
+  provider_subject_id: z.string().min(1),
+  email: z.string().email(),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive(),
+});
+export type FederatedIdentityRecord = z.infer<typeof FederatedIdentityRecordSchema>;
+
+export const FederatedUserProfileSchema = z.object({
+  provider: z.string().min(1),
+  provider_subject_id: z.string().min(1),
+  email: z.string().email(),
+  email_verified: z.boolean(),
+  name: z.string().min(1),
+});
+export type FederatedUserProfile = z.infer<typeof FederatedUserProfileSchema>;
+

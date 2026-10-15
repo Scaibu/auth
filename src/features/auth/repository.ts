@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord } from '../../shared/types/auth.types';
 
 export interface OrganizationRecord {
   id: string;
@@ -88,5 +88,12 @@ export interface AuthRepositoryPort {
     userAgent?: string;
   }>>;
   revokeOtherSessionsByUserId(userId: string, currentFamilyId: string, reason: string): Promise<number>;
+  findFederatedIdentity(provider: string, providerSubjectId: string): Promise<FederatedIdentityRecord | null>;
+  findFederatedIdentityByUserAndProvider(userId: string, provider: string): Promise<FederatedIdentityRecord | null>;
+  listFederatedIdentitiesByUserId(userId: string): Promise<FederatedIdentityRecord[]>;
+  saveFederatedIdentity(identity: FederatedIdentityRecord): Promise<void>;
+  deleteFederatedIdentity(userId: string, provider: string): Promise<void>;
+  countFederatedIdentitiesByUserId(userId: string): Promise<number>;
 }
+
 

@@ -3,7 +3,7 @@ import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord } from '../../../shared/types/auth.types';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
@@ -803,5 +803,87 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     } finally {
       client.release();
     }
+  }
+
+  async findFederatedIdentity(provider: string, providerSubjectId: string): Promise<FederatedIdentityRecord | null> {
+    return withSpan('db.findFederatedIdentity', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.FIND_BY_PROVIDER_SUBJECT, [provider, providerSubjectId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        provider: row.provider,
+        provider_subject_id: row.provider_subject_id,
+        email: row.email,
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findFederatedIdentityByUserAndProvider(userId: string, provider: string): Promise<FederatedIdentityRecord | null> {
+    return withSpan('db.findFederatedIdentityByUserAndProvider', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.FIND_BY_USER_AND_PROVIDER, [userId, provider]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        provider: row.provider,
+        provider_subject_id: row.provider_subject_id,
+        email: row.email,
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listFederatedIdentitiesByUserId(userId: string): Promise<FederatedIdentityRecord[]> {
+    return withSpan('db.listFederatedIdentitiesByUserId', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.LIST_BY_USER_ID, [userId]);
+      return res.rows.map((row) => ({
+        id: row.id,
+        user_id: row.user_id,
+        provider: row.provider,
+        provider_subject_id: row.provider_subject_id,
+        email: row.email,
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveFederatedIdentity(identity: FederatedIdentityRecord): Promise<void> {
+    await withSpan('db.saveFederatedIdentity', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.INSERT_IDENTITY, [
+        identity.id,
+        identity.user_id,
+        identity.provider,
+        identity.provider_subject_id,
+        identity.email,
+        identity.created_at_ms,
+        identity.updated_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteFederatedIdentity(userId: string, provider: string): Promise<void> {
+    await withSpan('db.deleteFederatedIdentity', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.DELETE_IDENTITY, [userId, provider]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async countFederatedIdentitiesByUserId(userId: string): Promise<number> {
+    return withSpan('db.countFederatedIdentitiesByUserId', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_FEDERATED_IDENTITY.COUNT_BY_USER_ID, [userId]);
+      return Number(res.rows[0]?.count ?? 0);
+    }, { kind: SpanKind.CLIENT });
   }
 }

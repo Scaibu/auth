@@ -29,6 +29,10 @@ export const AUTH_ENDPOINTS = {
   ROUTES: '/api/v1/auth/routes',
   ADMIN_IMPERSONATE: '/api/v1/auth/admin/impersonate',
   ADMIN_PURGE_EXPIRED: '/api/v1/auth/admin/purge-expired',
+  OAUTH_AUTHORIZE: '/api/v1/auth/oauth/:provider/authorize',
+  OAUTH_CALLBACK: '/api/v1/auth/oauth/:provider/callback',
+  OAUTH_IDENTITIES: '/api/v1/auth/oauth/identities',
+  OAUTH_UNLINK_IDENTITY: '/api/v1/auth/oauth/identities/:provider',
   HEALTH: '/health',
 } as const;
 

@@ -40,6 +40,10 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.ADMIN_PURGE_EXPIRED);
     expect(content).toContain(AUTH_ENDPOINTS.USERS_ME_EXPORT);
     expect(content).toContain(AUTH_ENDPOINTS.SESSIONS);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_AUTHORIZE);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_CALLBACK);
+    expect(content).toContain(AUTH_ENDPOINTS.OAUTH_IDENTITIES);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_UNLINK);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.USER_SESSION_SUMMARY);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_UP_REQUEST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_IN_REQUEST);

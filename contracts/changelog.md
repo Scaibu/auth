@@ -1,5 +1,13 @@
 # Auth Contracts Changelog
 
+## [1.6.0] - 2026-10-15
+### Added
+- Federated Identity Provider (OAuth 2.0 / OIDC) Single Sign-On & Account Linking:
+  - Added `GET /api/v1/auth/oauth/{provider}/authorize`: Generate signed OAuth authorization URI and state.
+  - Added `POST /api/v1/auth/oauth/{provider}/callback`: Exchange code and state for authenticated session tokens and account provisioning.
+  - Added `GET /api/v1/auth/oauth/identities`: Enumerate linked OAuth provider identities for authenticated user.
+  - Added `DELETE /api/v1/auth/oauth/identities/{provider}`: Unlink federated identity provider with account lockout prevention guard.
+
 ## [1.5.0] - 2026-10-14
 ### Added
 - Multi-Device Session Management & Remote Kill (OWASP ASVS 3.3):

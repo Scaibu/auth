@@ -33,6 +33,7 @@ import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from '.
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
 import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
 import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa, handlePurgeExpired } from './handlers/step-up.handler';
+import { handleOAuthAuthorize, handleOAuthCallback, handleListOAuthIdentities, handleUnlinkOAuthIdentity } from './handlers/oauth.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -494,5 +495,35 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'All other sessions successfully terminated',
     handler: (ctx, session) => handleRevokeOtherSessions(ctx.service, session.sub, ctx.headers?.['x-session-family']),
+  },
+  {
+    name: 'oauth_authorize',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OAUTH_AUTHORIZE,
+    successMessage: 'OAuth authorization URL generated',
+    handler: (ctx) => handleOAuthAuthorize(ctx.service, ctx.params?.provider ?? '', ctx.queryParams),
+  },
+  {
+    name: 'oauth_callback',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.OAUTH_CALLBACK,
+    successMessage: 'OAuth authentication successful',
+    handler: (ctx) => handleOAuthCallback(ctx.service, ctx.params?.provider ?? '', ctx.body, ctx.headers),
+  },
+  {
+    name: 'oauth_list_identities',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OAUTH_IDENTITIES,
+    requiresAuth: true,
+    successMessage: 'Linked OAuth identities retrieved successfully',
+    handler: (ctx, session) => handleListOAuthIdentities(ctx.service, session),
+  },
+  {
+    name: 'oauth_unlink_identity',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.OAUTH_UNLINK_IDENTITY,
+    requiresAuth: true,
+    successMessage: 'OAuth identity unlinked successfully',
+    handler: (ctx, session) => handleUnlinkOAuthIdentity(ctx.service, session, ctx.params?.provider ?? ''),
   },
 ];

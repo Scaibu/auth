@@ -248,6 +248,105 @@ paths:
         '404':
           description: Session family not found or belongs to another user
 
+  /api/v1/auth/oauth/{provider}/authorize:
+    get:
+      summary: Initiate OAuth 2.0 / OIDC authorization flow
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - in: query
+          name: redirect_uri
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization URL and signed state generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Unsupported OAuth provider
+
+  /api/v1/auth/oauth/{provider}/callback:
+    post:
+      summary: Exchange OAuth authorization code for session tokens
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, state]
+              properties:
+                code:
+                  type: string
+                state:
+                  type: string
+      responses:
+        '200':
+          description: Successfully authenticated via federated OAuth identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Invalid or expired state parameter or invalid code
+        '403':
+          description: Identity provider email unverified
+
+  /api/v1/auth/oauth/identities:
+    get:
+      summary: List linked OAuth identities for authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of linked identities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Unauthorized
+
+  /api/v1/auth/oauth/identities/{provider}:
+    delete:
+      summary: Unlink federated identity provider from user account
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Identity unlinked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Cannot unlink sole authentication method
+        '401':
+          description: Unauthorized
+        '404':
+          description: Identity not found
+
   /api/v1/auth/organizations:
     get:
       summary: List all organizations the authenticated user belongs to

@@ -182,6 +182,7 @@ export const AUTH_CONSTANTS = {
     FLOW_MFA: 'FLOW_MFA',
     FLOW_AUDIT_LOGS: 'FLOW_AUDIT_LOGS',
     FLOW_REFRESH_TOKEN: 'FLOW_REFRESH_TOKEN',
+    FLOW_FEDERATED_IDENTITY: 'FLOW_FEDERATED_IDENTITY',
   },
 
   ERROR_MESSAGES: {
@@ -194,6 +195,11 @@ export const AUTH_CONSTANTS = {
     ORG_ALREADY_EXISTS_PREFIX: 'Organization name already exists: ',
     USER_ALREADY_EXISTS_PREFIX: 'User with email ',
     USER_ALREADY_EXISTS_SUFFIX: ' already exists',
+    OAUTH_INVALID_PROVIDER: 'Unsupported or unrecognised OAuth provider',
+    OAUTH_STATE_INVALID_OR_EXPIRED: 'Invalid or expired OAuth state parameter',
+    OAUTH_EMAIL_UNVERIFIED: 'Identity provider email is unverified; automatic linking rejected',
+    OAUTH_UNLINK_NOT_PERMITTED: 'Cannot unlink identity: account has no password and no alternative login method',
+    OAUTH_IDENTITY_NOT_FOUND: 'Federated identity not found for user',
   },
 
   CONTRACT_SCHEMAS: {
@@ -215,6 +221,17 @@ export const AUTH_CONSTANTS = {
     JTI: 'JTI',
     STATUS_423: "'423'",
     STATUS_429: "'429'",
+    FEDERATED_USER_PROFILE: 'FederatedUserProfile',
+    OPENAPI_OAUTH_AUTHORIZE: '/api/v1/auth/oauth/{provider}/authorize',
+    OPENAPI_OAUTH_CALLBACK: '/api/v1/auth/oauth/{provider}/callback',
+    OPENAPI_OAUTH_UNLINK: '/api/v1/auth/oauth/identities/{provider}',
+  },
+
+  OAUTH: {
+    PROVIDER_GOOGLE: 'google',
+    PROVIDER_GITHUB: 'github',
+    STATE_TTL_MS: 10 * 60 * 1000,
+    DISABLED_PASSWORD_PREFIX: '$oauth$disabled$',
   },
 
   ROLE_MEMBER: 'member',
@@ -225,4 +242,7 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_PASSWORD_RESET: 'PASSWORD_RESET',
   AUDIT_EVENT_API_KEY_CREATED: 'API_KEY_CREATED',
   AUDIT_EVENT_ORG_SWITCH: 'ORG_SWITCH',
+  AUDIT_EVENT_OAUTH_SIGNIN: 'USER_OAUTH_SIGNIN',
+  AUDIT_EVENT_OAUTH_LINK: 'USER_OAUTH_LINK',
+  AUDIT_EVENT_OAUTH_UNLINK: 'USER_OAUTH_UNLINK',
 } as const;

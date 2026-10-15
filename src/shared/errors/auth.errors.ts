@@ -142,5 +142,17 @@ export class NotFoundError extends AuthError {
   }
 }
 
+export class BadRequestError extends AuthError {
+  constructor(message = 'Bad request') {
+    super(message, 'BAD_REQUEST', 400);
+  }
+}
+
+export class ForbiddenError extends AuthError {
+  constructor(message = 'Forbidden') {
+    super(message, 'FORBIDDEN', 403);
+  }
+}
+
 
 

@@ -146,4 +146,12 @@ export const AUTH_QUERIES = {
     REVOKE_OTHER_FAMILIES: `UPDATE auth_refresh_token_families SET is_revoked = TRUE, revoked_reason = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND id != $3 AND is_revoked = FALSE`,
     REVOKE_OTHER_TOKENS: `UPDATE auth_refresh_tokens SET is_revoked = TRUE WHERE user_id = $1 AND family_id != $2 AND is_revoked = FALSE`,
   },
+  FLOW_FEDERATED_IDENTITY: {
+    FIND_BY_PROVIDER_SUBJECT: `SELECT id, user_id, provider, provider_subject_id, email, created_at_ms, updated_at_ms FROM auth_federated_identities WHERE provider = $1 AND provider_subject_id = $2 LIMIT 1`,
+    FIND_BY_USER_AND_PROVIDER: `SELECT id, user_id, provider, provider_subject_id, email, created_at_ms, updated_at_ms FROM auth_federated_identities WHERE user_id = $1 AND provider = $2 LIMIT 1`,
+    LIST_BY_USER_ID: `SELECT id, user_id, provider, provider_subject_id, email, created_at_ms, updated_at_ms FROM auth_federated_identities WHERE user_id = $1 ORDER BY created_at_ms ASC`,
+    INSERT_IDENTITY: `INSERT INTO auth_federated_identities (id, user_id, provider, provider_subject_id, email, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    DELETE_IDENTITY: `DELETE FROM auth_federated_identities WHERE user_id = $1 AND provider = $2`,
+    COUNT_BY_USER_ID: `SELECT COUNT(*) AS count FROM auth_federated_identities WHERE user_id = $1`,
+  },
 } as const;

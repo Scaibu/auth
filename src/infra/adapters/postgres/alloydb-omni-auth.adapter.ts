@@ -1,6 +1,6 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 
@@ -545,5 +545,53 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
 
     return count;
+  }
+
+  private readonly mockFederatedIdentities = new Map<string, FederatedIdentityRecord>();
+
+  async findFederatedIdentity(provider: string, providerSubjectId: string): Promise<FederatedIdentityRecord | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    for (const identity of this.mockFederatedIdentities.values()) {
+      if (identity.provider === provider && identity.provider_subject_id === providerSubjectId) {
+        return { ...identity };
+      }
+    }
+    return null;
+  }
+
+  async findFederatedIdentityByUserAndProvider(userId: string, provider: string): Promise<FederatedIdentityRecord | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    for (const identity of this.mockFederatedIdentities.values()) {
+      if (identity.user_id === userId && identity.provider === provider) {
+        return { ...identity };
+      }
+    }
+    return null;
+  }
+
+  async listFederatedIdentitiesByUserId(userId: string): Promise<FederatedIdentityRecord[]> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    return [...this.mockFederatedIdentities.values()]
+      .filter((i) => i.user_id === userId)
+      .map((i) => ({ ...i }));
+  }
+
+  async saveFederatedIdentity(identity: FederatedIdentityRecord): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    this.mockFederatedIdentities.set(identity.id, { ...identity });
+  }
+
+  async deleteFederatedIdentity(userId: string, provider: string): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    for (const [id, identity] of this.mockFederatedIdentities.entries()) {
+      if (identity.user_id === userId && identity.provider === provider) {
+        this.mockFederatedIdentities.delete(id);
+      }
+    }
+  }
+
+  async countFederatedIdentitiesByUserId(userId: string): Promise<number> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
+    return [...this.mockFederatedIdentities.values()].filter((i) => i.user_id === userId).length;
   }
 }
