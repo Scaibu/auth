@@ -29,8 +29,8 @@
 | **Enterprise Identity** | Full OAuth 2.0 / OIDC Identity Provider (Auth Code + PKCE) | RFC 7636 / RFC 6749 | ✅ **Completed (ADR 0025)** | v1.3 | **P3** |
 | **Enterprise Identity** | Enterprise SAML 2.0 Service Provider Federation | SAML 2.0 Core | ✅ **Completed (ADR 0026)** | v1.3 | **P3** |
 | **API Key Engine** | IP / CIDR Subnet Allowlist & Usage Analytics Telemetry | Zero-Trust Network | ✅ **Completed (ADR 0027)** | v1.2 | **P2** |
+| **User Lifecycle** | Password History Enforcement (Disallow Prior 10 Passwords) | NIST SP 800-63B | ✅ **Completed (ADR 0028)** | v1.2 | **P2** |
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ⏳ **Pending** | v1.2 | **P2** |
-| **User Lifecycle** | Password History Enforcement (Disallow Prior 10 Passwords) | NIST SP 800-63B | ⏳ **Pending** | v1.2 | **P2** |
 | **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ⏳ **Pending** | v1.2 | **P2** |
 | **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ⏳ **Pending** | v1.2 | **P2** |
 | **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ⏳ **Pending** | v1.2 | **P2** |
@@ -50,7 +50,7 @@
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: WebAuthn / FIDO2 Passkeys (ADR 0028)
+### 2.1 Next Recommended Feature: WebAuthn / FIDO2 Passkeys (ADR 0029)
 - **Objective**: Phishing-resistant authentication (Touch ID, Face ID, YubiKey) bound to domain origin (`rpId`).
 - **Standard**: W3C WebAuthn Level 3 / FIDO2.
 - **Components**:

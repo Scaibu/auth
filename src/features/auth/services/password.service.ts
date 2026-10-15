@@ -17,9 +17,10 @@ import type { ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput } fro
 import type { NotificationDomainService } from './notification.service';
 import type { BreachedPasswordDetectorPort } from '../../../shared/ports/breached-password-detector.port';
 import { ResetPasswordInputSchema, ChangePasswordInputSchema } from '../schema/auth.schema';
-import { InvalidCredentialsError, ValidationError, BreachedPasswordError } from '../../../shared/errors/auth.errors';
+import { InvalidCredentialsError, ValidationError, BreachedPasswordError, PasswordRecentlyUsedError } from '../../../shared/errors/auth.errors';
 import { hashPassword, verifyPassword, hashApiKey } from '../../../shared/utils/argon2.util';
 import { normalizeString } from '../../../shared/utils/string.util';
+import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 
 export class PasswordDomainService {
   constructor(
@@ -60,6 +61,11 @@ export class PasswordDomainService {
       throw new ValidationError('Invalid or expired password reset token');
     }
 
+    const user = await this.repo.findUserById(record.userId);
+    if (!user) {
+      throw new ValidationError('User associated with reset token not found');
+    }
+
     if (this.breachedPasswordDetector) {
       const isBreached = await this.breachedPasswordDetector.checkIsPasswordPwned(validated.new_password);
       if (isBreached) {
@@ -67,8 +73,22 @@ export class PasswordDomainService {
       }
     }
 
+    const matchesCurrent = await verifyPassword(validated.new_password, user.password_hash);
+    if (matchesCurrent) {
+      throw new PasswordRecentlyUsedError();
+    }
+
+    const historyHashes = await this.repo.getRecentPasswordHashes(user.id, AUTH_CONSTANTS.SECURITY_CONFIG.PASSWORD_HISTORY_LIMIT);
+    for (const oldHash of historyHashes) {
+      const matchesHistory = await verifyPassword(validated.new_password, oldHash);
+      if (matchesHistory) {
+        throw new PasswordRecentlyUsedError();
+      }
+    }
+
     const newHash = await hashPassword(validated.new_password);
     await this.repo.updateUserPassword(record.userId, newHash);
+    await this.repo.recordPasswordHistory(record.userId, newHash);
     await this.repo.markPasswordResetTokenUsed(tokenHash);
   }
 
@@ -92,8 +112,22 @@ export class PasswordDomainService {
       }
     }
 
+    const matchesCurrent = await verifyPassword(validated.new_password, user.password_hash);
+    if (matchesCurrent) {
+      throw new PasswordRecentlyUsedError();
+    }
+
+    const historyHashes = await this.repo.getRecentPasswordHashes(user.id, AUTH_CONSTANTS.SECURITY_CONFIG.PASSWORD_HISTORY_LIMIT);
+    for (const oldHash of historyHashes) {
+      const matchesHistory = await verifyPassword(validated.new_password, oldHash);
+      if (matchesHistory) {
+        throw new PasswordRecentlyUsedError();
+      }
+    }
+
     const newHash = await hashPassword(validated.new_password);
     await this.repo.updateUserPassword(user.id, newHash);
+    await this.repo.recordPasswordHistory(user.id, newHash);
   }
 }
 

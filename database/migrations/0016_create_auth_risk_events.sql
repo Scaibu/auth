@@ -1,5 +1,12 @@
--- Migration: 0016_create_auth_risk_events.sql
--- Description: Creates auth_login_history table for adaptive risk-based authentication tracking
+-- migration:      0016
+-- description:    create auth risk events table for adaptive step-up authentication
+-- author:         Platform Architecture Team
+-- date:           2026-09-20
+-- depends_on:     0015
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         log authentication risk signals ip velocity and anomalous locations
 
 CREATE TABLE IF NOT EXISTS auth_login_history (
     id VARCHAR(64) PRIMARY KEY,

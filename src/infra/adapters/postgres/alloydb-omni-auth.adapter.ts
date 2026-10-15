@@ -32,6 +32,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   private readonly mockSamlProviders = new Map<string, any>();
   private readonly mockSamlRequests = new Map<string, any>();
   private readonly mockSamlAssertionReplay = new Map<string, number>();
+  private readonly mockPasswordHistory = new Map<string, Array<{ id: string; password_hash: string; created_at_ms: number }>>();
   public readonly queries = AUTH_QUERIES;
 
 
@@ -285,6 +286,21 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
         user.password_hash = newPasswordHash;
       }
     }
+  }
+
+  async recordPasswordHistory(userId: string, passwordHash: string, createdAtMs = Date.now()): Promise<void> {
+    const list = this.mockPasswordHistory.get(userId) ?? [];
+    const historyId = `pwh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    list.unshift({ id: historyId, password_hash: passwordHash, created_at_ms: createdAtMs });
+    if (list.length > 10) {
+      list.length = 10;
+    }
+    this.mockPasswordHistory.set(userId, list);
+  }
+
+  async getRecentPasswordHashes(userId: string, limit = 10): Promise<string[]> {
+    const list = this.mockPasswordHistory.get(userId) ?? [];
+    return list.slice(0, limit).map((e) => e.password_hash);
   }
 
   async markPasswordResetTokenUsed(tokenHash: string): Promise<void> {

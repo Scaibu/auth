@@ -1,5 +1,12 @@
--- Migration: 0012_add_session_family_composite_indexes.sql
--- Description: Composite and partial indexes for high-speed multi-device session enumeration and remote kill operations (OWASP ASVS 3.3)
+-- migration:      0012
+-- description:    add session family composite indexes for high-throughput lookup
+-- author:         Platform Architecture Team
+-- date:           2026-09-05
+-- depends_on:     0011
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         optimize session verification queries under high concurrency
 
 CREATE INDEX IF NOT EXISTS idx_refresh_families_user_active 
 ON auth_refresh_token_families(user_id, is_revoked);

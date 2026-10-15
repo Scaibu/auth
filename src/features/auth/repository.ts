@@ -32,6 +32,8 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   savePasswordResetToken(tokenHash: string, userId: string, expiresAtMs: number): Promise<void>;
   findPasswordResetToken(tokenHash: string): Promise<{ tokenHash: string; userId: string; expiresAtMs: number; used: boolean } | null>;
   updateUserPassword(userId: string, newPasswordHash: string): Promise<void>;
+  recordPasswordHistory(userId: string, passwordHash: string, createdAtMs?: number): Promise<void>;
+  getRecentPasswordHashes(userId: string, limit?: number): Promise<string[]>;
   markPasswordResetTokenUsed(tokenHash: string): Promise<void>;
   saveApiKey(keyRecord: ApiKeyRecord): Promise<void>;
   listApiKeysByOrgId(orgId: string): Promise<ApiKeyRecord[]>;

@@ -1,4 +1,12 @@
--- Rollback: 0018_create_auth_scim_tables.rollback.sql
+-- migration:      0018
+-- description:    drop auth scim tables
+-- author:         Platform Architecture Team
+-- date:           2026-09-25
+-- depends_on:     0017
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         revert auth scim tables
 
 DROP TABLE IF EXISTS auth_group_members CASCADE;
 DROP TABLE IF EXISTS auth_groups CASCADE;

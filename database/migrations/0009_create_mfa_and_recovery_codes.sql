@@ -1,3 +1,13 @@
+-- migration:      0009
+-- description:    create mfa and recovery codes tables for totp authentication
+-- author:         Platform Architecture Team
+-- date:           2026-08-25
+-- depends_on:     0008
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         store hashed totp secrets and single-use emergency recovery codes
+
 ALTER TABLE auth_users
   ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS mfa_secret VARCHAR(255) DEFAULT NULL,

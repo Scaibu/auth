@@ -1,4 +1,13 @@
--- Migration: 0011_add_retention_purge_partial_indexes.sql
+-- migration:      0011
+-- description:    add retention purge partial indexes for deleted records cleanup
+-- author:         Platform Architecture Team
+-- date:           2026-09-01
+-- depends_on:     0010
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         accelerate background retention cleanup cron queries on soft-deleted entities
+
 -- Optimizes GDPR Article 17 automated 30-day cascade purge queries
 -- Targets soft-deleted records older than 30 days without indexing live rows
 

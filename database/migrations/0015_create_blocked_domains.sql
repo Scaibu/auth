@@ -1,4 +1,13 @@
--- Migration 0015: Create Dynamic Blocked Domains Table
+-- migration:      0015
+-- description:    create blocked domains table for disposable email prevention
+-- author:         Platform Architecture Team
+-- date:           2026-09-18
+-- depends_on:     0014
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         block disposable and fraudulent email providers from registering
+
 -- ADR 0021 Extensible Domain Protection Specification
 
 CREATE TABLE IF NOT EXISTS auth_blocked_domains (

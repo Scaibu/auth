@@ -390,6 +390,30 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     }
   }
 
+  async recordPasswordHistory(userId: string, passwordHash: string, createdAtMs = Date.now()): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      const historyId = `pwh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      await client.query(AUTH_QUERIES.FLOW_PASSWORD_HISTORY.INSERT, [historyId, userId, passwordHash, createdAtMs]);
+      await client.query(AUTH_QUERIES.FLOW_PASSWORD_HISTORY.PRUNE_OLD_ENTRIES, [userId, 10]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getRecentPasswordHashes(userId: string, limit = 10): Promise<string[]> {
+    const client = await this.pool.connect();
+    try {
+      const { rows } = await client.query<{ password_hash: string }>(
+        AUTH_QUERIES.FLOW_PASSWORD_HISTORY.GET_RECENT_HASHES,
+        [userId, limit],
+      );
+      return rows.map((r) => r.password_hash);
+    } finally {
+      client.release();
+    }
+  }
+
   async markPasswordResetTokenUsed(tokenHash: string): Promise<void> {
     const client = await this.pool.connect();
     try {

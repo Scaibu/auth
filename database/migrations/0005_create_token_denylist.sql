@@ -1,12 +1,12 @@
 -- migration:      0005
--- description:    create token denylist table auth_token_denylist for server-side JWT session revocation
--- author:         engineering
--- date:           2026-08-16
+-- description:    create token denylist table for revoked jwt tokens
+-- author:         Platform Architecture Team
+-- date:           2026-08-18
 -- depends_on:     0004
 -- reversible:     YES
 -- lock_risk:      LOW
--- rows_affected:  schema creation
--- reason:         server-side JWT invalidation on sign-out and organization context switching
+-- rows_affected:  schema only
+-- reason:         enable immediate jwt revocation and token blacklisting across distributed services
 
 CREATE TABLE IF NOT EXISTS auth_token_denylist (
   token_hash VARCHAR(512) PRIMARY KEY,

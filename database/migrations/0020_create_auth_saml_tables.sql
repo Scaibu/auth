@@ -1,3 +1,13 @@
+-- migration:      0020
+-- description:    create auth saml tables for enterprise saml 2.0 sso federation
+-- author:         Platform Architecture Team
+-- date:           2026-10-02
+-- depends_on:     0019
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         support enterprise saml 2.0 idp sp federation and assertion replay defense
+
 CREATE TABLE IF NOT EXISTS auth_saml_providers (
     id VARCHAR(64) PRIMARY KEY,
     org_id VARCHAR(64) NOT NULL REFERENCES auth_organizations(id) ON DELETE CASCADE,

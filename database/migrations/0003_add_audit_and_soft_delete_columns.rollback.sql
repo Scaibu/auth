@@ -1,5 +1,12 @@
--- Rollback Migration: 0003_add_audit_and_soft_delete_columns.rollback.sql
--- Description: Rollback updated_at and deleted_at columns
+-- migration:      0003
+-- description:    remove updated_at and deleted_at columns from auth tables
+-- author:         Platform Architecture Team
+-- date:           2026-08-16
+-- depends_on:     0002
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         revert soft delete and updated_at column additions
 
 ALTER TABLE auth_organizations DROP COLUMN IF EXISTS updated_at;
 ALTER TABLE auth_organizations DROP COLUMN IF EXISTS deleted_at;

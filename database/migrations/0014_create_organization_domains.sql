@@ -1,12 +1,12 @@
 -- migration:      0014
--- description:    create organization claimed domains table for dns txt verification and verified auto join
--- author:         engineering
--- date:           2026-10-15
+-- description:    create organization domains table for enterprise domain capture
+-- author:         Platform Architecture Team
+-- date:           2026-09-15
 -- depends_on:     0013
 -- reversible:     YES
 -- lock_risk:      LOW
 -- rows_affected:  schema only
--- reason:         support enterprise domain claiming and verified auto-join per ADR 0021
+-- reason:         manage verified enterprise domain ownership and email routing
 
 CREATE TABLE IF NOT EXISTS auth_organization_domains (
   id VARCHAR(64) PRIMARY KEY,

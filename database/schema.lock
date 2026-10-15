@@ -1,0 +1,139 @@
+{
+  "version": "1.0.0",
+  "engine": "AlloyDB / PostgreSQL",
+  "last_applied_migration": "0022",
+  "migrations": [
+    {
+      "number": "0001",
+      "name": "0001_create_auth_tables.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:c6d76332778eb37874f96fc50e0f502f77b3fda6de23f5a32735d16d4fe59305"
+    },
+    {
+      "number": "0002",
+      "name": "0002_add_indexes_on_all_ids_and_keys.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:3095009cde4e713708758dd5aab59418c42023442cf63c6b260a76eda82bd848"
+    },
+    {
+      "number": "0003",
+      "name": "0003_add_audit_and_soft_delete_columns.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:7cf133ba73ae9f1e64ac67a2c20265902fef2ddee9c9f5745b24964ef968674f"
+    },
+    {
+      "number": "0004",
+      "name": "0004_add_organization_user_block_soft_delete_cascade.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:0962e0a943ef595e8ebc190f0014321c58f92109a51072c2e68defb0a8d05b51"
+    },
+    {
+      "number": "0005",
+      "name": "0005_create_token_denylist.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:cbf8e1206d7633aad984f230bf33a7c1ca8d222178d2e827e6f1a71a475cd4a8"
+    },
+    {
+      "number": "0006",
+      "name": "0006_create_user_organizations_mapping.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:a3e8c15d7e703ae541addb4a85507643e2b378b2c4190e105d5be88ff5e72422"
+    },
+    {
+      "number": "0007",
+      "name": "0007_add_api_key_expiration_and_usage.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:2dd353483d200820ab61f50ae4e113b350fc0e04469f8fd7b0eeb40e529b93b9"
+    },
+    {
+      "number": "0008",
+      "name": "0008_create_email_verifications_table.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:819ced50443177d7ca9184a056a3e37e276d36ff13cc4a027a07c82bbe58e613"
+    },
+    {
+      "number": "0009",
+      "name": "0009_create_mfa_and_recovery_codes.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:d9c32dfb041f7521369dff5a898bf4dc992e4b130f8a79b14f5fd3fefbfbf1c9"
+    },
+    {
+      "number": "0010",
+      "name": "0010_create_refresh_tokens_and_families.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:994b46751db27c3d9ffba1e97c092232630077ed996ee399cf64b18de9fd88cb"
+    },
+    {
+      "number": "0011",
+      "name": "0011_add_retention_purge_partial_indexes.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:8c524f60b23d97808d0a0d8e3bf6af0e125dcd6452d00d1355e03be68fea7b7c"
+    },
+    {
+      "number": "0012",
+      "name": "0012_add_session_family_composite_indexes.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:6c23fc2340fb378674715f226433667caa44f01d2beb773820631dc8a45d1a68"
+    },
+    {
+      "number": "0013",
+      "name": "0013_create_federated_identities.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:73dc5ee251eec0c86614847c0b6b3d2a283b324cf3f5b9448274195a0457b3e5"
+    },
+    {
+      "number": "0014",
+      "name": "0014_create_organization_domains.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:d6ddd2c074d1ec37cb4e3e9dbe29b653bef3fc4b4b3a41fe26d6ba113e3557c3"
+    },
+    {
+      "number": "0015",
+      "name": "0015_create_blocked_domains.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:960ea146219fc8a0c7b5928f3c23dbd21b67d984cb097e248e248849bb0b0a59"
+    },
+    {
+      "number": "0016",
+      "name": "0016_create_auth_risk_events.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:1b5e22d7dbdb25effe638fe4d9fbda022431776f7a2f1162b7bf3170c3268404"
+    },
+    {
+      "number": "0017",
+      "name": "0017_create_auth_policies_and_relations.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:7f70b251e98fb4d8bb75bb4905bbb52446e66e7835505a5a29bcf33ddaf05aae"
+    },
+    {
+      "number": "0018",
+      "name": "0018_create_auth_scim_tables.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:a1feb799f56cc0f7669e61413d7a25e75df16c31720dc499c1529f890475f62e"
+    },
+    {
+      "number": "0019",
+      "name": "0019_create_auth_oidc_tables.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:96b593ffb332ae5bda1b4575559a011c87a38446a24f8a29ab0c85094616b91b"
+    },
+    {
+      "number": "0020",
+      "name": "0020_create_auth_saml_tables.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:a1bf58b1c5c786a8a1edf02ff0c120625da48564879b328198f75f7738feb4d4"
+    },
+    {
+      "number": "0021",
+      "name": "0021_add_api_key_ip_allowlist_and_rate_quota.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:85d7aa160c7597d0b76503b58113b07622b2d18d97d1c0a5663f399d090799b3"
+    },
+    {
+      "number": "0022",
+      "name": "0022_create_auth_password_history.sql",
+      "applied_at": "2026-10-15T12:00:00Z",
+      "checksum": "sha256:d4b458d9c8767164859547c9ddd983420892ea9e1fa55cd05ffa59593c86be72"
+    }
+  ]
+}

@@ -1,5 +1,12 @@
--- Migration: 0019_create_auth_oidc_tables.sql
--- Description: Creates OAuth2 / OIDC client registries, authorization codes, and signing key tables (ADR 0025 / RFC 8414 / RFC 7636)
+-- migration:      0019
+-- description:    create auth oidc tables for oauth2 authorization server and pkce
+-- author:         Platform Architecture Team
+-- date:           2026-09-28
+-- depends_on:     0018
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         support oauth2 authorization server clients codes and signing keys
 
 CREATE TABLE IF NOT EXISTS auth_oauth_clients (
     id VARCHAR(64) PRIMARY KEY,

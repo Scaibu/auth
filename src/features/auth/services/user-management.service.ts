@@ -93,6 +93,7 @@ export class UserManagementDomainService {
     };
 
     await this.repo.createUser(userRecord);
+    await this.repo.recordPasswordHistory(userId, passwordHash);
 
     if (this.notificationService) {
       Promise.resolve()
@@ -145,6 +146,7 @@ export class UserManagementDomainService {
     };
 
     await this.repo.createUser(userRecord);
+    await this.repo.recordPasswordHistory(userId, passwordHash);
     return userRecord;
   }
 

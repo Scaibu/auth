@@ -1,5 +1,12 @@
--- Migration: 0010_create_refresh_tokens_and_families.sql
--- Description: RFC 6749 §10.4 Refresh Token Rotation & Family Reuse Detection Schema
+-- migration:      0010
+-- description:    create refresh tokens and families tables for token rotation
+-- author:         Platform Architecture Team
+-- date:           2026-08-28
+-- depends_on:     0009
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         support rfc 6749 refresh token rotation and family-based reuse detection
 
 CREATE TABLE IF NOT EXISTS auth_refresh_token_families (
     id VARCHAR(64) PRIMARY KEY,

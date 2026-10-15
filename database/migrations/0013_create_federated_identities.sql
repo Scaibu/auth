@@ -1,12 +1,12 @@
 -- migration:      0013
--- description:    create federated identities table for oauth2 and oidc single sign on
--- author:         engineering
--- date:           2026-10-15
+-- description:    create federated identities table for external social oauth providers
+-- author:         Platform Architecture Team
+-- date:           2026-09-10
 -- depends_on:     0012
 -- reversible:     YES
 -- lock_risk:      LOW
 -- rows_affected:  schema only
--- reason:         support google and github federated single sign on and account linking
+-- reason:         support google and github social oauth identity federation
 
 CREATE TABLE IF NOT EXISTS auth_federated_identities (
   id VARCHAR(64) PRIMARY KEY,

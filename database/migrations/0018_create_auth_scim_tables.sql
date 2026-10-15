@@ -1,5 +1,12 @@
--- Migration: 0018_create_auth_scim_tables.sql
--- Description: SCIM 2.0 provisioning tables for enterprise directory synchronization (ADR 0024 / RFC 7643 / RFC 7644)
+-- migration:      0018
+-- description:    create auth scim tables for enterprise scim 2.0 user provisioning
+-- author:         Platform Architecture Team
+-- date:           2026-09-25
+-- depends_on:     0017
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         support automated enterprise scim 2.0 user and group synchronization
 
 CREATE TABLE IF NOT EXISTS auth_scim_tokens (
     id VARCHAR(64) PRIMARY KEY,

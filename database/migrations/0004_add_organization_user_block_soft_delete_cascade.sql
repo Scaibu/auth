@@ -1,12 +1,12 @@
 -- migration:      0004
--- description:    add user blocking columns user_permissions array and indexes for 30-day retention soft-delete purging
--- author:         engineering
+-- description:    add organization user block soft delete cascade and retention indexes
+-- author:         Platform Architecture Team
 -- date:           2026-08-16
 -- depends_on:     0003
 -- reversible:     YES
 -- lock_risk:      LOW
--- rows_affected:  schema alteration
--- reason:         support user blocking, custom permissions, and 30-day soft delete retention lifecycle
+-- rows_affected:  schema only
+-- reason:         support user blocking custom permissions and 30-day soft delete retention lifecycle
 
 ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE auth_users ADD COLUMN IF NOT EXISTS blocked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;

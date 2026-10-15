@@ -1,5 +1,12 @@
--- Migration: 0017_create_auth_policies_and_relations.sql
--- Description: Creates Zanzibar-style relationship tuples with ABAC conditions, auditability, time-bounding, and optimistic concurrency (ADR 0023 / 05-db-writing-rules.md)
+-- migration:      0017
+-- description:    create auth policies and relations table for fine-grained rbac rebac
+-- author:         Platform Architecture Team
+-- date:           2026-09-22
+-- depends_on:     0016
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         store fine-grained relation tuples for zanzibar-style permission evaluation
 
 CREATE TABLE IF NOT EXISTS auth_relation_tuples (
     id VARCHAR(64) PRIMARY KEY,

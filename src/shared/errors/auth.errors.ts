@@ -229,6 +229,12 @@ export class ApiKeyRateLimitError extends AuthError {
   }
 }
 
+export class PasswordRecentlyUsedError extends AuthError {
+  constructor(message = 'You cannot reuse any of your last 10 passwords') {
+    super(message, 'PASSWORD_RECENTLY_USED', 400);
+  }
+}
+
 
 
 

@@ -181,6 +181,22 @@ export const AUTH_QUERIES = {
     DELETE: `UPDATE auth_relation_tuples SET status = 'REVOKED', deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE org_id = $1 AND subject_type = $2 AND subject_id = $3 AND relation = $4 AND object_type = $5 AND object_id = $6 AND deleted_at IS NULL`,
     FIND_FILTERED_BASE: `SELECT id, org_id, subject_type, subject_id, relation, object_type, object_id, conditions, status, expires_at_ms, granted_by, version, created_at_ms FROM auth_relation_tuples WHERE org_id = $1 AND deleted_at IS NULL AND status = 'ACTIVE' AND (expires_at_ms IS NULL OR expires_at_ms > $2)`,
   },
+  FLOW_PASSWORD_HISTORY: {
+    INSERT: `INSERT INTO auth_password_history (id, user_id, password_hash, created_at_ms) VALUES ($1, $2, $3, $4)`,
+    GET_RECENT_HASHES: `SELECT password_hash FROM auth_password_history WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at_ms DESC LIMIT $2`,
+    PRUNE_OLD_ENTRIES: `
+      UPDATE auth_password_history
+      SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND deleted_at IS NULL
+        AND id NOT IN (
+          SELECT id FROM auth_password_history
+          WHERE user_id = $1 AND deleted_at IS NULL
+          ORDER BY created_at_ms DESC
+          LIMIT $2
+        )
+    `,
+  },
 } as const;
 
 

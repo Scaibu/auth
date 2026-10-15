@@ -143,6 +143,7 @@ export class UserAuthDomainService {
 
     try {
       await this.repo.createOrganizationAndUser(userRecord);
+      await this.repo.recordPasswordHistory(userRecord.id, passwordHash);
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes('Organization name already exists')) {
         throw new OrgAlreadyExistsError(orgName);

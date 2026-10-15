@@ -1,5 +1,13 @@
 # Auth Contracts Changelog
 
+## [1.14.0] - 2026-10-15
+### Added
+- NIST SP 800-63B Password History Enforcement & Anti-Recycling (ADR 0028):
+  - Added migration `0022_create_auth_password_history.sql` with user and timestamp composite indexes.
+  - Added `PASSWORD_RECENTLY_USED` (`HTTP 400`) canonical error code when rotating to current or recent passwords.
+  - Implemented 10-entry FIFO password retention window in `PasswordDomainService`.
+  - Added database migration governance: normalized all 44 migration file headers to 8-attribute schema, added `database/schema.lock` checksum manifests, and added `scripts/migrate.sh`.
+
 ## [1.13.0] - 2026-10-15
 ### Added
 - Zero-Trust API Key IP/CIDR Subnet Allowlists & Sliding Rate Quotas (ADR 0027):

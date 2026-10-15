@@ -1120,7 +1120,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
         '400':
-          description: Invalid token or candidate password found in public data breaches (PASSWORD_BREACHED)
+          description: Invalid token, candidate password matches recent password history (PASSWORD_RECENTLY_USED), or password found in public data breaches (PASSWORD_BREACHED)
           content:
             application/json:
               schema:
@@ -1145,7 +1145,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
         '400':
-          description: Invalid current password or candidate password found in public data breaches (PASSWORD_BREACHED)
+          description: Invalid current password, candidate password matches recent password history (PASSWORD_RECENTLY_USED), or password found in public data breaches (PASSWORD_BREACHED)
           content:
             application/json:
               schema:

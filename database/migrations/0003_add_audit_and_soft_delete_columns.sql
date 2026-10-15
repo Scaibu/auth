@@ -1,14 +1,13 @@
 -- migration:      0003
 -- description:    add updated_at and deleted_at columns for auditability and soft deletes
--- author:         engineering
+-- author:         Platform Architecture Team
 -- date:           2026-08-16
 -- depends_on:     0002
 -- reversible:     YES
 -- lock_risk:      LOW
--- rows_affected:  schema column addition
--- reason:         comply with RULE-04 data normalization policy for auditability and soft-deletes
+-- rows_affected:  schema only
+-- reason:         comply with data normalization policy for auditability and soft deletes
 
--- Nullable column reason (per migration.md L203 & data-normalization.md RULE-09):
 -- deleted_at is nullable by design because non-deleted active rows carry NULL deleted_at timestamp.
 
 ALTER TABLE auth_organizations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;

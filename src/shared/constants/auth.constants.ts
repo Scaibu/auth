@@ -89,6 +89,7 @@ export const AUTH_CONSTANTS = {
     TOKEN_EXPIRE_SECONDS: 3600,
     SALT_ROUNDS: 10,
     PASSWORD_MIN_LENGTH: 12,
+    PASSWORD_HISTORY_LIMIT: 10,
     PASSWORD_PATTERN: '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*]).{12,}$',
     RATE_LIMIT: {
       MAX_ATTEMPTS_PER_IP: AUTH_CONFIG.security.rateLimit.maxAttemptsPerIp,

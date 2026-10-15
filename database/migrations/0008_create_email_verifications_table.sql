@@ -1,3 +1,13 @@
+-- migration:      0008
+-- description:    create email verifications table for email confirmation flows
+-- author:         Platform Architecture Team
+-- date:           2026-08-22
+-- depends_on:     0007
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         secure email address verification tokens with expiry for user registration
+
 ALTER TABLE auth_users
   ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
