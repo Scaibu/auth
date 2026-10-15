@@ -42,12 +42,12 @@ ENV AUTH_SAML_SP_ENTITY_ID=http://localhost:3001/api/v1/auth/saml/metadata
 ENV AUTH_SAML_ACS_URL=http://localhost:3001/api/v1/auth/saml/acs
 ENV AUTH_SAML_CLOCK_SKEW_MS=120000
 ENV AUTH_SAML_RELAY_STATE_TTL_MS=300000
-
-
+ENV AUTH_PASSWORD_HISTORY_LIMIT=10
 
 COPY --chown=node:node --from=builder /app/packages/node/auth/dist /app/dist
-COPY --chown=node:node --from=builder /app/packages/node/auth/database/migrations /app/database/migrations
+COPY --chown=node:node --from=builder /app/packages/node/auth/database /app/database
 COPY --chown=node:node --from=builder /app/packages/node/auth/database/migrations /app/dist/migrations
+COPY --chown=node:node --from=builder /app/packages/node/auth/scripts /app/scripts
 
 USER node
 EXPOSE 3001
