@@ -33,7 +33,7 @@
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ✅ **Completed (ADR 0029)** | v1.2 | **P2** |
 | **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ✅ **Completed (ADR 0030)** | v1.2 | **P2** |
 | **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ✅ **Completed (ADR 0031)** | v1.2 | **P2** |
-| **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ⏳ **Pending** | v1.2 | **P2** |
+| **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ✅ **Completed (ADR 0032)** | v1.2 | **P2** |
 | **Security & Defense** | Webhook Cryptographic Signatures & Anti-Replay Nonces | RFC 2104 HMAC-SHA256 | ⏳ **Pending** | v1.2 | **P2** |
 | **Enterprise Identity** | Machine-to-Machine (M2M) Client Credentials Grant | RFC 6749 §4.4 | ⏳ **Pending** | v1.3 | **P3** |
 | **Session Management** | Standardized EdDSA (Ed25519) JWKS Key Rotation | RFC 8037 EdDSA | ⏳ **Pending** | v1.3 | **P3** |

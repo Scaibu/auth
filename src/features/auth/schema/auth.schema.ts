@@ -24,13 +24,58 @@ export const PasswordValidationSchema = z
     'Password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character (!@#$%^&*)'
   );
 
+import {
+  normalizeUnicodeNFKC,
+  detectMixedScripts,
+  assertNoHomoglyphSpoof,
+} from '../../../shared/utils/unicode-shield.util';
+
+const PROTECTED_RESERVED_NAMES = [
+  'admin',
+  'administrator',
+  'root',
+  'owner',
+  'support',
+  'security',
+  'superuser',
+  'system',
+];
+
+export const SanitizedEmailSchema = z
+  .string()
+  .transform((val) => normalizeUnicodeNFKC(val).trim().toLowerCase())
+  .refine((val) => {
+    const mixed = detectMixedScripts(val);
+    return !mixed.isMixed;
+  }, {
+    message: 'E_MIXED_SCRIPT_CONFUSABLE: Mixed-script identifier prohibited for security',
+  })
+  .refine((val) => {
+    const localPart = val.split('@')[0] ?? '';
+    try {
+      assertNoHomoglyphSpoof(localPart, PROTECTED_RESERVED_NAMES);
+      return true;
+    } catch {
+      return false;
+    }
+  }, {
+    message: 'E_HOMOGLYPH_SPOOF_DETECTED: Email address visually mimics a protected system identity',
+  })
+  .pipe(z.string().email('Please enter a valid email address'));
+
 export const CreateOrganizationInputSchema = z.object({
-  name: z.string().min(2, 'Organization name must be at least 2 characters long'),
+  name: z
+    .string()
+    .transform((val) => normalizeUnicodeNFKC(val).trim())
+    .refine((val) => val.length >= 2, 'Organization name must be at least 2 characters long')
+    .refine((val) => !detectMixedScripts(val).isMixed, {
+      message: 'E_MIXED_SCRIPT_CONFUSABLE: Mixed-script organization name prohibited',
+    }),
   slug: z.string().optional(),
 });
 
 export const CreateUserInputSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: SanitizedEmailSchema,
   password: PasswordValidationSchema,
   name: z.string().min(2, 'Full name must be at least 2 characters long'),
   org_id: z.string().min(1, 'Target organization ID is required'),
@@ -39,7 +84,7 @@ export const CreateUserInputSchema = z.object({
 });
 
 export const SignUpInputSchema = z.object({
-  email: z.string().email('Please enter a valid email address').max(255),
+  email: SanitizedEmailSchema,
   password: PasswordValidationSchema,
   name: z.string().min(2, 'Full name must be at least 2 characters long'),
   organization_name: z.string().min(2, 'Organization name must be at least 2 characters long'),
@@ -47,14 +92,14 @@ export const SignUpInputSchema = z.object({
 });
 
 export const SignInInputSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: SanitizedEmailSchema,
   password: z.string().min(1, 'Password is required'),
   ip_address: z.string().default('127.0.0.1'),
   user_agent: z.string().default('unknown'),
 });
 
 export const ForgotPasswordInputSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: SanitizedEmailSchema,
 });
 
 export const ResetPasswordInputSchema = z.object({
@@ -92,7 +137,7 @@ export const UpdateUserProfileInputSchema = z.object({
 });
 
 export const InviteUserInputSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: SanitizedEmailSchema,
   name: z.string().min(2, 'Full name must be at least 2 characters long'),
   role: UserRoleSchema.default(AUTH_CONSTANTS.ROLE_MEMBER),
   permissions: z.array(z.string()).default([]),
