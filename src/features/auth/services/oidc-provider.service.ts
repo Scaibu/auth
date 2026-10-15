@@ -32,6 +32,10 @@ export class OidcProviderService {
       jwks_uri: `${this.config.issuer}/oauth/jwks.json`,
 
       response_types_supported: [AUTH_CONSTANTS.OIDC.RESPONSE_TYPE_CODE],
+      grant_types_supported: [
+        AUTH_CONSTANTS.OIDC.GRANT_TYPE_AUTHORIZATION_CODE,
+        AUTH_CONSTANTS.OIDC.GRANT_TYPE_CLIENT_CREDENTIALS,
+      ],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: [AUTH_CONSTANTS.OIDC.KEY_ALG_RS256],
       scopes_supported: [
@@ -39,9 +43,87 @@ export class OidcProviderService {
         AUTH_CONSTANTS.OIDC.SCOPE_PROFILE,
         AUTH_CONSTANTS.OIDC.SCOPE_EMAIL,
       ],
-      token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
+      token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
       code_challenge_methods_supported: [AUTH_CONSTANTS.OIDC.PKCE_METHOD_S256],
     };
+  }
+
+  async issueClientCredentialsToken(params: {
+    client_id: string;
+    client_secret: string;
+    scope?: string;
+    audience?: string;
+  }): Promise<M2mTokenResponse> {
+    return withSpan('OidcProviderService.issueClientCredentialsToken', async (span) => {
+      span?.setAttribute('oauth.client_id', params.client_id);
+      if (!params.client_id || !params.client_secret) {
+        throw new UnauthorizedError('Missing client credentials (client_id and client_secret required)');
+      }
+
+      const client = await this.repo.findOAuthClientById(params.client_id);
+      if (!client || client.status !== 'ACTIVE') {
+        throw new UnauthorizedError(`OAuth client ${params.client_id} not found or inactive`);
+      }
+
+      if (!client.grant_types.includes(AUTH_CONSTANTS.OIDC.GRANT_TYPE_CLIENT_CREDENTIALS)) {
+        throw new UnauthorizedError('Unauthorized grant_type for client');
+      }
+
+      if (!client.client_secret_hash) {
+        throw new UnauthorizedError('Client secret not configured for client credentials grant');
+      }
+
+      const computedHash = createHash('sha256').update(params.client_secret).digest('hex');
+      const expectedBuf = Buffer.from(client.client_secret_hash, 'utf-8');
+      const actualBuf = Buffer.from(computedHash, 'utf-8');
+
+      if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
+        throw new UnauthorizedError('Invalid client_secret for client credentials grant');
+      }
+
+      let grantedScope = '';
+      if (params.scope) {
+        const requestedList = params.scope.trim().split(/\s+/).filter(Boolean);
+        const allowedList = client.allowed_scopes ?? [];
+        if (allowedList.length > 0) {
+          const unauthorized = requestedList.filter((s) => !allowedList.includes(s));
+          if (unauthorized.length > 0) {
+            throw new ValidationError(`Requested scopes not allowed: ${unauthorized.join(', ')}`);
+          }
+        }
+        grantedScope = requestedList.join(' ');
+      } else {
+        grantedScope = (client.allowed_scopes ?? []).join(' ');
+      }
+
+      const activeKey = await this.ensureSigningKey();
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const expiresIn = client.token_ttl_seconds ?? this.config.tokenTtlSeconds;
+      const audience = params.audience || this.config.issuer;
+
+      const accessToken = this.signAsymmetricJwt(
+        {
+          iss: this.config.issuer,
+          sub: client.id,
+          aud: audience,
+          org_id: client.org_id,
+          client_id: client.id,
+          scope: grantedScope,
+          token_use: 'access_token',
+          exp: nowSeconds + expiresIn,
+          iat: nowSeconds,
+        },
+        activeKey.kid,
+        activeKey.private_key_pem
+      );
+
+      return {
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: expiresIn,
+        scope: grantedScope,
+      };
+    });
   }
 
   async getJwks(): Promise<{ keys: ReadonlyArray<JwksKey> }> {

@@ -844,7 +844,7 @@ export const ROUTE_RULES: RouteRule[] = [
     pattern: AUTH_ENDPOINTS.OIDC_TOKEN,
     requiresAuth: false,
     successMessage: 'Token exchanged successfully',
-    handler: (ctx) => handleOAuthToken(ctx.service, ctx.body),
+    handler: (ctx) => handleOAuthToken(ctx.service, ctx.body, ctx.headers),
   },
   {
     name: 'oidc_userinfo',

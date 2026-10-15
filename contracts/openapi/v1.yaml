@@ -1977,8 +1977,8 @@ paths:
 
   /oauth/token:
     post:
-      summary: OAuth 2.0 / OIDC Authorization Code Token Exchange
-      description: Exchanges authorization code and PKCE code_verifier for RS256 signed ID token and access token
+      summary: OAuth 2.0 / OIDC Token Exchange & M2M Client Credentials Grant
+      description: Exchanges authorization code with PKCE or client credentials (RFC 6749 §4.4) for RS256 signed tokens
       requestBody:
         required: true
         content:

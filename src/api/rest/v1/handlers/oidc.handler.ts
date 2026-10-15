@@ -50,13 +50,51 @@ export async function handleOidcAuthorize(
   });
 }
 
-export async function handleOAuthToken(service: AuthService, body: unknown) {
+export async function handleOAuthToken(
+  service: AuthService,
+  body: unknown,
+  headers?: Record<string, string>,
+) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw new ValidationError('Request body must be a valid JSON object');
   }
 
   const payload = body as Record<string, unknown>;
   const grantType = extractRequiredString(payload.grant_type, 'grant_type');
+
+  if (grantType === 'client_credentials') {
+    let clientId = typeof payload.client_id === 'string' ? payload.client_id.trim() : '';
+    let clientSecret = typeof payload.client_secret === 'string' ? payload.client_secret.trim() : '';
+
+    const authHeader = headers?.['authorization'] || headers?.['Authorization'];
+    if (authHeader && authHeader.toLowerCase().startsWith('basic ')) {
+      const b64 = authHeader.substring(6).trim();
+      const decoded = Buffer.from(b64, 'base64').toString('utf-8');
+      const colonIdx = decoded.indexOf(':');
+      if (colonIdx > 0) {
+        clientId = decoded.substring(0, colonIdx);
+        clientSecret = decoded.substring(colonIdx + 1);
+      }
+    }
+
+    if (!clientId) {
+      throw new ValidationError('Missing mandatory parameter: client_id');
+    }
+    if (!clientSecret) {
+      throw new ValidationError('Missing mandatory parameter: client_secret');
+    }
+
+    const scope = typeof payload.scope === 'string' ? payload.scope.trim() : undefined;
+    const audience = typeof payload.audience === 'string' ? payload.audience.trim() : undefined;
+
+    return service.issueClientCredentialsToken({
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope,
+      audience,
+    });
+  }
+
   const clientId = extractRequiredString(payload.client_id, 'client_id');
   const code = extractRequiredString(payload.code, 'code');
   const redirectUri = extractRequiredString(payload.redirect_uri, 'redirect_uri');

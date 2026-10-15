@@ -395,11 +395,17 @@ echo -e "\n--- [48/49] GET /oauth/jwks.json (OIDC Public JSON Web Key Set - RFC 
 OIDC_JWKS_RESP=$(curl -s -X GET "${BASE_URL}/oauth/jwks.json")
 echo "${OIDC_JWKS_RESP}"
 
-echo -e "\n--- [49/52] POST /oauth/token (Invalid Authorization Code Rejection - RFC 7636) ---"
+echo -e "\n--- [49/53] POST /oauth/token (Invalid Authorization Code Rejection - RFC 7636) ---"
 OIDC_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
   -H "Content-Type: application/json" \
   -d '{"grant_type":"authorization_code","client_id":"unknown_client","code":"invalid_code","redirect_uri":"http://localhost:3000/callback","code_verifier":"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"}')
 echo "${OIDC_TOKEN_RESP}"
+
+echo -e "\n--- [49b/53] POST /oauth/token (M2M Client Credentials Grant - RFC 6749 §4.4, ADR 0034) ---"
+M2M_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d '{"grant_type":"client_credentials","client_id":"unknown_m2m_client","client_secret":"invalid_secret"}')
+echo "${M2M_TOKEN_RESP}"
 
 echo -e "\n--- [50/52] GET /api/v1/auth/saml/metadata (SAML SP Metadata - ADR 0026) ---"
 SAML_META_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/metadata")

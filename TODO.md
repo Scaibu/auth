@@ -35,7 +35,7 @@
 | **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ✅ **Completed (ADR 0031)** | v1.2 | **P2** |
 | **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ✅ **Completed (ADR 0032)** | v1.2 | **P2** |
 | **Security & Defense** | Webhook Cryptographic Signatures & Anti-Replay Nonces | RFC 2104 HMAC-SHA256 | ✅ **Completed (ADR 0033)** | v1.2 | **P2** |
-| **Enterprise Identity** | Machine-to-Machine (M2M) Client Credentials Grant | RFC 6749 §4.4 | ⏳ **Pending** | v1.3 | **P3** |
+| **Enterprise Identity** | Machine-to-Machine (M2M) Client Credentials Grant | RFC 6749 §4.4 | ✅ **Completed (ADR 0034)** | v1.3 | **P3** |
 | **Session Management** | Standardized EdDSA (Ed25519) JWKS Key Rotation | RFC 8037 EdDSA | ⏳ **Pending** | v1.3 | **P3** |
 | **Access Control (RBAC/ABAC)** | Monitored Break-Glass Emergency Access Workflow | SOC 2 CC6.1 / CC6.2 | ⏳ **Pending** | v1.3 | **P3** |
 | **Security & Defense** | Field-Level PII Envelope Encryption (AES-256-GCM / KMS) | NIST SP 800-38D | ⏳ **Pending** | v1.3 | **P3** |

@@ -76,7 +76,7 @@ import type { GeoIpPort } from './ports/geo-ip.port';
 import { ScimProvisioningService } from './services/scim-provisioning.service';
 import type { CreateScimUserInput, CreateScimGroupInput, ScimUserRecord, ScimGroupRecord, ScimListResponse, ScimPatchRequest } from './ports/scim-repository.port';
 import { OidcProviderService } from './services/oidc-provider.service';
-import type { JwksKey, OidcTokenResponse, OidcUserInfoResponse } from './ports/oidc-repository.port';
+import type { JwksKey, OidcTokenResponse, M2mTokenResponse, OidcUserInfoResponse } from './ports/oidc-repository.port';
 import { SamlProviderService } from './services/saml-provider.service';
 import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, SamlAuthResult } from './ports/saml-repository.port';
 import { PasskeyService } from './services/passkey.service';
@@ -583,6 +583,15 @@ export class AuthService {
     code_verifier: string;
   }): Promise<OidcTokenResponse> {
     return this.oidcService.exchangeCodeForTokens(params);
+  }
+
+  async issueClientCredentialsToken(params: {
+    client_id: string;
+    client_secret: string;
+    scope?: string;
+    audience?: string;
+  }): Promise<M2mTokenResponse> {
+    return this.oidcService.issueClientCredentialsToken(params);
   }
 
   async getOidcUserInfo(userId: string): Promise<OidcUserInfoResponse> {
