@@ -26,6 +26,7 @@ import {
   handleRevokeApiKey,
   handleRefreshToken,
   handleExportMyData,
+  handleResolveChallenge,
 } from './handlers/auth.handler';
 import { handleVerifySession, handleListSessions, handleRevokeSession, handleRevokeOtherSessions } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
@@ -133,6 +134,13 @@ export const ROUTE_RULES: RouteRule[] = [
     pattern: AUTH_ENDPOINTS.REFRESH,
     successMessage: 'Token refreshed and rotated successfully',
     handler: (ctx) => handleRefreshToken(ctx.service, ctx.body, ctx.headers),
+  },
+  {
+    name: 'challenge_resolve',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.CHALLENGE_RESOLVE,
+    successMessage: 'Adaptive risk challenge resolved and session authenticated',
+    handler: (ctx) => handleResolveChallenge(ctx.service, ctx.body, ctx.headers),
   },
   {
     name: 'list_routes',

@@ -30,6 +30,12 @@ ENV AUTH_BREACHED_PASSWORD_ENABLED=true
 ENV AUTH_BREACHED_PASSWORD_BASE_URL=https://api.pwnedpasswords.com/range
 ENV AUTH_BREACHED_PASSWORD_TIMEOUT_MS=1500
 ENV AUTH_BREACHED_PASSWORD_USER_AGENT=llm-observability-auth/1.0.0
+ENV AUTH_GEOIP_PROVIDER=http
+ENV AUTH_GEOIP_TIMEOUT_MS=1500
+ENV MAILER_PROVIDER=mock
+ENV AUTH_SECURITY_HEADERS_ENABLED=true
+ENV AUTH_MFA_ISSUER=LLMObservability
+
 
 COPY --chown=node:node --from=builder /app/packages/node/auth/dist /app/dist
 COPY --chown=node:node --from=builder /app/packages/node/auth/database/migrations /app/database/migrations

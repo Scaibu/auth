@@ -3,7 +3,13 @@ import type { AuthRepositoryPort } from '../repository';
 import type { DnsResolverPort } from '../ports/dns-resolver.port';
 import type { ClaimedDomainRecord } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
-import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/auth.errors';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  PublicEmailDomainClaimForbiddenError,
+  DomainVerificationFailedError,
+} from '../../../shared/errors/auth.errors';
 import { withSpan } from '../../../infra/tracing/tracer';
 
 export interface ClaimDomainInput {
@@ -59,7 +65,7 @@ export class DomainClaimService {
 
       const isBlocked = await this.repository.findBlockedDomain(domainName);
       if (isBlocked) {
-        throw new BadRequestError(AUTH_CONSTANTS.ERROR_MESSAGES.DOMAIN_PUBLIC_FREEMAIL_FORBIDDEN);
+        throw new PublicEmailDomainClaimForbiddenError(domainName);
       }
 
       const existing = await this.repository.findClaimedDomainByName(domainName);
@@ -134,7 +140,7 @@ export class DomainClaimService {
 
       const matched = await this.checkDnsChallenge(domain.domain_name, domain.verification_token);
       if (!matched) {
-        throw new BadRequestError(AUTH_CONSTANTS.ERROR_MESSAGES.DOMAIN_VERIFICATION_FAILED);
+        throw new DomainVerificationFailedError(domain.domain_name);
       }
 
 

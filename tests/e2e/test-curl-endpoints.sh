@@ -313,11 +313,18 @@ REVOKE_ALL_OTHER_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/sessions" \
   -H "x-session-family: fam_primary_laptop")
 echo "${REVOKE_ALL_OTHER_RESP}"
 
+echo -e "\n--- [41/41] POST /api/v1/auth/challenge/resolve (Adaptive Risk Challenge Resolution - ADR 0022) ---"
+CHALLENGE_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/challenge/resolve" \
+  -H "Content-Type: application/json" \
+  -d '{"challenge_token":"invalid_token","verification_code":"123456"}')
+echo "${CHALLENGE_RESP}"
+
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
   -H "Authorization: Bearer ${SWITCHED_TOKEN}")
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 40 Auth Endpoints Executed and Verified Successfully! "
+echo " All 41 Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
+

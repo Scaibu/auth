@@ -34,6 +34,16 @@ services:
       - AUTH_BREACHED_PASSWORD_BASE_URL=https://api.pwnedpasswords.com/range
       - AUTH_BREACHED_PASSWORD_TIMEOUT_MS=1500
       - AUTH_BREACHED_PASSWORD_USER_AGENT=llm-observability-auth/1.0.0
+      - AUTH_GEOIP_PROVIDER=http
+      - AUTH_GEOIP_HTTP_ENDPOINT=https://ipwho.is
+      - AUTH_GEOIP_TIMEOUT_MS=1500
+      - MAILER_PROVIDER=mock
+      - MAILER_FROM=noreply@auth.local
+      - AUTH_MFA_ISSUER=LLMObservability
+      - AUTH_MFA_STEP_WINDOW=1
+      - AUTH_SECURITY_HEADERS_ENABLED=true
+      - AUTH_SECURITY_HEADERS_HSTS_ENABLED=true
+      - AUTH_SECURITY_HEADERS_CSP_ENABLED=true
     depends_on:
       auth-db:
         condition: service_healthy

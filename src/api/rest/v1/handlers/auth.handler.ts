@@ -115,6 +115,23 @@ export async function handleSignIn(service: AuthService, body: unknown, headers?
   return result;
 }
 
+export async function handleResolveChallenge(
+  service: AuthService,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<unknown> {
+  const raw = (body && typeof body === 'object') ? (body as Record<string, unknown>) : {};
+  const challengeToken = typeof raw.challenge_token === 'string' ? raw.challenge_token.trim() : '';
+  const verificationCode = typeof raw.verification_code === 'string' ? raw.verification_code.trim() : '';
+  if (!challengeToken || !verificationCode) {
+    throw new ValidationError('challenge_token and verification_code are required');
+  }
+  const { ipAddress, userAgent } = extractClientContext(headers);
+  const result = await service.resolveRiskChallenge(challengeToken, verificationCode, ipAddress, userAgent);
+  const refreshToken = await service.issueInitialRefreshToken(result.user.id, ipAddress, userAgent);
+  return { ...result, refreshToken };
+}
+
 export async function handleSignOut(service: AuthService, authHeader?: string): Promise<void> {
   const token = authHeader?.replace('Bearer ', '') ?? '';
   return service.signOut(token);

@@ -164,5 +164,9 @@ export const AUTH_QUERIES = {
     INSERT: `INSERT INTO auth_blocked_domains (domain_name, category, reason, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (domain_name) DO UPDATE SET category = EXCLUDED.category, reason = EXCLUDED.reason, updated_at_ms = EXCLUDED.updated_at_ms, updated_at = CURRENT_TIMESTAMP`,
     DELETE: `DELETE FROM auth_blocked_domains WHERE domain_name = $1`,
   },
+  FLOW_LOGIN_HISTORY: {
+    INSERT: `INSERT INTO auth_login_history (id, user_id, ip_address, latitude, longitude, asn, is_datacenter, device_fingerprint, risk_score, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    FIND_LATEST_BY_USER: `SELECT id, user_id, ip_address, latitude, longitude, asn, is_datacenter, device_fingerprint, risk_score, created_at_ms FROM auth_login_history WHERE user_id = $1 ORDER BY created_at_ms DESC LIMIT 1`,
+  },
 } as const;
 

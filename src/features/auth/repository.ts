@@ -106,6 +106,31 @@ export interface AuthRepositoryPort {
   listBlockedDomains(): Promise<BlockedDomainRecord[]>;
   saveBlockedDomain(record: BlockedDomainRecord): Promise<void>;
   deleteBlockedDomain(domainName: string): Promise<void>;
+  recordLoginHistory(record: {
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  }): Promise<void>;
+  getLatestLoginLocation(userId: string): Promise<{
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  } | null>;
 }
+
 
 

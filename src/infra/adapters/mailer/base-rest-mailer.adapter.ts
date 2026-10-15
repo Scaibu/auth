@@ -28,6 +28,9 @@ export interface PreparedRequest {
   options?: Record<string, any>;
 }
 
+import { withSpan } from '../../tracing/tracer';
+import { SpanKind } from '@chief-strategist-j/shared-infra/tracing';
+
 export abstract class BaseRestMailerAdapter implements MailerPort {
   protected readonly httpClient: IMailerHttpClient;
   abstract readonly providerName: string;
@@ -45,31 +48,40 @@ export abstract class BaseRestMailerAdapter implements MailerPort {
   abstract verify(): Promise<boolean>;
 
   public async send(message: EmailMessage): Promise<SendMailResult> {
-    const messageValidation = validateEmailMessage(message);
-    if (!messageValidation.isValid) {
-      return { success: false, error: messageValidation.error };
-    }
+    return withSpan(`mailer.send.${this.providerName.toLowerCase()}`, async (span) => {
+      span.setAttribute('mailer.provider', this.providerName);
+      span.setAttribute('mailer.to', message.to);
+      span.setAttribute('mailer.subject', message.subject);
 
-    const credentialValidation = this.validateCredentials();
-    if (!credentialValidation.isValid) {
-      return { success: false, error: credentialValidation.error };
-    }
+      const messageValidation = validateEmailMessage(message);
+      if (!messageValidation.isValid) {
+        return { success: false, error: messageValidation.error };
+      }
 
-    try {
-      const prepared = await this.buildPayload(message);
-      const response = await this.httpClient.post(
-        prepared.url,
-        prepared.body,
-        prepared.headers,
-        prepared.options
-      );
+      const credentialValidation = this.validateCredentials();
+      if (!credentialValidation.isValid) {
+        return { success: false, error: credentialValidation.error };
+      }
 
-      return this.parseSendResponse(response);
-    } catch (err: unknown) {
-      return {
-        success: false,
-        error: formatMailerError(this.providerName, err),
-      };
-    }
+      try {
+        const prepared = await this.buildPayload(message);
+        const response = await this.httpClient.post(
+          prepared.url,
+          prepared.body,
+          prepared.headers,
+          prepared.options
+        );
+
+        const result = this.parseSendResponse(response);
+        span.setAttribute('mailer.success', result.success);
+        return result;
+      } catch (err: unknown) {
+        if (err instanceof Error) span.recordException(err);
+        return {
+          success: false,
+          error: formatMailerError(this.providerName, err),
+        };
+      }
+    }, { kind: SpanKind.CLIENT });
   }
 }

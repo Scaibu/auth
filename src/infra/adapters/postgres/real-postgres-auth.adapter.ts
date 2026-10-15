@@ -1059,5 +1059,67 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       await this.pool.query(AUTH_QUERIES.FLOW_BLOCKED_DOMAINS.DELETE, [domainName.toLowerCase()]);
     }, { kind: SpanKind.CLIENT });
   }
+
+  async recordLoginHistory(record: {
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  }): Promise<void> {
+    await withSpan('db.recordLoginHistory', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_LOGIN_HISTORY.INSERT, [
+        record.id,
+        record.userId,
+        record.ipAddress,
+        record.latitude ?? null,
+        record.longitude ?? null,
+        record.asn ?? null,
+        record.isDatacenter,
+        record.deviceFingerprint,
+        record.riskScore,
+        record.createdAtMs,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async getLatestLoginLocation(userId: string): Promise<{
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  } | null> {
+    return withSpan('db.getLatestLoginLocation', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_LOGIN_HISTORY.FIND_LATEST_BY_USER, [userId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        userId: row.user_id,
+        ipAddress: row.ip_address,
+        latitude: row.latitude !== null ? Number(row.latitude) : undefined,
+        longitude: row.longitude !== null ? Number(row.longitude) : undefined,
+        asn: row.asn ?? undefined,
+        isDatacenter: Boolean(row.is_datacenter),
+        deviceFingerprint: row.device_fingerprint,
+        riskScore: Number(row.risk_score),
+        createdAtMs: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
 }
+
 

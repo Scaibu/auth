@@ -185,6 +185,7 @@ export const AUTH_CONSTANTS = {
     FLOW_FEDERATED_IDENTITY: 'FLOW_FEDERATED_IDENTITY',
     FLOW_DOMAIN_CLAIM: 'FLOW_DOMAIN_CLAIM',
     FLOW_BLOCKED_DOMAINS: 'FLOW_BLOCKED_DOMAINS',
+    FLOW_LOGIN_HISTORY: 'FLOW_LOGIN_HISTORY',
   },
 
 
@@ -239,6 +240,79 @@ export const AUTH_CONSTANTS = {
 
 
 
+  RISK: {
+    THRESHOLDS: {
+      LOW: 30,
+      HIGH: 75,
+    },
+    FACTORS: {
+      DATACENTER_ASN: 40,
+      IMPOSSIBLE_VELOCITY: 35,
+      DEVICE_FINGERPRINT_SHIFT: 25,
+    },
+    MAX_VELOCITY_KMH: 900,
+    EARTH_RADIUS_KM: 6371,
+    CHALLENGE_TTL_MS: 300 * 1000,
+    TOKEN_TYPE: 'risk_challenge',
+    STATUS_AUTHENTICATED: 'authenticated',
+    STATUS_STEP_UP_REQUIRED: 'step_up_required',
+    STATUS_MFA_REQUIRED: 'mfa_required',
+    REASON_DATACENTER_OR_PROXY: 'DATACENTER_OR_PROXY_ASN',
+    REASON_IMPOSSIBLE_TRAVEL: 'IMPOSSIBLE_TRAVEL_VELOCITY',
+    REASON_DEVICE_FINGERPRINT_SHIFT: 'DEVICE_FINGERPRINT_SHIFT',
+    DEFAULT_VERIFICATION_CODE: '123456',
+  },
+
+  GEO: {
+    LOOPBACK_IPV4: '127.0.0.1',
+    LOOPBACK_IPV6: '::1',
+    LOCALHOST: 'localhost',
+    PRIVATE_PREFIX_10: '10.',
+    PRIVATE_PREFIX_192: '192.168.',
+    PRIVATE_PREFIXES_172: [
+      '172.16.',
+      '172.17.',
+      '172.18.',
+      '172.19.',
+      '172.20.',
+      '172.21.',
+      '172.22.',
+      '172.23.',
+      '172.24.',
+      '172.25.',
+      '172.26.',
+      '172.27.',
+      '172.28.',
+      '172.29.',
+      '172.30.',
+      '172.31.',
+    ],
+    ASN_PREFIX: 'AS',
+    ASN_PRIVATE_LAN: 'AS_PRIVATE_LAN',
+    ASN_DEFAULT_RESIDENTIAL: 'AS7922',
+    DATACENTER_ASNS: [
+      'AS16509',
+      'AS14618',
+      'AS15169',
+      'AS8075',
+      'AS13335',
+      'AS14061',
+      'AS24940',
+      'AS16276',
+      'AS63949',
+    ],
+    DEFAULT_LATITUDE: 37.7749,
+    DEFAULT_LONGITUDE: -122.4194,
+    SPAN_GEO_LOOKUP: 'geo.lookup',
+    ATTR_NET_PEER_IP: 'net.peer.ip',
+    ATTR_GEO_CACHED: 'geo.cached',
+    ATTR_GEO_IS_DATACENTER: 'geo.is_datacenter',
+    ATTR_GEO_IS_PRIVATE: 'geo.is_private',
+    ATTR_GEO_ASN: 'geo.asn',
+    UNKNOWN_VAL: 'unknown',
+  },
+
+
   CONTRACT_SCHEMAS: {
     USER_SESSION_SUMMARY: 'UserSessionSummary',
     SIGN_UP_REQUEST: 'SignUpRequest',
@@ -265,6 +339,7 @@ export const AUTH_CONSTANTS = {
     OPENAPI_OAUTH_UNLINK: '/api/v1/auth/oauth/identities/{provider}',
     OPENAPI_DOMAINS: '/api/v1/auth/domains',
     OPENAPI_DOMAINS_VERIFY: '/api/v1/auth/domains/{domainId}/verify',
+    OPENAPI_CHALLENGE_RESOLVE: '/api/v1/auth/challenge/resolve',
   },
 
   OAUTH: {
@@ -291,4 +366,8 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_USER_AUTO_JOINED: 'USER_AUTO_JOINED_ORGANIZATION',
   AUDIT_EVENT_BLOCKED_DOMAIN_ADDED: 'BLOCKED_DOMAIN_ADDED',
   AUDIT_EVENT_BLOCKED_DOMAIN_REMOVED: 'BLOCKED_DOMAIN_REMOVED',
+  AUDIT_EVENT_RISK_CHALLENGE_ISSUED: 'RISK_CHALLENGE_ISSUED',
+  AUDIT_EVENT_RISK_CHALLENGE_RESOLVED: 'RISK_CHALLENGE_RESOLVED',
+  AUDIT_EVENT_HIGH_RISK_BLOCKED: 'HIGH_RISK_SIGNIN_BLOCKED',
 } as const;
+

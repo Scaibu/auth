@@ -1,3 +1,5 @@
+import { AUTH_CONSTANTS } from '../constants/auth.constants';
+
 export class AuthError extends Error {
   readonly code: string;
   readonly statusCode: number;
@@ -159,6 +161,63 @@ export class ConflictError extends AuthError {
     super(message, 'CONFLICT', 409);
   }
 }
+
+export class HighRiskSignInBlockedError extends AuthError {
+  constructor(message = 'Sign-in attempt rejected due to critical anomaly and high risk score') {
+    super(message, 'HIGH_RISK_SIGNIN_BLOCKED', 403);
+  }
+}
+
+export class InvalidChallengeTokenError extends AuthError {
+  constructor(message = 'Adaptive risk challenge token is invalid, expired, or tampered') {
+    super(message, 'INVALID_CHALLENGE_TOKEN', 401);
+  }
+}
+
+export class DomainClaimError extends AuthError {
+  constructor(message: string, code = 'DOMAIN_CLAIM_ERROR', statusCode = 400) {
+    super(message, code, statusCode);
+  }
+}
+
+export class DomainVerificationFailedError extends DomainClaimError {
+  constructor(_domain?: string, message = AUTH_CONSTANTS.ERROR_MESSAGES.DOMAIN_VERIFICATION_FAILED) {
+    super(message, 'DOMAIN_VERIFICATION_FAILED', 400);
+  }
+}
+
+export class PublicEmailDomainClaimForbiddenError extends DomainClaimError {
+  constructor(domain: string) {
+    super(`Public email domains cannot be claimed for enterprise auto-join: ${domain}`, 'PUBLIC_DOMAIN_CLAIM_FORBIDDEN', 400);
+  }
+}
+
+
+export class OAuthAuthenticationError extends AuthError {
+  constructor(message: string, code = 'OAUTH_ERROR', statusCode = 401) {
+    super(message, code, statusCode);
+  }
+}
+
+export class OAuthStateMismatchError extends OAuthAuthenticationError {
+  constructor() {
+    super('OAuth CSRF state token is invalid, expired, or tampered', 'OAUTH_STATE_MISMATCH', 400);
+  }
+}
+
+export class OAuthUnlinkForbiddenError extends OAuthAuthenticationError {
+  constructor() {
+    super('Cannot unlink identity: account has no password and no alternative login method', 'OAUTH_UNLINK_FORBIDDEN', 400);
+  }
+}
+
+export class TokenFamilyRevokedError extends AuthError {
+  constructor() {
+    super('Token reuse detected. All sessions in this token family have been permanently revoked', 'TOKEN_REUSE_REVOKED', 401);
+  }
+}
+
+
 
 
 

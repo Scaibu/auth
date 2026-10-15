@@ -1,5 +1,13 @@
 # Auth Contracts Changelog
 
+## [1.8.0] - 2026-10-15
+### Added
+- Unified Adaptive Risk-Based Authentication & Soft Step-Up (NIST SP 800-63-3 / ADR 0022):
+  - Dynamic risk scoring pipeline ($0 - 100$) integrating ASN proxy intelligence (+40), Great-Circle Haversine velocity anomalies >900 km/h (+35), and browser fingerprint shifts (+25).
+  - Added `POST /api/v1/auth/challenge/resolve`: Resolves ephemeral HMAC-SHA256 risk challenge tokens with single-use verification codes without terminating sessions.
+  - Soft step-up challenge envelope (`status: "step_up_required"`, `risk_score`, `challenge_token`) for medium risk ($30 \le R < 75$).
+  - High-risk denial envelope (`HTTP 403 Forbidden` / `HIGH_RISK_SIGNIN_BLOCKED`) for severe velocity/proxy anomalies ($R \ge 75$).
+
 ## [1.7.0] - 2026-10-15
 ### Added
 - Organization Domain Claiming & Verified Auto-Join (DNS TXT + Email Gate) (ADR 0021):

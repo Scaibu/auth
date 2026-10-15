@@ -13,6 +13,7 @@ import { createMailer } from './infra/adapters/mailer/mailer.factory';
 import { PurgeRetentionWorker } from './infra/workers/purge-retention.worker';
 import { DnsVerificationWorker } from './infra/workers/dns-verification.worker';
 import { NodeDnsAdapter } from './infra/adapters/dns/node-dns.adapter';
+import { createGeoIpAdapter } from './infra/adapters/geo';
 
 import type { AuthRepositoryPort } from './features/auth/repository';
 import { AuthEventProducer } from './shared/messaging/producers/auth-event.producer';
@@ -71,6 +72,7 @@ export const dnsVerificationWorker = new DnsVerificationWorker(
 dnsVerificationWorker.start();
 
 const mailerAdapter = createMailer(AUTH_CONFIG.mailer);
+export const geoIpAdapter = createGeoIpAdapter(AUTH_CONFIG.geoIp);
 
 export const service = new AuthService(
   repositoryAdapter,
@@ -80,6 +82,10 @@ export const service = new AuthService(
   undefined,
   mailerAdapter,
   { from: AUTH_CONFIG.mailer.from, appName: 'LLM Observability', appUrl: process.env.APP_URL || 'http://localhost:3000' },
+  undefined,
+  undefined,
+  dnsResolverAdapter,
+  geoIpAdapter,
 );
 export const router = new AuthRestV1Router(service, AUTH_CONFIG.securityHeaders);
 

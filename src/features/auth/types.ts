@@ -45,3 +45,38 @@ export type ResendVerificationInput = z.input<typeof ResendVerificationInputSche
 export type MfaVerifyInput = z.input<typeof MfaVerifyInputSchema>;
 export type MfaChallengeInput = z.input<typeof MfaChallengeInputSchema>;
 
+export interface GeoLocationTelemetry {
+  readonly ip: string;
+  readonly latitude?: number;
+  readonly longitude?: number;
+  readonly asn?: string;
+  readonly isDatacenter?: boolean;
+}
+
+export interface LoginHistoryRecord {
+  readonly id: string;
+  readonly userId: string;
+  readonly ipAddress: string;
+  readonly latitude?: number;
+  readonly longitude?: number;
+  readonly asn?: string;
+  readonly isDatacenter: boolean;
+  readonly deviceFingerprint: string;
+  readonly riskScore: number;
+  readonly createdAtMs: number;
+}
+
+export interface RiskEvaluationResult {
+  readonly riskScore: number;
+  readonly reasons: readonly string[];
+  readonly requiresStepUp: boolean;
+  readonly isBlocked: boolean;
+  readonly currentTelemetry: GeoLocationTelemetry & { readonly deviceFingerprint: string };
+}
+
+export interface ResolveChallengeInput {
+  readonly challenge_token: string;
+  readonly verification_code: string;
+}
+
+

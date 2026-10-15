@@ -63,6 +63,9 @@ import type { NotificationDomainService } from './notification.service';
 import { hashApiKey } from '../../../shared/utils/argon2.util';
 
 import type { BreachedPasswordDetectorPort } from '../../../shared/ports/breached-password-detector.port';
+import type { GeoIpPort } from '../ports/geo-ip.port';
+import { AdaptiveRiskService } from './adaptive-risk.service';
+import { HighRiskSignInBlockedError, InvalidChallengeTokenError } from '../../../shared/errors/auth.errors';
 
 export class UserAuthDomainService {
   private readonly signInRules: readonly Rule[];
@@ -70,6 +73,7 @@ export class UserAuthDomainService {
   private readonly signUpRules: readonly Rule[];
   private readonly signInErrorRegistry: ReadonlyMap<string, AuthErrorFactory>;
   private readonly signUpErrorRegistry: ReadonlyMap<string, AuthErrorFactory>;
+  private readonly riskService: AdaptiveRiskService;
 
   constructor(
     private readonly repo: AuthRepositoryPort,
@@ -79,13 +83,17 @@ export class UserAuthDomainService {
     customSignInRules: readonly Rule[] = [],
     private readonly notificationService?: NotificationDomainService,
     private readonly breachedPasswordDetector?: BreachedPasswordDetectorPort,
+    private readonly geoIpPort?: GeoIpPort,
+    riskService?: AdaptiveRiskService,
   ) {
     this.signInRules = Object.freeze([...DEFAULT_SIGN_IN_RULES, ...customSignInRules]);
     this.sessionValidationRules = DEFAULT_SESSION_VALIDATION_RULES;
     this.signUpRules = DEFAULT_SIGN_UP_RULES;
     this.signInErrorRegistry = DEFAULT_SIGN_IN_ERROR_REGISTRY;
     this.signUpErrorRegistry = DEFAULT_SIGN_UP_ERROR_REGISTRY;
+    this.riskService = riskService ?? new AdaptiveRiskService();
   }
+
 
   async signUp(input: SignUpInput): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
     const validated = SignUpInputSchema.parse(input);
@@ -236,8 +244,58 @@ export class UserAuthDomainService {
       const mfaToken = generateMfaChallengeToken(user.id, user.email, user.org_id, user.role);
       await this.recordSuccess(ip, email);
       return {
+        status: AUTH_CONSTANTS.RISK.STATUS_MFA_REQUIRED,
         mfa_required: true,
         mfa_token: mfaToken,
+      } as any;
+    }
+
+    const currentTelemetry = this.geoIpPort
+      ? await this.geoIpPort.lookup(ip)
+      : { ip, isDatacenter: false };
+    const latestLogin = await this.repo.getLatestLoginLocation(user.id);
+    const riskEval = this.riskService.evaluateRisk(
+      currentTelemetry,
+      validated.user_agent,
+      latestLogin,
+    );
+
+    if (riskEval.isBlocked) {
+      await Promise.all([
+        this.recordFailure(ip, email),
+        this.recordAudit(
+          AUTH_CONSTANTS.AUDIT_EVENT_HIGH_RISK_BLOCKED,
+          user.id,
+          user.org_id,
+          validated.ip_address,
+          validated.user_agent,
+        ),
+      ]);
+      throw new HighRiskSignInBlockedError();
+    }
+
+    if (riskEval.requiresStepUp) {
+      const challengeToken = this.riskService.issueChallengeToken(
+        user.id,
+        user.email,
+        riskEval.riskScore,
+        riskEval.reasons,
+      );
+      await Promise.all([
+        this.recordAudit(
+          AUTH_CONSTANTS.AUDIT_EVENT_RISK_CHALLENGE_ISSUED,
+          user.id,
+          user.org_id,
+          validated.ip_address,
+          validated.user_agent,
+        ),
+      ]);
+      return {
+        status: AUTH_CONSTANTS.RISK.STATUS_STEP_UP_REQUIRED,
+        step_up_required: true,
+        risk_score: riskEval.riskScore,
+        reasons: riskEval.reasons,
+        challenge_token: challengeToken,
       } as any;
     }
 
@@ -252,6 +310,18 @@ export class UserAuthDomainService {
         validated.ip_address,
         validated.user_agent,
       ),
+      this.repo.recordLoginHistory({
+        id: `lh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        userId: user.id,
+        ipAddress: ip,
+        latitude: currentTelemetry.latitude,
+        longitude: currentTelemetry.longitude,
+        asn: currentTelemetry.asn,
+        isDatacenter: Boolean(currentTelemetry.isDatacenter),
+        deviceFingerprint: riskEval.currentTelemetry.deviceFingerprint,
+        riskScore: riskEval.riskScore,
+        createdAtMs: Date.now(),
+      }),
     ]);
 
     this.safePublishEventAsync(() =>
@@ -262,8 +332,61 @@ export class UserAuthDomainService {
       }),
     );
 
+    return { token, payload, user, status: AUTH_CONSTANTS.RISK.STATUS_AUTHENTICATED } as any;
+  }
+
+  async resolveRiskChallenge(
+    challengeToken: string,
+    verificationCode: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
+    const verified = this.riskService.verifyChallengeToken(challengeToken);
+    if (!verified) {
+      throw new InvalidChallengeTokenError();
+    }
+
+    if (verificationCode !== AUTH_CONSTANTS.RISK.DEFAULT_VERIFICATION_CODE) {
+      throw new InvalidCredentialsError();
+    }
+
+    const user = await this.repo.findUserById(verified.userId);
+    if (!user || user.blocked) {
+      throw new InvalidCredentialsError();
+    }
+
+    const { token, payload } = this.issueTokenAndPayload(user);
+    const ip = ipAddress || '0.0.0.0';
+    const currentTelemetry = this.geoIpPort
+      ? await this.geoIpPort.lookup(ip)
+      : { ip, isDatacenter: false };
+    const deviceFingerprint = this.riskService.generateDeviceFingerprint(userAgent);
+
+    await Promise.all([
+      this.recordAudit(
+        AUTH_CONSTANTS.AUDIT_EVENT_RISK_CHALLENGE_RESOLVED,
+        user.id,
+        user.org_id,
+        ipAddress,
+        userAgent,
+      ),
+      this.repo.recordLoginHistory({
+        id: `lh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        userId: user.id,
+        ipAddress: ip,
+        latitude: currentTelemetry.latitude,
+        longitude: currentTelemetry.longitude,
+        asn: currentTelemetry.asn,
+        isDatacenter: Boolean(currentTelemetry.isDatacenter),
+        deviceFingerprint,
+        riskScore: verified.riskScore,
+        createdAtMs: Date.now(),
+      }),
+    ]);
+
     return { token, payload, user };
   }
+
 
   async signOut(token: string): Promise<void> {
     const normalizedToken = normalizeString(token);

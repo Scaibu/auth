@@ -67,6 +67,7 @@ import { AUTH_CONFIG } from '../../config/env.config';
 import { DomainClaimService, type ClaimDomainInput, type ClaimDomainResult, type VerifyDomainResult } from './services/domain-claim.service';
 import type { DnsResolverPort } from './ports/dns-resolver.port';
 import { NodeDnsAdapter } from '../../infra/adapters/dns/node-dns.adapter';
+import type { GeoIpPort } from './ports/geo-ip.port';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -93,6 +94,7 @@ export class AuthService {
     mfaPort?: MfaPort,
     breachedPasswordDetector?: BreachedPasswordDetectorPort,
     dnsResolver?: DnsResolverPort,
+    geoIpPort?: GeoIpPort,
   ) {
     this.repo = repo;
     const notificationService = mailer
@@ -121,6 +123,7 @@ export class AuthService {
       customSignInRules,
       notificationService,
       breachedDetector,
+      geoIpPort,
     );
     this.passwordService = new PasswordDomainService(repo, notificationService, breachedDetector);
     this.apiKeyService = new ApiKeyDomainService(repo, cache);
@@ -129,6 +132,7 @@ export class AuthService {
     this.mfaService = new MfaDomainService(repo, mfa);
     this.stepUpService = new StepUpDomainService(repo, mfa);
     this.refreshTokenService = new RefreshTokenService(repo);
+
 
     const googleAdapter = new GoogleOAuthAdapter(AUTH_CONFIG.oauth.google);
     const githubAdapter = new GitHubOAuthAdapter(AUTH_CONFIG.oauth.github);
@@ -254,6 +258,15 @@ export class AuthService {
 
   async signIn(input: SignInInput): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
     return this.authService.signIn(input);
+  }
+
+  async resolveRiskChallenge(
+    challengeToken: string,
+    verificationCode: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
+    return this.authService.resolveRiskChallenge(challengeToken, verificationCode, ipAddress, userAgent);
   }
 
   async signOut(token: string): Promise<void> {

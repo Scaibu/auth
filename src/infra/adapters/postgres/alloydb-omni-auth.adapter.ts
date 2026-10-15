@@ -693,6 +693,58 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCKED_DOMAINS);
     this.mockBlockedDomains.delete(domainName.toLowerCase());
   }
+
+  private readonly mockLoginHistory = new Map<string, Array<{
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  }>>();
+
+  async recordLoginHistory(record: {
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  }): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_LOGIN_HISTORY);
+    const userHistory = this.mockLoginHistory.get(record.userId) || [];
+    userHistory.unshift({ ...record });
+    this.mockLoginHistory.set(record.userId, userHistory);
+  }
+
+  async getLatestLoginLocation(userId: string): Promise<{
+    id: string;
+    userId: string;
+    ipAddress: string;
+    latitude?: number;
+    longitude?: number;
+    asn?: string;
+    isDatacenter: boolean;
+    deviceFingerprint: string;
+    riskScore: number;
+    createdAtMs: number;
+  } | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_LOGIN_HISTORY);
+    const userHistory = this.mockLoginHistory.get(userId);
+    if (!userHistory || userHistory.length === 0) {
+      return null;
+    }
+    return { ...userHistory[0]! };
+  }
 }
+
 
 
