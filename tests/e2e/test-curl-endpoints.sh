@@ -100,12 +100,22 @@ echo "${FORGOT_RESP}"
 
 RESET_TOKEN=$(echo "${FORGOT_RESP}" | node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(0, 'utf-8')); console.log(d.data?.resetToken || '');")
 
-echo -e "\n--- [11/34] POST /api/v1/auth/reset-password (Reset Password) ---"
-RESET_PW_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/reset-password" \
+echo -e "\n--- [11a/34] POST /api/v1/auth/reset-password (Negative Test: Reject Recycled Historical Password - NIST SP 800-63B) ---"
+RESET_REJECT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/reset-password" \
   -H "Content-Type: application/json" \
   -d "{
     \"token\": \"${RESET_TOKEN}\",
     \"new_password\": \"${PASSWORD}\"
+  }")
+echo "${RESET_REJECT_RESP}"
+
+echo -e "\n--- [11b/34] POST /api/v1/auth/reset-password (Positive Test: Reset to Novel Unused Password) ---"
+NOVEL_PASSWORD="BrandNewP@ssword_${TIMESTAMP}!"
+RESET_PW_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"token\": \"${RESET_TOKEN}\",
+    \"new_password\": \"${NOVEL_PASSWORD}\"
   }")
 echo "${RESET_PW_RESP}"
 
