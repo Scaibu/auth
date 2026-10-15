@@ -57,10 +57,10 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async createOrganization(org: OrganizationRecord, creatorUserId?: string): Promise<void> {
-    this.getFlowQuery('FLOW_CREATE_ORGANIZATION');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_ORGANIZATION);
     const existing = [...this.mockOrgs.values()].find((o) => !o.deleted_at && o.name.toLowerCase() === org.name.toLowerCase());
     if (existing) {
-      throw new Error(`Organization name already exists: ${org.name}`);
+      throw new Error(`${AUTH_CONSTANTS.ERROR_MESSAGES.ORG_ALREADY_EXISTS_PREFIX}${org.name}`);
     }
     this.mockOrgs.set(org.id, { ...org });
     if (creatorUserId) {
@@ -70,7 +70,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async listOrganizationsByUserId(userId: string): Promise<OrganizationRecord[]> {
-    this.getFlowQuery('FLOW_CREATE_ORGANIZATION');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_ORGANIZATION);
     const orgIds = this.mockUserOrgs.get(userId) ?? new Set();
     const user = [...this.mockUsers.values()].find((u) => u.id === userId && !u.deleted_at);
     if (user) orgIds.add(user.org_id);
@@ -84,14 +84,14 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async getOrganizationById(orgId: string): Promise<OrganizationRecord | null> {
-    this.getFlowQuery('FLOW_CREATE_ORGANIZATION');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_ORGANIZATION);
     const org = this.mockOrgs.get(orgId);
     if (!org || org.deleted_at) return null;
     return org;
   }
 
   async updateOrganization(orgId: string, patch: { name?: string; slug?: string }): Promise<void> {
-    this.getFlowQuery('FLOW_CREATE_ORGANIZATION');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_ORGANIZATION);
     const org = this.mockOrgs.get(orgId);
     if (org && !org.deleted_at) {
       if (patch.name) org.name = patch.name;
@@ -100,7 +100,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async deleteOrganization(orgId: string): Promise<void> {
-    this.getFlowQuery('FLOW_DELETE_ORGANIZATION');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DELETE_ORGANIZATION);
     const now = Date.now();
     const org = this.mockOrgs.get(orgId);
     if (org) org.deleted_at = now;
@@ -117,10 +117,10 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async createUser(userRecord: AuthUserRecord): Promise<void> {
-    this.getFlowQuery('FLOW_CREATE_USER');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_USER);
     const existing = [...this.mockUsers.values()].find((u) => !u.deleted_at && u.email === userRecord.email);
     if (existing) {
-      throw new Error(`User with email ${userRecord.email} already exists`);
+      throw new Error(`${AUTH_CONSTANTS.ERROR_MESSAGES.USER_ALREADY_EXISTS_PREFIX}${userRecord.email}${AUTH_CONSTANTS.ERROR_MESSAGES.USER_ALREADY_EXISTS_SUFFIX}`);
     }
     this.mockUsers.set(userRecord.email, { ...userRecord });
     if (!this.mockUserOrgs.has(userRecord.id)) this.mockUserOrgs.set(userRecord.id, new Set());
@@ -128,12 +128,12 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async listUsersByOrgId(orgId: string): Promise<AuthUserRecord[]> {
-    this.getFlowQuery('FLOW_CREATE_USER');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_USER);
     return [...this.mockUsers.values()].filter((u) => u.org_id === orgId && !u.deleted_at);
   }
 
   async blockUser(userId: string): Promise<void> {
-    this.getFlowQuery('FLOW_BLOCK_USER');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCK_USER);
     for (const user of this.mockUsers.values()) {
       if (user.id === userId && !user.deleted_at) {
         user.blocked = true;
@@ -142,7 +142,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async unblockUser(userId: string): Promise<void> {
-    this.getFlowQuery('FLOW_BLOCK_USER');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCK_USER);
     for (const user of this.mockUsers.values()) {
       if (user.id === userId && !user.deleted_at) {
         user.blocked = false;
@@ -151,7 +151,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async deleteUser(userId: string): Promise<void> {
-    this.getFlowQuery('FLOW_DELETE_USER');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DELETE_USER);
     const now = Date.now();
     for (const user of this.mockUsers.values()) {
       if (user.id === userId) {
@@ -185,7 +185,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async purgeExpiredSoftDeletes(): Promise<number> {
-    this.getFlowQuery('FLOW_RETENTION_PURGE');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RETENTION_PURGE);
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     let purged = 0;
 
@@ -216,23 +216,23 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async findUserByEmail(email: string): Promise<AuthUserRecord | null> {
-    this.getFlowQuery('FLOW_SIGN_IN');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_SIGN_IN);
     const user = this.mockUsers.get(email);
     if (!user || user.deleted_at) return null;
     return user;
   }
 
   async findUserById(id: string): Promise<AuthUserRecord | null> {
-    this.getFlowQuery('FLOW_SESSION_VERIFY');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_SESSION_VERIFY);
     const user = [...this.mockUsers.values()].find((u) => u.id === id && !u.deleted_at);
     return user ?? null;
   }
 
   async createOrganizationAndUser(userRecord: AuthUserRecord): Promise<void> {
-    this.getFlowQuery('FLOW_SIGN_UP');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_SIGN_UP);
     const existingOrg = [...this.mockOrgs.values()].find((o) => !o.deleted_at && o.name.toLowerCase() === userRecord.org_name.toLowerCase());
     if (existingOrg) {
-      throw new Error(`Organization name already exists: ${userRecord.org_name}`);
+      throw new Error(`${AUTH_CONSTANTS.ERROR_MESSAGES.ORG_ALREADY_EXISTS_PREFIX}${userRecord.org_name}`);
     }
     this.mockOrgs.set(userRecord.org_id, {
       id: userRecord.org_id,
@@ -245,24 +245,24 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async recordAuditLog(logRecord: AuditLogRecord): Promise<void> {
-    this.getFlowQuery('FLOW_SIGN_IN');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_SIGN_IN);
     this.mockAuditLogs.set(logRecord.id, logRecord);
   }
 
   async savePasswordResetToken(tokenHash: string, userId: string, expiresAtMs: number): Promise<void> {
-    this.getFlowQuery('FLOW_FORGOT_PASSWORD');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FORGOT_PASSWORD);
     this.mockResets.set(tokenHash, { tokenHash, userId, expiresAtMs, used: false });
   }
 
   async findPasswordResetToken(tokenHash: string): Promise<{ tokenHash: string; userId: string; expiresAtMs: number; used: boolean } | null> {
-    this.getFlowQuery('FLOW_FORGOT_PASSWORD');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FORGOT_PASSWORD);
     const reset = this.mockResets.get(tokenHash);
     if (!reset || reset.deleted_at) return null;
     return reset;
   }
 
   async updateUserPassword(userId: string, newPasswordHash: string): Promise<void> {
-    this.getFlowQuery('FLOW_RESET_PASSWORD');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RESET_PASSWORD);
     for (const user of this.mockUsers.values()) {
       if (user.id === userId && !user.deleted_at) {
         user.password_hash = newPasswordHash;
@@ -271,7 +271,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async markPasswordResetTokenUsed(tokenHash: string): Promise<void> {
-    this.getFlowQuery('FLOW_RESET_PASSWORD');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RESET_PASSWORD);
     const reset = this.mockResets.get(tokenHash);
     if (reset && !reset.deleted_at) {
       reset.used = true;
@@ -279,24 +279,24 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async saveApiKey(keyRecord: ApiKeyRecord): Promise<void> {
-    this.getFlowQuery('FLOW_CREATE_API_KEY');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_CREATE_API_KEY);
     this.mockApiKeys.set(keyRecord.key_hash, keyRecord);
   }
 
   async listApiKeysByOrgId(orgId: string): Promise<ApiKeyRecord[]> {
-    this.getFlowQuery('FLOW_VERIFY_API_KEY');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_VERIFY_API_KEY);
     return [...this.mockApiKeys.values()].filter((k) => k.org_id === orgId && !k.deleted_at);
   }
 
   async findApiKeyByHash(hash: string): Promise<ApiKeyRecord | null> {
-    this.getFlowQuery('FLOW_VERIFY_API_KEY');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_VERIFY_API_KEY);
     const key = this.mockApiKeys.get(hash);
     if (!key || key.deleted_at) return null;
     return key;
   }
 
   async revokeApiKey(keyId: string): Promise<void> {
-    this.getFlowQuery('FLOW_REVOKE_API_KEY');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_REVOKE_API_KEY);
     for (const record of this.mockApiKeys.values()) {
       if (record.key_id === keyId && !record.deleted_at) {
         record.revoked = true;
@@ -336,7 +336,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   }
 
   async fetchUserAuditLogs(userId: string, filters?: { event_type?: string; from_ms?: number; to_ms?: number }): Promise<AuditLogRecord[]> {
-    this.getFlowQuery('FLOW_AUDIT_LOGS');
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_AUDIT_LOGS);
     return [...this.mockAuditLogs.values()].filter((log) => {
       if (log.user_id !== userId || log.deleted_at) return false;
       if (filters?.event_type && log.event_type !== filters.event_type) return false;
