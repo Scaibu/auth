@@ -1673,6 +1673,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiErrorResponse'
 
+  /api/v1/auth/saml/metadata:
+    get:
+      summary: SAML 2.0 Service Provider (SP) Metadata
+      description: Returns SAML 2.0 XML metadata for identity provider configuration
+      responses:
+        '200':
+          description: SAML 2.0 SP EntityDescriptor XML
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /api/v1/auth/saml/login:
+    get:
+      summary: Initiate SP-Initiated SAML 2.0 SSO Login
+      parameters:
+        - in: query
+          name: org_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: return_url
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: AuthNRequest and IdP redirect URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  idp_redirect_url:
+                    type: string
+                  relay_state:
+                    type: string
+
+  /api/v1/auth/saml/acs:
+    post:
+      summary: SAML 2.0 Assertion Consumer Service (ACS)
+      description: Consumes and validates SAMLResponse assertion from Identity Provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [SAMLResponse, RelayState]
+              properties:
+                SAMLResponse:
+                  type: string
+                RelayState:
+                  type: string
+      responses:
+        '200':
+          description: SAML authentication successful, session issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Cryptographic signature mismatch, expired assertion, or replay detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+
+  /api/v1/auth/saml/providers:
+    post:
+      summary: Register enterprise SAML Identity Provider
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SamlProviderRegistrationRequest'
+      responses:
+        '201':
+          description: SAML provider registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    get:
+      summary: List registered SAML providers for organization
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of registered SAML providers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
 components:
 
   securitySchemes:
@@ -2105,5 +2204,31 @@ components:
           type: boolean
         name:
           type: string
+
+    SamlProviderRegistrationRequest:
+      type: object
+      required: [idp_entity_id, idp_sso_url, idp_certificate_pem]
+      properties:
+        idp_entity_id:
+          type: string
+          example: https://idp.example.com/metadata
+        idp_sso_url:
+          type: string
+          example: https://idp.example.com/sso
+        idp_certificate_pem:
+          type: string
+          example: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+        sp_entity_id:
+          type: string
+          example: urn:auth-service:sp
+        attribute_mapping:
+          type: object
+          properties:
+            email:
+              type: string
+              example: email
+            name:
+              type: string
+              example: displayName
 
 

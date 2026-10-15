@@ -1,5 +1,6 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../shared/types/auth.types';
+import type { SamlRepositoryPort } from './ports/saml-repository.port';
 
 export interface OrganizationRecord {
   id: string;
@@ -8,7 +9,8 @@ export interface OrganizationRecord {
   deleted_at?: number;
 }
 
-export interface AuthRepositoryPort {
+export interface AuthRepositoryPort extends SamlRepositoryPort {
+
   createOrganization(org: OrganizationRecord, creatorUserId?: string): Promise<void>;
   listOrganizationsByUserId(userId: string): Promise<OrganizationRecord[]>;
   getOrganizationById(orgId: string): Promise<OrganizationRecord | null>;

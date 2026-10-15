@@ -439,6 +439,23 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_OIDC_CLIENT_CREATED: 'OIDC_CLIENT_CREATED',
   AUDIT_EVENT_OIDC_CODE_ISSUED: 'OIDC_CODE_ISSUED',
   AUDIT_EVENT_OIDC_TOKEN_ISSUED: 'OIDC_TOKEN_ISSUED',
+
+  SAML: {
+    BINDING_HTTP_POST: 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+    BINDING_HTTP_REDIRECT: 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+    NAMEID_FORMAT_EMAIL: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+    DEFAULT_SP_ENTITY_ID: 'https://auth.observability.io/api/v1/auth/saml/metadata',
+    DEFAULT_ACS_URL: 'https://auth.observability.io/api/v1/auth/saml/acs',
+    DEFAULT_CLOCK_SKEW_MS: 120000,
+    DEFAULT_RELAY_STATE_TTL_MS: 300000,
+    SIGNATURE_ALG_RSA_SHA256: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    DIGEST_ALG_SHA256: 'http://www.w3.org/2001/04/xmlenc#sha256',
+  },
+
+  AUDIT_EVENT_SAML_PROVIDER_CREATED: 'SAML_PROVIDER_CREATED',
+  AUDIT_EVENT_SAML_LOGIN_INITIATED: 'SAML_LOGIN_INITIATED',
+  AUDIT_EVENT_SAML_ASSERTION_CONSUMED: 'SAML_ASSERTION_CONSUMED',
 } as const;
+
 
 

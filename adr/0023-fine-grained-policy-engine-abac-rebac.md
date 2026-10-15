@@ -79,6 +79,8 @@ In addition to relational links, policy checks evaluate environmental attributes
 
 ## 🔌 3. Hexagonal Architecture & Port Topology
 
+### 3.1 Service & Adapter Boundary Topology
+
 ```mermaid
 graph TD
     subgraph Driving ["Driving Ingress (REST Handlers)"]
@@ -110,9 +112,127 @@ graph TD
     SVC --> ARP
 ```
 
+### 3.2 Hexagonal Class & Interface Contract Topology
+
+```mermaid
+classDiagram
+    class PolicyEngineService {
+        -PolicyEnginePort engine
+        -AuthRepositoryPort repo
+        +evaluatePolicy(tenantId: string, input: PolicyEvaluationInput) Promise~PolicyEvaluationResult~
+        +createRelation(tenantId: string, input: CreateRelationInput) Promise~RelationTupleRecord~
+        +deleteRelation(tenantId: string, input: DeleteRelationInput) Promise~void~
+        +listRelations(tenantId: string, filter: RelationFilter) Promise~ReadonlyArray~RelationTupleRecord~~
+    }
+
+    class PolicyEnginePort {
+        <<interface>>
+        +checkAccess(tenantId: string, input: PolicyEvaluationInput, tuples: ReadonlyArray~RelationTupleRecord~) Promise~PolicyEvaluationResult~
+        +validateNoCycle(tenantId: string, newTuple: CreateRelationInput, existingTuples: ReadonlyArray~RelationTupleRecord~) boolean
+    }
+
+    class AuthRepositoryPort {
+        <<interface>>
+        +findRelationTuples(tenantId: string, filter: RelationFilter) Promise~ReadonlyArray~RelationTupleRecord~~
+        +saveRelationTuple(tenantId: string, tuple: RelationTupleRecord) Promise~void~
+        +deleteRelationTuple(tenantId: string, tupleId: string) Promise~void~
+    }
+
+    class NativePolicyEngineAdapter {
+        -evaluateRebacGraph(subjectId: string, targetRelation: string, objectId: string, tuples: ReadonlyArray~RelationTupleRecord~, depth: number) boolean
+        -evaluateAbacConditions(conditions: Record~string, unknown~, context: Record~string, unknown~) boolean
+        +checkAccess(tenantId: string, input: PolicyEvaluationInput, tuples: ReadonlyArray~RelationTupleRecord~) Promise~PolicyEvaluationResult~
+        +validateNoCycle(tenantId: string, newTuple: CreateRelationInput, existingTuples: ReadonlyArray~RelationTupleRecord~) boolean
+    }
+
+    class RealPostgresAuthAdapter {
+        -Pool pool
+        +findRelationTuples(tenantId, filter) Promise~ReadonlyArray~RelationTupleRecord~~
+        +saveRelationTuple(tenantId, tuple) Promise~void~
+        +deleteRelationTuple(tenantId, tupleId) Promise~void~
+    }
+
+    class AlloyDBOmniAuthAdapter {
+        -Map mockTuples
+        +findRelationTuples(tenantId, filter) Promise~ReadonlyArray~RelationTupleRecord~~
+        +saveRelationTuple(tenantId, tuple) Promise~void~
+        +deleteRelationTuple(tenantId, tupleId) Promise~void~
+    }
+
+    PolicyEngineService --> PolicyEnginePort : constructor injection
+    PolicyEngineService --> AuthRepositoryPort : constructor injection
+    NativePolicyEngineAdapter ..|> PolicyEnginePort : implements
+    RealPostgresAuthAdapter ..|> AuthRepositoryPort : implements
+    AlloyDBOmniAuthAdapter ..|> AuthRepositoryPort : implements
+```
+
 ---
 
-## ⚙️ 4. Evaluation Algorithm (ReBAC Graph Traversal & ABAC Conditions)
+## ⚙️ 4. Evaluation Algorithm & Sequence Workflows (LLD)
+
+### 4.1 ReBAC Graph Traversal & ABAC Evaluation Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Service / API Gateway
+    participant Router as AuthRestV1Router
+    participant Handler as policy.handler
+    participant Svc as PolicyEngineService
+    participant Cache as Redis Cache / Local Store
+    participant Engine as NativePolicyEngineAdapter (PolicyEnginePort)
+    participant Repo as RealPostgresAuthAdapter / AlloyDB (AuthRepositoryPort)
+    participant Tracer as OpenTelemetry Tracer
+
+    Client->>Router: POST /api/v1/auth/policies/evaluate { subject_type, subject_id, action, object_type, object_id, context }
+    Router->>Router: Extract TraceContext, Tenant ID & Session
+    Router->>Handler: handleEvaluatePolicy(service, body, session)
+    Handler->>Svc: evaluate(tenantId, input)
+    
+    Svc->>Tracer: startSpan("auth.policy.evaluated")
+    
+    Svc->>Cache: get(`policy:${tenantId}:${subjectId}:${action}:${objectId}`)
+    alt Cache Hit
+        Cache-->>Svc: cachedResult (ALLOWED/DENIED)
+    else Cache Miss
+        Svc->>Repo: findRelationTuples(tenantId, { objectType, objectId })
+        Repo-->>Svc: ReadonlyArray<RelationTupleRecord>
+        
+        Svc->>Engine: checkAccess(tenantId, input, tuples)
+        
+        critical Step 1: Direct Relation Check
+            Engine->>Engine: Match exact tuple <subject, relation, object>
+        end
+        
+        critical Step 2: Relation Hierarchy Expansion
+            Engine->>Engine: Expand action (e.g. read -> viewer | editor | owner)
+        end
+        
+        critical Step 3: ReBAC Graph Traversal (BFS)
+            Engine->>Engine: Query subject transitive group memberships (max depth = 5)
+            Engine->>Engine: Detect and reject cyclic references
+        end
+        
+        critical Step 4: ABAC Condition Gates
+            Engine->>Engine: Verify context.is_mfa_verified == tuple.conditions.require_mfa
+            Engine->>Engine: Verify context.ip_address in tuple.conditions.allowed_cidrs
+            Engine->>Engine: Verify current_epoch < tuple.expires_at_ms
+        end
+        
+        Engine-->>Svc: PolicyEvaluationResult { allowed: boolean, reason: string }
+        Svc->>Cache: setex(`policy:...`, 60s, result)
+    end
+
+    Svc->>Tracer: setAttribute("policy.allowed", allowed)
+    Svc->>Tracer: recordAuditEvent(AUDIT_EVENT_POLICY_EVALUATED)
+    Tracer-->>Svc: Span Completed
+    
+    Svc-->>Handler: { allowed, reason, evaluated_at }
+    Handler-->>Router: StandardApiResponse Envelope
+    Router-->>Client: HTTP 200 OK { success: true, data: { allowed: true, reason: ... } }
+```
+
+### 4.2 Algorithm Invariants
 
 1. **Direct Relation Lookup**: Check if a direct tuple $\langle \mathrm{tenant}, \mathrm{subject}, \mathrm{relation}, \mathrm{object} \rangle$ exists.
 2. **Implied Relation Lookup**: Traverse hierarchy (`owner` $\implies$ `editor` $\implies$ `viewer`).

@@ -71,6 +71,13 @@ import {
   handleOAuthToken,
   handleOAuthUserInfo,
 } from './handlers/oidc.handler';
+import {
+  handleGetSamlMetadata,
+  handleInitiateSamlLogin,
+  handleConsumeSamlAssertion,
+  handleRegisterSamlProvider,
+  handleListSamlProviders,
+} from './handlers/saml.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -800,6 +807,47 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'UserInfo claims retrieved successfully',
     handler: (ctx, session) => handleOAuthUserInfo(ctx.service, session),
+  },
+  {
+    name: 'saml_metadata',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.SAML_METADATA,
+    requiresAuth: false,
+    successMessage: 'SAML SP metadata retrieved successfully',
+    handler: (ctx) => handleGetSamlMetadata(ctx.service),
+  },
+  {
+    name: 'saml_login',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.SAML_LOGIN,
+    requiresAuth: false,
+    successMessage: 'SAML authentication initiated successfully',
+    handler: (ctx) => handleInitiateSamlLogin(ctx.service, ctx.queryParams),
+  },
+  {
+    name: 'saml_acs',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.SAML_ACS,
+    requiresAuth: false,
+    successMessage: 'SAML assertion consumed successfully',
+    handler: (ctx) => handleConsumeSamlAssertion(ctx.service, ctx.body),
+  },
+  {
+    name: 'saml_register_provider',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.SAML_PROVIDERS,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'SAML identity provider registered successfully',
+    handler: (ctx, session) => handleRegisterSamlProvider(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'saml_list_providers',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.SAML_PROVIDERS,
+    requiresAuth: true,
+    successMessage: 'SAML identity providers retrieved successfully',
+    handler: (ctx, session) => handleListSamlProviders(ctx.service, session),
   },
 ];
 

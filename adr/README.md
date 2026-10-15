@@ -33,7 +33,9 @@ This directory contains formal Architecture Decision Records (ADRs) and operatio
 | [**0023**](./0023-fine-grained-policy-engine-abac-rebac.md) | Fine-Grained Policy Engine (ABAC / ReBAC) with Zanzibar-Style Relationship Tuples | Zanzibar-style 6-ary tuples, dynamic ABAC conditions, transitive role inheritance, sub-millisecond evaluation | Accepted |
 | [**0024**](./0024-scim-2-user-and-group-provisioning-api.md) | SCIM 2.0 User & Group Provisioning API (RFC 7643 / RFC 7644) | Automated Okta / Entra ID identity lifecycle, push provisioning, group sync, instant deprovisioning & remote session kill | Accepted |
 | [**0025**](./0025-openid-connect-idp-and-discovery-core.md) | OpenID Connect (OIDC) Identity Provider & Discovery Core | Authoritative IdP discovery, JWKS public keys, PKCE authorization code grant, asymmetric RS256 ID tokens | Accepted |
+| [**0026**](./0026-saml-2-enterprise-idp-and-sp-federation.md) | SAML 2.0 Enterprise Identity Provider & SP Federation | SP-initiated SSO, XMLDSig cryptographic signature verification, replay prevention, JIT provisioning | Accepted |
 | [**Troubleshooting Guide**](../docs/troubleshooting-and-grafana-guide.md) | Troubleshooting & Grafana Tempo Debugging Guide | TraceQL queries, Grafana setup, time-range filtering, error debugging & fixes | Active Guide |
+
 | [**Staff & Principal Q&A Catalog**](./q&a/README.md) | Comprehensive 275+ Question Architectural Interview Catalog | 25+ in-depth technical questions & meta-questions per ADR covering all failure modes, trade-offs, and invariants | Active Catalog |
 
 

@@ -38,6 +38,11 @@ ENV AUTH_MFA_ISSUER=LLMObservability
 ENV AUTH_OIDC_ISSUER=http://localhost:3001
 ENV AUTH_OIDC_CODE_TTL_MS=300000
 ENV AUTH_OIDC_TOKEN_TTL_SECONDS=3600
+ENV AUTH_SAML_SP_ENTITY_ID=http://localhost:3001/api/v1/auth/saml/metadata
+ENV AUTH_SAML_ACS_URL=http://localhost:3001/api/v1/auth/saml/acs
+ENV AUTH_SAML_CLOCK_SKEW_MS=120000
+ENV AUTH_SAML_RELAY_STATE_TTL_MS=300000
+
 
 
 COPY --chown=node:node --from=builder /app/packages/node/auth/dist /app/dist

@@ -29,7 +29,11 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     userAgent?: string;
   }>();
   private readonly mockClaimedDomains = new Map<string, ClaimedDomainRecord & { deleted_at?: number }>();
+  private readonly mockSamlProviders = new Map<string, any>();
+  private readonly mockSamlRequests = new Map<string, any>();
+  private readonly mockSamlAssertionReplay = new Map<string, number>();
   public readonly queries = AUTH_QUERIES;
+
 
   constructor() {
     this.mockOrgs.set(AUTH_CONSTANTS.DEFAULT_ORG_ID, {
@@ -937,7 +941,45 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     const active = [...this.mockSigningKeys.values()].find((k) => k.status === 'ACTIVE');
     return active ? { ...active } : null;
   }
+
+  async saveSamlProvider(provider: any): Promise<void> {
+    this.mockSamlProviders.set(provider.id, { ...provider });
+  }
+
+  async findSamlProviderByOrgId(orgId: string): Promise<any | null> {
+    const p = [...this.mockSamlProviders.values()].find((item) => item.org_id === orgId && !item.deleted_at);
+    return p ? { ...p } : null;
+  }
+
+  async findSamlProviderById(id: string): Promise<any | null> {
+    const p = this.mockSamlProviders.get(id);
+    return (p && !p.deleted_at) ? { ...p } : null;
+  }
+
+  async listSamlProviders(orgId: string): Promise<ReadonlyArray<any>> {
+    return [...this.mockSamlProviders.values()].filter((item) => item.org_id === orgId && !item.deleted_at);
+  }
+
+  async saveSamlRequest(request: any): Promise<void> {
+    this.mockSamlRequests.set(request.relay_state, { ...request });
+  }
+
+  async consumeSamlRequest(relayState: string): Promise<any | null> {
+    const req = this.mockSamlRequests.get(relayState);
+    if (!req) return null;
+    this.mockSamlRequests.delete(relayState);
+    return { ...req };
+  }
+
+  async recordAssertionId(assertionId: string, expiresAtMs: number): Promise<boolean> {
+    if (this.mockSamlAssertionReplay.has(assertionId)) {
+      return false;
+    }
+    this.mockSamlAssertionReplay.set(assertionId, expiresAtMs);
+    return true;
+  }
 }
+
 
 
 

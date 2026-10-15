@@ -76,9 +76,10 @@ import { ScimProvisioningService } from './services/scim-provisioning.service';
 import type { CreateScimUserInput, CreateScimGroupInput, ScimUserRecord, ScimGroupRecord, ScimListResponse, ScimPatchRequest } from './ports/scim-repository.port';
 import { OidcProviderService } from './services/oidc-provider.service';
 import type { JwksKey, OidcTokenResponse, OidcUserInfoResponse } from './ports/oidc-repository.port';
+import { SamlProviderService } from './services/saml-provider.service';
+import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, SamlAuthResult } from './ports/saml-repository.port';
 
 export class AuthService {
-
   private readonly repo: AuthRepositoryPort;
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
@@ -94,6 +95,7 @@ export class AuthService {
   private readonly policyEngineService: PolicyEngineService;
   private readonly scimService: ScimProvisioningService;
   private readonly oidcService: OidcProviderService;
+  private readonly samlService: SamlProviderService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -112,6 +114,8 @@ export class AuthService {
     this.repo = repo;
     this.scimService = new ScimProvisioningService(repo);
     this.oidcService = new OidcProviderService(repo, AUTH_CONFIG.oidc);
+    this.samlService = new SamlProviderService(repo, AUTH_CONFIG.saml);
+
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
     this.policyEngineService = new PolicyEngineService(policyEngine, repo);
@@ -562,7 +566,28 @@ export class AuthService {
   async getOidcUserInfo(userId: string): Promise<OidcUserInfoResponse> {
     return this.oidcService.getUserInfo(userId);
   }
+
+  async getSamlSpMetadata(): Promise<string> {
+    return this.samlService.getSpMetadata();
+  }
+
+  async registerSamlProvider(orgId: string, input: RegisterSamlProviderInput): Promise<SamlProviderRecord> {
+    return this.samlService.registerProvider(orgId, input);
+  }
+
+  async listSamlProviders(orgId: string): Promise<ReadonlyArray<SamlProviderRecord>> {
+    return this.samlService.listProviders(orgId);
+  }
+
+  async initiateSamlLogin(orgId: string, returnUrl?: string): Promise<SamlLoginResult> {
+    return this.samlService.initiateLogin(orgId, returnUrl);
+  }
+
+  async consumeSamlAssertion(samlResponse: string, relayState: string): Promise<SamlAuthResult> {
+    return this.samlService.consumeAssertion(samlResponse, relayState);
+  }
 }
+
 
 
 

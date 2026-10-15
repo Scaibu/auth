@@ -1,5 +1,15 @@
 # Auth Contracts Changelog
 
+## [1.12.0] - 2026-10-15
+### Added
+- SAML 2.0 Enterprise Identity Provider & Service Provider Federation (ADR 0026):
+  - Added `GET /api/v1/auth/saml/metadata`: SP EntityDescriptor XML with X.509 assertion signing expectations and ACS bindings.
+  - Added `GET /api/v1/auth/saml/login`: SP-initiated SSO login returning AuthNRequest and cryptographically signed RelayState.
+  - Added `POST /api/v1/auth/saml/acs`: Assertion Consumer Service verifying XMLDSig signatures, clock skew, and replay rejection.
+  - Added `POST /api/v1/auth/saml/providers`: Registers enterprise SAML 2.0 Identity Provider.
+  - Added `GET /api/v1/auth/saml/providers`: Lists registered SAML providers for an organization.
+  - Added schema `SamlProviderRegistrationRequest`.
+
 ## [1.11.0] - 2026-10-15
 ### Added
 - OpenID Connect (OIDC) Identity Provider & Discovery Core (RFC 8414 / RFC 7636 / RFC 7517 / ADR 0025):

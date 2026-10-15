@@ -4,13 +4,13 @@ import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
-import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
+import { REAL_POSTGRES_QUERIES, AUTH_QUERIES } from './queries/real-postgres.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
 
 export class RealPostgresAuthAdapter implements AuthRepositoryPort {
   private readonly pool: Pool;
-  public readonly queries = AUTH_QUERIES;
+  public readonly queries = REAL_POSTGRES_QUERIES;
 
   constructor(connectionString?: string) {
     this.pool = new Pool({
@@ -1470,7 +1470,127 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       };
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveSamlProvider(provider: any): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveSamlProvider', async () => {
+      await this.pool.query(this.queries.SAML.UPSERT_PROVIDER, [
+        provider.id,
+        provider.org_id,
+        provider.idp_entity_id,
+        provider.idp_sso_url,
+        provider.idp_certificate_pem,
+        provider.sp_entity_id,
+        JSON.stringify(provider.attribute_mapping || {}),
+        provider.status,
+        provider.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findSamlProviderByOrgId(orgId: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.findSamlProviderByOrgId', async () => {
+      const res = await this.pool.query(this.queries.SAML.FIND_PROVIDER_BY_ORG_ID, [orgId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        idp_entity_id: row.idp_entity_id,
+        idp_sso_url: row.idp_sso_url,
+        idp_certificate_pem: row.idp_certificate_pem,
+        sp_entity_id: row.sp_entity_id,
+        attribute_mapping: typeof row.attribute_mapping === 'string' ? JSON.parse(row.attribute_mapping) : row.attribute_mapping,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+        deleted_at: row.deleted_at,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findSamlProviderById(id: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.findSamlProviderById', async () => {
+      const res = await this.pool.query(this.queries.SAML.FIND_PROVIDER_BY_ID, [id]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        idp_entity_id: row.idp_entity_id,
+        idp_sso_url: row.idp_sso_url,
+        idp_certificate_pem: row.idp_certificate_pem,
+        sp_entity_id: row.sp_entity_id,
+        attribute_mapping: typeof row.attribute_mapping === 'string' ? JSON.parse(row.attribute_mapping) : row.attribute_mapping,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+        deleted_at: row.deleted_at,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listSamlProviders(orgId: string): Promise<ReadonlyArray<any>> {
+    return withSpan('RealPostgresAuthAdapter.listSamlProviders', async () => {
+      const res = await this.pool.query(this.queries.SAML.LIST_PROVIDERS_BY_ORG_ID, [orgId]);
+      return res.rows.map((row) => ({
+        id: row.id,
+        org_id: row.org_id,
+        idp_entity_id: row.idp_entity_id,
+        idp_sso_url: row.idp_sso_url,
+        idp_certificate_pem: row.idp_certificate_pem,
+        sp_entity_id: row.sp_entity_id,
+        attribute_mapping: typeof row.attribute_mapping === 'string' ? JSON.parse(row.attribute_mapping) : row.attribute_mapping,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+        deleted_at: row.deleted_at,
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveSamlRequest(request: any): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveSamlRequest', async () => {
+      await this.pool.query(this.queries.SAML.INSERT_REQUEST, [
+        request.relay_state,
+        request.org_id,
+        request.provider_id,
+        request.request_id,
+        request.return_url ?? null,
+        request.expires_at_ms,
+        request.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async consumeSamlRequest(relayState: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.consumeSamlRequest', async () => {
+      const res = await this.pool.query(this.queries.SAML.CONSUME_REQUEST, [relayState]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        relay_state: row.relay_state,
+        org_id: row.org_id,
+        provider_id: row.provider_id,
+        request_id: row.request_id,
+        return_url: row.return_url,
+        expires_at_ms: Number(row.expires_at_ms),
+        created_at_ms: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async recordAssertionId(assertionId: string, expiresAtMs: number): Promise<boolean> {
+    return withSpan('RealPostgresAuthAdapter.recordAssertionId', async () => {
+      try {
+        await this.pool.query(this.queries.SAML.RECORD_ASSERTION_ID, [assertionId, expiresAtMs, Date.now()]);
+        return true;
+      } catch (err: any) {
+        if (err?.code === '23505') {
+          return false;
+        }
+        throw err;
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
 }
+
 
 
 

@@ -355,11 +355,25 @@ echo -e "\n--- [48/49] GET /oauth/jwks.json (OIDC Public JSON Web Key Set - RFC 
 OIDC_JWKS_RESP=$(curl -s -X GET "${BASE_URL}/oauth/jwks.json")
 echo "${OIDC_JWKS_RESP}"
 
-echo -e "\n--- [49/49] POST /oauth/token (Invalid Authorization Code Rejection - RFC 7636) ---"
+echo -e "\n--- [49/52] POST /oauth/token (Invalid Authorization Code Rejection - RFC 7636) ---"
 OIDC_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
   -H "Content-Type: application/json" \
   -d '{"grant_type":"authorization_code","client_id":"unknown_client","code":"invalid_code","redirect_uri":"http://localhost:3000/callback","code_verifier":"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"}')
 echo "${OIDC_TOKEN_RESP}"
+
+echo -e "\n--- [50/52] GET /api/v1/auth/saml/metadata (SAML SP Metadata - ADR 0026) ---"
+SAML_META_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/metadata")
+echo "${SAML_META_RESP}"
+
+echo -e "\n--- [51/52] GET /api/v1/auth/saml/login (SP-Initiated SAML Login - ADR 0026) ---"
+SAML_LOGIN_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/login?org_id=${PRIMARY_ORG_ID}&return_url=https://app.observability.io/dashboard")
+echo "${SAML_LOGIN_RESP}"
+
+echo -e "\n--- [52/52] POST /api/v1/auth/saml/acs (ACS Assertion Consumption Rejection - ADR 0026) ---"
+SAML_ACS_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/saml/acs" \
+  -H "Content-Type: application/json" \
+  -d '{"SAMLResponse":"PHNhbWxwOlJlc3BvbnNlPjwvc2FtbHA6UmVzcG9uc2U+","RelayState":"invalid_relay"}')
+echo "${SAML_ACS_RESP}"
 
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
@@ -367,7 +381,7 @@ SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 49 Auth Endpoints Executed and Verified Successfully! "
+echo " All 52 Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
 
 

@@ -74,6 +74,13 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain('OAuthTokenRequest');
     expect(content).toContain('OAuthTokenResponse');
     expect(content).toContain('OidcUserInfoResponse');
+
+    // SAML 2.0 SP & Federation Endpoints (ADR 0026)
+    expect(content).toContain(AUTH_ENDPOINTS.SAML_METADATA);
+    expect(content).toContain(AUTH_ENDPOINTS.SAML_LOGIN);
+    expect(content).toContain(AUTH_ENDPOINTS.SAML_ACS);
+    expect(content).toContain(AUTH_ENDPOINTS.SAML_PROVIDERS);
+    expect(content).toContain('SamlProviderRegistrationRequest');
   });
 });
 

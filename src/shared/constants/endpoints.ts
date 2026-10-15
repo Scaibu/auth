@@ -53,8 +53,14 @@ export const AUTH_ENDPOINTS = {
   OIDC_AUTHORIZE: '/oauth/authorize',
   OIDC_TOKEN: '/oauth/token',
   OIDC_USERINFO: '/oauth/userinfo',
+  SAML_METADATA: '/api/v1/auth/saml/metadata',
+  SAML_LOGIN: '/api/v1/auth/saml/login',
+  SAML_ACS: '/api/v1/auth/saml/acs',
+  SAML_SLO: '/api/v1/auth/saml/slo',
+  SAML_PROVIDERS: '/api/v1/auth/saml/providers',
   HEALTH: '/health',
 } as const;
+
 
 export const HTTP_METHODS = {
   GET: 'GET',
