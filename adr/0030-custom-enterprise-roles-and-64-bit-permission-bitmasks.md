@@ -76,50 +76,50 @@ We implement a **Tenant-Scoped Custom Role Engine** backed by a **64-bit Permiss
 
 ```mermaid
 erDiagram
-    AUTH_ORGANIZATIONS ||--o{ AUTH_CUSTOM_ROLES : "owns (1:N)"
-    AUTH_ORGANIZATIONS ||--o{ AUTH_USERS : "belongs_to (1:N)"
-    AUTH_ORGANIZATIONS ||--o{ AUTH_USER_CUSTOM_ROLES : "scopes (1:N)"
-    AUTH_ORGANIZATIONS ||--o{ AUTH_ROLE_AUDIT_LOGS : "logs (1:N)"
+    AUTH_ORGANIZATIONS ||--o{ AUTH_CUSTOM_ROLES : "scopes (1:N)"
+    AUTH_ORGANIZATIONS ||--o{ AUTH_USERS : "contains (1:N)"
+    AUTH_ORGANIZATIONS ||--o{ AUTH_USER_CUSTOM_ROLES : "tenant_isolates (1:N)"
+    AUTH_ORGANIZATIONS ||--o{ AUTH_ROLE_AUDIT_LOGS : "audits (1:N)"
     AUTH_USERS ||--o{ AUTH_USER_CUSTOM_ROLES : "assigned_to (1:N)"
-    AUTH_CUSTOM_ROLES ||--o{ AUTH_USER_CUSTOM_ROLES : "referenced_by (1:N)"
-    AUTH_PERMISSION_REGISTRY ||--o{ AUTH_CUSTOM_ROLES : "composed_into (N:M)"
+    AUTH_CUSTOM_ROLES ||--o{ AUTH_USER_CUSTOM_ROLES : "binds_composite (1:N)"
+    AUTH_PERMISSION_REGISTRY ||--o{ AUTH_CUSTOM_ROLES : "composed_via_bits (N:M)"
 
     AUTH_PERMISSION_REGISTRY {
-        varchar(64) permission_key PK
-        int bit_position UK
-        numeric(20_0) bitmask UK
-        varchar(32) category
-        varchar(255) description
-        bigint created_at_ms
+        varchar(64) permission_key PK "Canonical key e.g. USERS_READ"
+        int bit_position UK "0 to 62 strictly sequential"
+        numeric(20_0) bitmask UK "Precomputed bitmask (1n << bit_position)"
+        varchar(32) category "ORGANIZATION | USER | API_KEY | ..."
+        varchar(255) description "Human readable description"
+        bigint created_at_ms "Registration epoch timestamp"
     }
 
     AUTH_ORGANIZATIONS {
-        varchar(64) id PK
+        varchar(64) id PK "org_uuidv7"
         varchar(255) name UK
         varchar(255) slug UK
         timestamp created_at
     }
 
     AUTH_USERS {
-        varchar(64) id PK
+        varchar(64) id PK "usr_uuidv7"
         varchar(255) email UK
-        varchar(64) org_id FK
-        varchar(64) role
+        varchar(64) org_id FK "REFERENCES auth_organizations(id)"
+        varchar(64) role "Legacy fallback role string"
     }
 
     AUTH_CUSTOM_ROLES {
         varchar(64) id PK "crole_uuidv7"
         varchar(64) public_id UK "pub_crole_uuidv7"
         varchar(64) org_id FK "REFERENCES auth_organizations(id)"
-        varchar(64) name "Unique per org"
+        varchar(64) name "UNIQUE(org_id, name) WHERE deleted_at IS NULL"
         varchar(255) description
-        numeric(20_0) permission_mask "64-bit unsigned bitmask"
-        boolean is_system_role "Immutable system flag"
-        bigint version "Optimistic lock version"
-        varchar(64) created_by
+        numeric(20_0) permission_mask "64-bit unsigned BigInt bitmask"
+        boolean is_system_role "Immutable system protected role flag"
+        bigint version "Optimistic locking version counter"
+        varchar(64) created_by "Actor user ID"
         bigint created_at_ms
         bigint updated_at_ms
-        timestamp deleted_at
+        timestamp deleted_at "Soft delete marker"
     }
 
     AUTH_USER_CUSTOM_ROLES {
@@ -128,23 +128,23 @@ erDiagram
         varchar(64) org_id FK "Tenant isolation scope"
         varchar(64) user_id FK "REFERENCES auth_users(id)"
         varchar(64) role_id FK "REFERENCES auth_custom_roles(org_id, id)"
-        bigint version
-        varchar(64) assigned_by
+        bigint version "Row version counter"
+        varchar(64) assigned_by "Granting actor user ID"
         bigint assigned_at_ms
-        timestamp deleted_at
+        timestamp deleted_at "Soft delete marker"
     }
 
     AUTH_ROLE_AUDIT_LOGS {
         varchar(64) id PK "raudit_uuidv7"
-        varchar(64) org_id FK
-        varchar(64) actor_user_id
-        varchar(32) action "ROLE_CREATED | ROLE_UPDATED | ..."
-        varchar(64) target_role_id
-        varchar(64) target_user_id
-        numeric(20_0) previous_mask
-        numeric(20_0) new_mask
-        varchar(255) reason
-        bigint created_at_ms
+        varchar(64) org_id FK "REFERENCES auth_organizations(id)"
+        varchar(64) actor_user_id "Actor user ID"
+        varchar(32) action "ROLE_CREATED | ROLE_UPDATED | ROLE_DELETED | ROLE_ASSIGNED | ROLE_REVOKED"
+        varchar(64) target_role_id "Target role ID"
+        varchar(64) target_user_id "Nullable: target user ID for assignments"
+        numeric(20_0) previous_mask "Nullable: prior bitmask for diffs"
+        numeric(20_0) new_mask "Nullable: updated bitmask for diffs"
+        varchar(255) reason "Audit justification"
+        bigint created_at_ms "Append-only epoch timestamp"
     }
 ```
 
@@ -178,31 +178,67 @@ erDiagram
 
 ---
 
-### 4. Bitwise Evaluation Runtime Flow
+### 4. Custom Enterprise Role Lifecycle & Concurrency State Machine
 
 ```mermaid
-flowchart TD
-    Req(["Request: Evaluate User Permissions"]) --> Fetch["Query User Custom Roles for Org"]
-    Fetch --> RolesFound{"Any roles assigned?"}
+stateDiagram-v2
+    [*] --> ActiveDraft: POST /api/v1/auth/roles (version=1, is_system_role=false)
+    ActiveDraft --> BitmaskUpdated: PUT /api/v1/auth/roles/:id (version = V + 1)
     
-    RolesFound -- No --> LegacyCheck{"Legacy role fallback?"}
-    LegacyCheck -- "'admin' or 'owner'" --> FullAccess["Grant All System Bits: (1n &lt;&lt; 37n) - 1n"]
-    LegacyCheck -- "Other or None" --> DenyZero["EffectiveMask = 0n"]
-    FullAccess --> CompareBits
-    DenyZero --> CompareBits
-    
-    RolesFound -- Yes --> Aggregate["Aggregate EffectiveMask = Bitwise OR of all Role Masks"]
-    Aggregate --> MapRequired["Map Required Permission Strings to BigInt RequiredMask"]
-    
-    MapRequired --> CompareBits{"(EffectiveMask &amp; RequiredMask) == RequiredMask"}
-    CompareBits -- True --> Allow(["Result: GRANTED = TRUE"])
-    CompareBits -- False --> Diff["MissingBits = RequiredMask &amp; (~EffectiveMask)"]
-    Diff --> Deny(["Result: GRANTED = FALSE, Return MissingBits"])
+    state BitmaskUpdated {
+        [*] --> VerifyOptimisticLock
+        VerifyOptimisticLock --> CommitUpdate: WHERE version = expectedVersion
+        VerifyOptimisticLock --> ConcurrencyConflict: version != expectedVersion
+        CommitUpdate --> AuditLogged: INSERT INTO auth_role_audit_logs
+        ConcurrencyConflict --> AbortTransaction: 409 Conflict returned
+    }
+
+    BitmaskUpdated --> ActiveDraft: Transaction committed with updated mask
+    AbortTransaction --> ActiveDraft: Client re-fetches latest role state
+
+    ActiveDraft --> AssignedToUser: POST /api/v1/auth/users/:id/roles
+    AssignedToUser --> RevokedFromUser: DELETE /api/v1/auth/users/:id/roles/:roleId (deleted_at = NOW())
+    RevokedFromUser --> ActiveDraft: Role unassigned from user
+
+    ActiveDraft --> SystemLocked: Role seeded/flagged (is_system_role=true)
+    SystemLocked --> ModificationRejected: Mutation attempted on system role
+    ModificationRejected --> SystemLocked: 403 Forbidden ("System roles are immutable")
+
+    ActiveDraft --> SoftDeleted: DELETE /api/v1/auth/roles/:id (deleted_at = NOW())
+    SoftDeleted --> [*]: Soft-deleted role excluded from runtime bitmask queries
 ```
 
 ---
 
-### 5. Detailed End-to-End Runtime Sequence
+### 5. Bitwise Evaluation Runtime Flowchart
+
+```mermaid
+flowchart TD
+    Req(["Request: Evaluate User Permissions"]) --> CacheCheck{"Cache Hit in Redis L1?"}
+    CacheCheck -- "Yes (TTL &lt; 60s)" --> CachedMask["Load Cached Aggregated Bitmask"]
+    CacheCheck -- "No" --> FetchDB["Query Active User Roles (auth_user_custom_roles + auth_custom_roles)"]
+    
+    FetchDB --> RolesFound{"Any active roles returned?"}
+    RolesFound -- No --> LegacyCheck{"Legacy role fallback?"}
+    LegacyCheck -- "'admin' or 'owner'" --> FullAccess["Grant All System Bits: (1n &lt;&lt; 37n) - 1n"]
+    LegacyCheck -- "Other or None" --> DenyZero["EffectiveMask = 0n"]
+    
+    RolesFound -- Yes --> Aggregate["Aggregate EffectiveMask = Bitwise OR of all Role Masks"]
+    Aggregate --> SaveCache["Write EffectiveMask to Redis L1 (TTL 60s)"]
+    SaveCache --> CompareBits
+    CachedMask --> CompareBits
+    FullAccess --> CompareBits
+    DenyZero --> CompareBits
+    
+    CompareBits["Evaluate: (EffectiveMask &amp; RequiredMask) == RequiredMask"]
+    CompareBits -- "Match" --> Allow(["Result: GRANTED = TRUE"])
+    CompareBits -- "Mismatch" --> Diff["MissingBits = RequiredMask &amp; (~EffectiveMask)"]
+    Diff --> Deny(["Result: GRANTED = FALSE, Return MissingBits Hex/Decimal"])
+```
+
+---
+
+### 6. Detailed End-to-End Runtime Sequence
 
 ```mermaid
 sequenceDiagram
@@ -211,41 +247,52 @@ sequenceDiagram
     participant Gateway as API Gateway / Router
     participant Service as CustomRoleService
     participant Tracing as OpenTelemetry Tracer
+    participant Cache as Redis L1 Cache
     participant DB as AlloyDB Omni (PostgreSQL 16)
     participant Audit as Append-Only Audit Log
 
-    Note over Client, DB: Phase 1: Role Provisioning
-    Client->>Gateway: POST /api/v1/auth/roles (Name, Description, Mask)
+    Note over Client, DB: Phase 1: Custom Role Creation & Audit
+    Client->>Gateway: POST /api/v1/auth/roles { name, description, permission_mask }
     Gateway->>Service: createCustomRole(orgId, params, actorId)
     Service->>Tracing: withSpan("CustomRoleService.createCustomRole")
-    Service->>DB: Query existing role by name (tenant scoped)
-    DB-->>Service: NULL (Unique name confirmed)
-    Service->>DB: INSERT INTO auth_custom_roles (id, public_id, org_id, mask, version=1)
-    DB-->>Service: Row inserted
-    Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_CREATED, new_mask)
-    Audit-->>Service: Audit event locked
+    Service->>DB: SELECT id FROM auth_custom_roles WHERE org_id = $1 AND name = $2 AND deleted_at IS NULL
+    DB-->>Service: NULL (Name uniqueness satisfied)
+    Service->>DB: BEGIN Transaction
+    Service->>DB: INSERT INTO auth_custom_roles (id, public_id, org_id, name, mask, version=1)
+    DB-->>Service: Row inserted (crole_uuidv7)
+    Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_CREATED, new_mask, actor_user_id)
+    Audit-->>Service: Audit log row committed
+    Service->>DB: COMMIT Transaction
     Service-->>Gateway: Return CustomRoleRecord
-    Gateway-->>Client: 201 Created (id, public_id, permission_mask)
+    Gateway-->>Client: 201 Created (id, public_id, permission_mask, version=1)
 
-    Note over Client, DB: Phase 2: Role Assignment
-    Client->>Gateway: POST /api/v1/auth/users/{userId}/roles (role_ids)
+    Note over Client, DB: Phase 2: Role Assignment with Atomic Isolation
+    Client->>Gateway: POST /api/v1/auth/users/{userId}/roles { role_ids }
     Gateway->>Service: assignUserCustomRoles(orgId, userId, roleIds, actorId)
     Service->>DB: BEGIN Transaction
-    Service->>DB: Soft-delete obsolete user role mappings
+    Service->>DB: UPDATE auth_user_custom_roles SET deleted_at = NOW() WHERE org_id = $1 AND user_id = $2
     loop For each role_id
-        Service->>DB: INSERT INTO auth_user_custom_roles (org_id, user_id, role_id)
-        Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_ASSIGNED)
+        Service->>DB: INSERT INTO auth_user_custom_roles (id, public_id, org_id, user_id, role_id, version=1)
+        Service->>Audit: INSERT INTO auth_role_audit_logs (ROLE_ASSIGNED, target_user_id)
     end
     Service->>DB: COMMIT Transaction
+    Service->>Cache: DEL auth:roles:effective:{orgId}:{userId} (Invalidate cache)
     Service-->>Gateway: Success (200 OK)
     Gateway-->>Client: 200 OK
 
     Note over Client, DB: Phase 3: Sub-Millisecond Bitmask Evaluation
-    Client->>Gateway: POST /api/v1/auth/permissions/evaluate (org_id, user_id, required_permissions)
+    Client->>Gateway: POST /api/v1/auth/permissions/evaluate { org_id, user_id, required_permissions }
     Gateway->>Service: evaluateUserPermissions(orgId, userId, requiredPermissions)
-    Service->>DB: SELECT permission_mask FROM auth_custom_roles WHERE user_id
-    DB-->>Service: [maskA, maskB]
-    Note over Service: EffectiveMask = maskA | maskB<br/>RequiredMask = perm1 | perm2<br/>isGranted = (Effective &amp; Required) == Required
+    Service->>Cache: GET auth:roles:effective:{orgId}:{userId}
+    alt Cache Miss
+        Service->>DB: SELECT r.permission_mask FROM auth_custom_roles r JOIN auth_user_custom_roles u ON ...
+        DB-->>Service: [maskA, maskB]
+        Note over Service: Aggregate EffectiveMask = maskA | maskB
+        Service->>Cache: SET auth:roles:effective:{orgId}:{userId} EffectiveMask EX 60
+    else Cache Hit
+        Cache-->>Service: Cached EffectiveMask
+    end
+    Note over Service: Compute RequiredMask = perm1 | perm2<br/>isGranted = (Effective &amp; Required) == Required
     alt Permissions Satisfied
         Service-->>Gateway: { granted: true, effective_mask, missing_bits: "0" }
     else Missing Permissions
