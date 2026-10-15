@@ -169,6 +169,9 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   consumeAuthorizationCode(code: string): Promise<void>;
   saveSigningKey(key: { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }): Promise<void>;
   getActiveSigningKey(): Promise<{ kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number } | null>;
+  updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null>;
+  findApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null>;
+  flagApiKeyAnomaly(keyId: string, flaggedAtMs: number): Promise<void>;
 }
 
 

@@ -414,6 +414,11 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         keyRecord.created_at_ms,
         keyRecord.revoked,
         keyRecord.expires_at_ms ?? null,
+        keyRecord.ip_allowlist ?? [],
+        keyRecord.rate_quota_rpm ?? null,
+        keyRecord.total_requests_count ?? 0,
+        keyRecord.anomaly_flag ?? false,
+        keyRecord.anomaly_flagged_at_ms ?? null,
       ]);
     } finally {
       client.release();
@@ -437,6 +442,11 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         expires_at_ms: row.expires_at_ms ? parseInt(row.expires_at_ms, 10) : null,
         last_used_at_ms: row.last_used_at_ms ? parseInt(row.last_used_at_ms, 10) : null,
         last_used_ip: row.last_used_ip ?? null,
+        ip_allowlist: row.ip_allowlist ?? [],
+        rate_quota_rpm: row.rate_quota_rpm ?? null,
+        total_requests_count: parseInt(row.total_requests_count ?? '0', 10),
+        anomaly_flag: row.anomaly_flag ?? false,
+        anomaly_flagged_at_ms: row.anomaly_flagged_at_ms ? parseInt(row.anomaly_flagged_at_ms, 10) : null,
       }));
     } finally {
       client.release();
@@ -462,6 +472,11 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         expires_at_ms: row.expires_at_ms ? parseInt(row.expires_at_ms, 10) : null,
         last_used_at_ms: row.last_used_at_ms ? parseInt(row.last_used_at_ms, 10) : null,
         last_used_ip: row.last_used_ip ?? null,
+        ip_allowlist: row.ip_allowlist ?? [],
+        rate_quota_rpm: row.rate_quota_rpm ?? null,
+        total_requests_count: parseInt(row.total_requests_count ?? '0', 10),
+        anomaly_flag: row.anomaly_flag ?? false,
+        anomaly_flagged_at_ms: row.anomaly_flagged_at_ms ? parseInt(row.anomaly_flagged_at_ms, 10) : null,
       };
     } finally {
       client.release();
@@ -481,6 +496,39 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     const client = await this.pool.connect();
     try {
       await client.query(AUTH_QUERIES.FLOW_API_KEY_USAGE.UPDATE_USAGE, [lastUsedAtMs, lastUsedIp ?? null, keyId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null> {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(AUTH_QUERIES.FLOW_API_KEY_ALLOWLIST.UPDATE_ALLOWLIST, [[...ipAllowlist], keyId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return { key_id: row.key_id, org_id: row.org_id, ip_allowlist: row.ip_allowlist ?? [], rate_quota_rpm: row.rate_quota_rpm ?? null };
+    } finally {
+      client.release();
+    }
+  }
+
+  async findApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null> {
+    const client = await this.pool.connect();
+    try {
+      const res = await client.query(AUTH_QUERIES.FLOW_API_KEY_ALLOWLIST.GET_KEY_META, [keyId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return { key_id: row.key_id, org_id: row.org_id, ip_allowlist: row.ip_allowlist ?? [], rate_quota_rpm: row.rate_quota_rpm ?? null, anomaly_flag: row.anomaly_flag ?? false };
+    } finally {
+      client.release();
+    }
+  }
+
+  async flagApiKeyAnomaly(keyId: string, flaggedAtMs: number): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(AUTH_QUERIES.FLOW_API_KEY_ANOMALY.FLAG_KEY, [flaggedAtMs, keyId]);
     } finally {
       client.release();
     }

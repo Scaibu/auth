@@ -1,5 +1,15 @@
 # Auth Contracts Changelog
 
+## [1.13.0] - 2026-10-15
+### Added
+- Zero-Trust API Key IP/CIDR Subnet Allowlists & Sliding Rate Quotas (ADR 0027):
+  - Added `GET /api/v1/auth/api-keys/{id}/allowlist`: Retrieves IP/CIDR allowlist, rate quota, and anomaly flag metadata.
+  - Added `PATCH /api/v1/auth/api-keys/{id}/allowlist`: Replaces IP allowlist CIDR array for key.
+  - Added schema `UpdateApiKeyAllowlistRequest`.
+  - Added `ip_allowlist` and `rate_quota_rpm` properties to `CreateApiKeyRequest`.
+  - Added `client_ip` property to `VerifyApiKeyRequest`.
+  - Added error status codes `403` (`API_KEY_IP_DENIED`) and `429` (`API_KEY_RATE_LIMIT_EXCEEDED`) to `POST /api/v1/auth/api-keys/verify`.
+
 ## [1.12.0] - 2026-10-15
 ### Added
 - SAML 2.0 Enterprise Identity Provider & Service Provider Federation (ADR 0026):

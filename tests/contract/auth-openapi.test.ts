@@ -81,6 +81,15 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.SAML_ACS);
     expect(content).toContain(AUTH_ENDPOINTS.SAML_PROVIDERS);
     expect(content).toContain('SamlProviderRegistrationRequest');
+
+    // Zero-Trust API Key Allowlists & Quotas (ADR 0027)
+    expect(content).toContain(AUTH_ENDPOINTS.API_KEY_ALLOWLIST.replace(':id', '{id}'));
+    expect(content).toContain('UpdateApiKeyAllowlistRequest');
+    expect(content).toContain('API_KEY_IP_DENIED');
+    expect(content).toContain('API_KEY_RATE_LIMIT_EXCEEDED');
+    expect(content).toContain('ip_allowlist');
+    expect(content).toContain('rate_quota_rpm');
+    expect(content).toContain('client_ip');
   });
 });
 

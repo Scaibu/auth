@@ -30,7 +30,7 @@ import {
 } from './handlers/auth.handler';
 import { handleVerifySession, handleListSessions, handleRevokeSession, handleRevokeOtherSessions } from './handlers/session.handler';
 import { handleForgotPassword, handleResetPassword, handleChangePassword } from './handlers/password.handler';
-import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions } from './handlers/api-key.handler';
+import { handleCreateApiKey, handleVerifyApiKey, handleListPermissions, handleGetApiKeyAllowlist, handleUpdateApiKeyAllowlist } from './handlers/api-key.handler';
 import { handleVerifyEmail, handleResendVerification } from './handlers/email-verification.handler';
 import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
 import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa, handlePurgeExpired } from './handlers/step-up.handler';
@@ -417,6 +417,22 @@ export const ROUTE_RULES: RouteRule[] = [
     pattern: AUTH_ENDPOINTS.API_KEYS_VERIFY,
     successMessage: 'API key verified',
     handler: (ctx) => handleVerifyApiKey(ctx.service, ctx.body),
+  },
+  {
+    name: 'get_api_key_allowlist',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.API_KEY_ALLOWLIST,
+    requiresAuth: true,
+    successMessage: 'API key IP allowlist retrieved',
+    handler: (ctx) => handleGetApiKeyAllowlist(ctx.service, ctx.params['id']!),
+  },
+  {
+    name: 'update_api_key_allowlist',
+    method: HTTP_METHODS.PATCH,
+    pattern: AUTH_ENDPOINTS.API_KEY_ALLOWLIST,
+    requiresAuth: true,
+    successMessage: 'API key IP allowlist updated',
+    handler: (ctx) => handleUpdateApiKeyAllowlist(ctx.service, ctx.params['id']!, ctx.body),
   },
   {
     name: 'revoke_api_key',

@@ -217,6 +217,18 @@ export class TokenFamilyRevokedError extends AuthError {
   }
 }
 
+export class ApiKeyIpDeniedError extends AuthError {
+  constructor(clientIp: string) {
+    super(`API key access denied: client IP ${clientIp} is not within any authorized CIDR allowlist block`, 'API_KEY_IP_DENIED', 403);
+  }
+}
+
+export class ApiKeyRateLimitError extends AuthError {
+  constructor(quota: number) {
+    super(`API key rate limit exceeded: maximum ${quota} requests per minute`, 'API_KEY_RATE_LIMIT_EXCEEDED', 429);
+  }
+}
+
 
 
 

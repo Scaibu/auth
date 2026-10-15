@@ -45,6 +45,11 @@ export const ApiKeyRecordSchema = z.object({
   expires_at_ms: z.number().positive().nullable().optional(),
   last_used_at_ms: z.number().positive().nullable().optional(),
   last_used_ip: z.string().nullable().optional(),
+  ip_allowlist: z.array(z.string()).default([]),
+  rate_quota_rpm: z.number().int().positive().nullable().optional(),
+  total_requests_count: z.number().int().nonnegative().default(0),
+  anomaly_flag: z.boolean().default(false),
+  anomaly_flagged_at_ms: z.number().int().positive().nullable().optional(),
 });
 export type ApiKeyRecord = z.infer<typeof ApiKeyRecordSchema>;
 

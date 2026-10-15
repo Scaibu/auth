@@ -330,6 +330,34 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
   }
 
+  async updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null> {
+    for (const record of this.mockApiKeys.values()) {
+      if (record.key_id === keyId && !record.deleted_at) {
+        record.ip_allowlist = [...ipAllowlist];
+        return { key_id: record.key_id, org_id: record.org_id, ip_allowlist: record.ip_allowlist, rate_quota_rpm: record.rate_quota_rpm ?? null };
+      }
+    }
+    return null;
+  }
+
+  async findApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null> {
+    for (const record of this.mockApiKeys.values()) {
+      if (record.key_id === keyId && !record.deleted_at) {
+        return { key_id: record.key_id, org_id: record.org_id, ip_allowlist: record.ip_allowlist ?? [], rate_quota_rpm: record.rate_quota_rpm ?? null, anomaly_flag: record.anomaly_flag ?? false };
+      }
+    }
+    return null;
+  }
+
+  async flagApiKeyAnomaly(keyId: string, flaggedAtMs: number): Promise<void> {
+    for (const record of this.mockApiKeys.values()) {
+      if (record.key_id === keyId && !record.deleted_at) {
+        record.anomaly_flag = true;
+        record.anomaly_flagged_at_ms = flaggedAtMs;
+      }
+    }
+  }
+
   async saveEmailVerificationToken(tokenHash: string, userId: string, email: string, expiresAtMs: number): Promise<void> {
     this.mockEmailVerifications.set(tokenHash, { tokenHash, userId, email, expiresAtMs, used: false });
   }

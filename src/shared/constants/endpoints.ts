@@ -8,6 +8,7 @@ export const AUTH_ENDPOINTS = {
   CHANGE_PASSWORD: '/api/v1/auth/change-password',
   API_KEYS: '/api/v1/auth/api-keys',
   API_KEYS_VERIFY: '/api/v1/auth/api-keys/verify',
+  API_KEY_ALLOWLIST: '/api/v1/auth/api-keys/:id/allowlist',
   PERMISSIONS: '/api/v1/auth/permissions',
   AUDIT_LOGS: '/api/v1/auth/audit-logs',
   ORGANIZATIONS: '/api/v1/auth/organizations',

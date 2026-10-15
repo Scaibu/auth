@@ -328,6 +328,14 @@ export class AuthService {
     return this.apiKeyService.revokeApiKey(keyId);
   }
 
+  async updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null> {
+    return this.apiKeyService.updateAllowlist(keyId, ipAllowlist);
+  }
+
+  async getApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null> {
+    return this.apiKeyService.getApiKeyMeta(keyId);
+  }
+
   async verifyEmail(token: string): Promise<void> {
     return this.authService.verifyEmail(token);
   }

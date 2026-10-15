@@ -74,17 +74,25 @@ export const AUTH_QUERIES = {
     MARK_TOKEN_USED: `UPDATE auth_password_resets SET used = TRUE, updated_at = CURRENT_TIMESTAMP WHERE token_hash = $1 AND deleted_at IS NULL`,
   },
   FLOW_CREATE_API_KEY: {
-    INSERT_API_KEY: `INSERT INTO auth_api_keys (key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    LIST_BY_ORG: `SELECT key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms, last_used_at_ms, last_used_ip FROM auth_api_keys WHERE org_id = $1 AND deleted_at IS NULL`,
+    INSERT_API_KEY: `INSERT INTO auth_api_keys (key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms, ip_allowlist, rate_quota_rpm, total_requests_count, anomaly_flag, anomaly_flagged_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    LIST_BY_ORG: `SELECT key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms, last_used_at_ms, last_used_ip, ip_allowlist, rate_quota_rpm, total_requests_count, anomaly_flag, anomaly_flagged_at_ms FROM auth_api_keys WHERE org_id = $1 AND deleted_at IS NULL`,
   },
   FLOW_VERIFY_API_KEY: {
-    FIND_API_KEY_BY_HASH: `SELECT key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms, last_used_at_ms, last_used_ip FROM auth_api_keys WHERE key_hash = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_API_KEY_BY_HASH: `SELECT key_id, org_id, key_type, key_hash, prefix, name, permissions, created_at_ms, revoked, expires_at_ms, last_used_at_ms, last_used_ip, ip_allowlist, rate_quota_rpm, total_requests_count, anomaly_flag, anomaly_flagged_at_ms FROM auth_api_keys WHERE key_hash = $1 AND deleted_at IS NULL LIMIT 1`,
   },
   FLOW_REVOKE_API_KEY: {
     REVOKE_API_KEY_BY_ID: `UPDATE auth_api_keys SET revoked = TRUE, updated_at = CURRENT_TIMESTAMP WHERE key_id = $1 AND deleted_at IS NULL`,
   },
   FLOW_API_KEY_USAGE: {
     UPDATE_USAGE: `UPDATE auth_api_keys SET last_used_at_ms = $1, last_used_ip = $2, updated_at = CURRENT_TIMESTAMP WHERE key_id = $3 AND deleted_at IS NULL`,
+    INCREMENT_REQUEST_COUNT: `UPDATE auth_api_keys SET total_requests_count = total_requests_count + 1, updated_at = CURRENT_TIMESTAMP WHERE key_id = $1 AND deleted_at IS NULL`,
+  },
+  FLOW_API_KEY_ALLOWLIST: {
+    UPDATE_ALLOWLIST: `UPDATE auth_api_keys SET ip_allowlist = $1, updated_at = CURRENT_TIMESTAMP WHERE key_id = $2 AND deleted_at IS NULL RETURNING key_id, org_id, ip_allowlist, rate_quota_rpm`,
+    GET_KEY_META: `SELECT key_id, org_id, ip_allowlist, rate_quota_rpm, anomaly_flag FROM auth_api_keys WHERE key_id = $1 AND deleted_at IS NULL LIMIT 1`,
+  },
+  FLOW_API_KEY_ANOMALY: {
+    FLAG_KEY: `UPDATE auth_api_keys SET anomaly_flag = TRUE, anomaly_flagged_at_ms = $1, updated_at = CURRENT_TIMESTAMP WHERE key_id = $2 AND deleted_at IS NULL`,
   },
   FLOW_EMAIL_VERIFICATION: {
     INSERT_TOKEN: `INSERT INTO auth_email_verifications (token_hash, user_id, email, expires_at_ms, used) VALUES ($1, $2, $3, $4, $5)`,

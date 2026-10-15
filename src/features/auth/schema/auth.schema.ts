@@ -77,6 +77,8 @@ export const CreateApiKeyInputSchema = z.object({
     AUTH_CONSTANTS.PERMISSION_LOGS_READ,
   ]),
   expires_at_ms: z.number().positive().optional(),
+  ip_allowlist: z.array(z.string()).default([]),
+  rate_quota_rpm: z.number().int().min(1, 'Rate quota must be at least 1 request per minute').max(100000).optional(),
 });
 
 export const VerifyApiKeyInputSchema = z.object({
@@ -164,6 +166,11 @@ export const ApiKeyEntitySchema = z.object({
   expires_at_ms: z.number().int().positive().nullable().optional(),
   last_used_at_ms: z.number().int().positive().nullable().optional(),
   last_used_ip: z.string().nullable().optional(),
+  ip_allowlist: z.array(z.string()).default([]),
+  rate_quota_rpm: z.number().int().positive().nullable().optional(),
+  total_requests_count: z.number().int().nonnegative().default(0),
+  anomaly_flag: z.boolean().default(false),
+  anomaly_flagged_at_ms: z.number().int().positive().nullable().optional(),
 });
 
 export const VerifyEmailInputSchema = z.object({
