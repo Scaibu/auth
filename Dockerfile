@@ -47,6 +47,8 @@ ENV AUTH_WEBAUTHN_RP_ID=localhost
 ENV AUTH_WEBAUTHN_RP_NAME="Observability Cloud"
 ENV AUTH_WEBAUTHN_ORIGIN=http://localhost:3001
 ENV AUTH_WEBAUTHN_CHALLENGE_TTL_MS=300000
+ENV AUTH_WEBHOOK_TOLERANCE_MS=300000
+ENV AUTH_WEBHOOK_DEFAULT_RETRIES=5
 
 COPY --chown=node:node --from=builder /app/packages/node/auth/dist /app/dist
 COPY --chown=node:node --from=builder /app/packages/node/auth/database /app/database

@@ -3,6 +3,7 @@ import { AuthRepositoryPort } from '../repository';
 import { WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../../shared/types/auth.types';
 import { generateWebhookSecret } from '../../../shared/utils/webhook-signer.util';
 import { withSpan, SpanKind } from '@chief-strategist-j/shared-infra';
+import { WebhookConfig, DEFAULT_WEBHOOK_CONFIG } from '../../../config/webhook.config';
 
 export interface CreateWebhookSubscriptionInput {
   readonly orgId: string;
@@ -23,9 +24,15 @@ export interface DispatchWebhookEventInput {
 
 export class WebhookService {
   private readonly repository: AuthRepositoryPort;
+  private readonly config: WebhookConfig;
 
-  constructor(repository: AuthRepositoryPort) {
+  constructor(repository: AuthRepositoryPort, config?: WebhookConfig) {
     this.repository = repository;
+    this.config = config ?? DEFAULT_WEBHOOK_CONFIG;
+  }
+
+  getConfig(): WebhookConfig {
+    return this.config;
   }
 
   async createSubscription(

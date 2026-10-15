@@ -128,7 +128,7 @@ export class AuthService {
     this.passkeyService = new PasskeyService(repo);
     this.customRoleService = new CustomRoleService(repo);
     this.magicLinkService = new MagicLinkService(repo);
-    this.webhookService = new WebhookService(repo);
+    this.webhookService = new WebhookService(repo, AUTH_CONFIG.webhook);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);

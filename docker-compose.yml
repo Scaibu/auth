@@ -56,6 +56,8 @@ services:
       - AUTH_WEBAUTHN_RP_NAME="Observability Cloud"
       - AUTH_WEBAUTHN_ORIGIN=http://localhost:3001
       - AUTH_WEBAUTHN_CHALLENGE_TTL_MS=300000
+      - AUTH_WEBHOOK_TOLERANCE_MS=300000
+      - AUTH_WEBHOOK_DEFAULT_RETRIES=5
 
     depends_on:
       auth-db:
