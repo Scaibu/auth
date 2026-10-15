@@ -242,6 +242,15 @@ export const EvaluatePermissionsInputSchema = z.object({
   required_permissions: z.array(z.string().min(1)).min(1, 'At least one required permission must be specified'),
 });
 
+export const SendMagicLinkInputSchema = z.object({
+  email: z.string().email('Valid email address is required').transform((e) => e.trim().toLowerCase()),
+  redirect_url: z.string().url('Redirect URL must be a valid URL').max(512).optional(),
+});
+
+export const ConsumeMagicLinkInputSchema = z.object({
+  token: z.string().min(32, 'Valid token is required').max(128),
+});
+
 export const AUTH_JSON_MAPPING = {
   fromApi: [
     { op: 'rename', from: 'emailAddress', to: 'email' },

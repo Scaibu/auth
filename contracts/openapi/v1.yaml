@@ -867,6 +867,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
 
+  /api/v1/auth/magic-link/send:
+    post:
+      summary: Request a passwordless magic link email dispatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkSendRequest'
+      responses:
+        '200':
+          description: Magic link dispatched or generic anti-enumeration acknowledgment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/magic-link/verify:
+    get:
+      summary: Pre-flight check of magic link token without state consumption
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Magic link validation state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/magic-link/consume:
+    post:
+      summary: Atomically consume magic link token and issue authenticated session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkConsumeRequest'
+      responses:
+        '200':
+          description: Session issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
   /api/v1/auth/organizations:
     get:
       summary: List all organizations the authenticated user belongs to
@@ -2660,5 +2711,23 @@ components:
           type: array
           items:
             type: string
+
+    MagicLinkSendRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        redirect_url:
+          type: string
+          format: uri
+
+    MagicLinkConsumeRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
 
 

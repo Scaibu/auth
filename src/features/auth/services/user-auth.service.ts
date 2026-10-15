@@ -167,173 +167,205 @@ export class UserAuthDomainService {
   }
 
   async signIn(input: SignInInput): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
-    const validated = SignInInputSchema.parse(input);
-    const ip = normalizeString(validated.ip_address) || '0.0.0.0';
-    const email = normalizeString(validated.email, 'lower');
+    return withSpan('UserAuthDomainService.signIn', async (span) => {
+      try {
+        const validated = SignInInputSchema.parse(input);
+        const ip = normalizeString(validated.ip_address) || '0.0.0.0';
+        const email = normalizeString(validated.email, 'lower');
 
-    const rateLimit = await this.checkRateLimit(ip, email);
-    const normalizedReason = normalizeString(rateLimit.reason, 'upper');
+        span?.setAttribute('auth.email_domain', email.split('@')[1] ?? '');
+        span?.setAttribute('auth.client_ip', ip);
 
-    if (!rateLimit.allowed) {
-      if (normalizedReason === AUTH_CONSTANTS.SECURITY_REASONS.ACCOUNT_LOCKED) {
-        throw new AccountLockedError();
-      }
-      throw new RateLimitExceededError();
-    }
+        const rateLimit = await this.checkRateLimit(ip, email);
+        const normalizedReason = normalizeString(rateLimit.reason, 'upper');
 
-    const preCtx: Readonly<Record<string, unknown>> = Object.freeze({
-      ip,
-      email,
-      isAccountLocked: false,
-      isRateLimited: false,
-    });
-    const preResolved = await resolveRules(this.signInRules, preCtx);
-    const preDeniedList = Array.isArray(preResolved)
-      ? preResolved.filter((r) => r && r.effect === 'deny')
-      : [];
+        if (!rateLimit.allowed) {
+          span?.setAttribute('auth.rate_limit_blocked', true);
+          span?.setAttribute('auth.rate_limit_reason', normalizedReason);
+          if (normalizedReason === AUTH_CONSTANTS.SECURITY_REASONS.ACCOUNT_LOCKED) {
+            throw new AccountLockedError();
+          }
+          throw new RateLimitExceededError();
+        }
 
-    if (preDeniedList.length > 0) {
-      const topDenial = preDeniedList[0]!;
-      const errorFactory = this.signInErrorRegistry.get(topDenial.id);
-      throw errorFactory ? errorFactory(preCtx) : new InvalidCredentialsError();
-    }
+        const preCtx: Readonly<Record<string, unknown>> = Object.freeze({
+          ip,
+          email,
+          isAccountLocked: false,
+          isRateLimited: false,
+        });
+        const preResolved = await resolveRules(this.signInRules, preCtx);
+        const preDeniedList = Array.isArray(preResolved)
+          ? preResolved.filter((r) => r && r.effect === 'deny')
+          : [];
 
-    const user = await this.repo.findUserByEmail(email);
-    if (!user) {
-      await this.recordFailure(ip, email);
-      throw new InvalidCredentialsError();
-    }
+        if (preDeniedList.length > 0) {
+          const topDenial = preDeniedList[0]!;
+          span?.setAttribute('auth.rule_denied_id', topDenial.id);
+          const errorFactory = this.signInErrorRegistry.get(topDenial.id);
+          throw errorFactory ? errorFactory(preCtx) : new InvalidCredentialsError();
+        }
 
-    if (user.blocked) {
-      throw new UserBlockedError();
-    }
+        const user = await this.repo.findUserByEmail(email);
+        if (!user) {
+          span?.setAttribute('auth.user_exists', false);
+          await this.recordFailure(ip, email);
+          throw new InvalidCredentialsError();
+        }
 
-    const isPasswordValid = await withSpan('Argon2id Password Check', async (span) => {
-      span.setAttribute('crypto.algorithm', 'argon2id');
-      return verifyPassword(validated.password, user.password_hash);
-    });
+        span?.setAttribute('auth.user_exists', true);
+        span?.setAttribute('auth.user_id', user.id);
+        span?.setAttribute('auth.org_id', user.org_id);
 
-    if (!isPasswordValid) {
-      await this.recordFailure(ip, email);
-      throw new InvalidCredentialsError();
-    }
+        if (user.blocked) {
+          span?.setAttribute('auth.user_blocked', true);
+          throw new UserBlockedError();
+        }
 
-    const fullCtx: Readonly<Record<string, unknown>> = Object.freeze({
-      ip,
-      email,
-      isAccountLocked: false,
-      isRateLimited: false,
-      userExists: true,
-      isBlocked: false,
-      isPasswordValid: true,
-    });
-    const fullResolved = await resolveRules(this.signInRules, fullCtx);
-    const fullDeniedList = Array.isArray(fullResolved)
-      ? fullResolved.filter((r) => r && r.effect === 'deny')
-      : [];
+        const isPasswordValid = await withSpan('Argon2id Password Check', async (argonSpan) => {
+          argonSpan?.setAttribute('crypto.algorithm', 'argon2id');
+          return verifyPassword(validated.password, user.password_hash);
+        });
 
-    if (fullDeniedList.length > 0) {
-      const topDenial = fullDeniedList[0]!;
-      if (CREDENTIAL_FAILURE_RULE_IDS.has(topDenial.id)) {
-        await this.recordFailure(ip, email);
-      }
-      const errorFactory = this.signInErrorRegistry.get(topDenial.id);
-      throw errorFactory ? errorFactory(fullCtx) : new InvalidCredentialsError();
-    }
+        if (!isPasswordValid) {
+          span?.setAttribute('auth.password_valid', false);
+          await this.recordFailure(ip, email);
+          throw new InvalidCredentialsError();
+        }
 
-    if (user.mfa_enabled) {
-      const mfaToken = generateMfaChallengeToken(user.id, user.email, user.org_id, user.role);
-      await this.recordSuccess(ip, email);
-      return {
-        status: AUTH_CONSTANTS.RISK.STATUS_MFA_REQUIRED,
-        mfa_required: true,
-        mfa_token: mfaToken,
-      } as any;
-    }
+        span?.setAttribute('auth.password_valid', true);
 
-    const currentTelemetry = this.geoIpPort
-      ? await this.geoIpPort.lookup(ip)
-      : { ip, isDatacenter: false };
-    const latestLogin = await this.repo.getLatestLoginLocation(user.id);
-    const riskEval = this.riskService.evaluateRisk(
-      currentTelemetry,
-      validated.user_agent,
-      latestLogin,
-    );
+        const fullCtx: Readonly<Record<string, unknown>> = Object.freeze({
+          ip,
+          email,
+          isAccountLocked: false,
+          isRateLimited: false,
+          userExists: true,
+          isBlocked: false,
+          isPasswordValid: true,
+        });
+        const fullResolved = await resolveRules(this.signInRules, fullCtx);
+        const fullDeniedList = Array.isArray(fullResolved)
+          ? fullResolved.filter((r) => r && r.effect === 'deny')
+          : [];
 
-    if (riskEval.isBlocked) {
-      await Promise.all([
-        this.recordFailure(ip, email),
-        this.recordAudit(
-          AUTH_CONSTANTS.AUDIT_EVENT_HIGH_RISK_BLOCKED,
-          user.id,
-          user.org_id,
-          validated.ip_address,
+        if (fullDeniedList.length > 0) {
+          const topDenial = fullDeniedList[0]!;
+          span?.setAttribute('auth.post_rule_denied_id', topDenial.id);
+          if (CREDENTIAL_FAILURE_RULE_IDS.has(topDenial.id)) {
+            await this.recordFailure(ip, email);
+          }
+          const errorFactory = this.signInErrorRegistry.get(topDenial.id);
+          throw errorFactory ? errorFactory(fullCtx) : new InvalidCredentialsError();
+        }
+
+        if (user.mfa_enabled) {
+          span?.setAttribute('auth.mfa_required', true);
+          const mfaToken = generateMfaChallengeToken(user.id, user.email, user.org_id, user.role);
+          await this.recordSuccess(ip, email);
+          return {
+            status: AUTH_CONSTANTS.RISK.STATUS_MFA_REQUIRED,
+            mfa_required: true,
+            mfa_token: mfaToken,
+          } as any;
+        }
+
+        const currentTelemetry = this.geoIpPort
+          ? await this.geoIpPort.lookup(ip)
+          : { ip, isDatacenter: false };
+        const latestLogin = await this.repo.getLatestLoginLocation(user.id);
+        const riskEval = this.riskService.evaluateRisk(
+          currentTelemetry,
           validated.user_agent,
-        ),
-      ]);
-      throw new HighRiskSignInBlockedError();
-    }
+          latestLogin,
+        );
 
-    if (riskEval.requiresStepUp) {
-      const challengeToken = this.riskService.issueChallengeToken(
-        user.id,
-        user.email,
-        riskEval.riskScore,
-        riskEval.reasons,
-      );
-      await Promise.all([
-        this.recordAudit(
-          AUTH_CONSTANTS.AUDIT_EVENT_RISK_CHALLENGE_ISSUED,
-          user.id,
-          user.org_id,
-          validated.ip_address,
-          validated.user_agent,
-        ),
-      ]);
-      return {
-        status: AUTH_CONSTANTS.RISK.STATUS_STEP_UP_REQUIRED,
-        step_up_required: true,
-        risk_score: riskEval.riskScore,
-        reasons: riskEval.reasons,
-        challenge_token: challengeToken,
-      } as any;
-    }
+        span?.setAttribute('auth.risk_score', riskEval.riskScore);
 
-    const { token, payload } = this.issueTokenAndPayload(user);
+        if (riskEval.isBlocked) {
+          span?.setAttribute('auth.risk_blocked', true);
+          await Promise.all([
+            this.recordFailure(ip, email),
+            this.recordAudit(
+              AUTH_CONSTANTS.AUDIT_EVENT_HIGH_RISK_BLOCKED,
+              user.id,
+              user.org_id,
+              validated.ip_address,
+              validated.user_agent,
+            ),
+          ]);
+          throw new HighRiskSignInBlockedError();
+        }
 
-    await Promise.all([
-      this.recordSuccess(ip, email),
-      this.recordAudit(
-        AUTH_CONSTANTS.AUDIT_EVENT_SIGNIN,
-        user.id,
-        user.org_id,
-        validated.ip_address,
-        validated.user_agent,
-      ),
-      this.repo.recordLoginHistory({
-        id: `lh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        userId: user.id,
-        ipAddress: ip,
-        latitude: currentTelemetry.latitude,
-        longitude: currentTelemetry.longitude,
-        asn: currentTelemetry.asn,
-        isDatacenter: Boolean(currentTelemetry.isDatacenter),
-        deviceFingerprint: riskEval.currentTelemetry.deviceFingerprint,
-        riskScore: riskEval.riskScore,
-        createdAtMs: Date.now(),
-      }),
-    ]);
+        if (riskEval.requiresStepUp) {
+          span?.setAttribute('auth.step_up_required', true);
+          const challengeToken = this.riskService.issueChallengeToken(
+            user.id,
+            user.email,
+            riskEval.riskScore,
+            riskEval.reasons,
+          );
+          await Promise.all([
+            this.recordAudit(
+              AUTH_CONSTANTS.AUDIT_EVENT_RISK_CHALLENGE_ISSUED,
+              user.id,
+              user.org_id,
+              validated.ip_address,
+              validated.user_agent,
+            ),
+          ]);
+          return {
+            status: AUTH_CONSTANTS.RISK.STATUS_STEP_UP_REQUIRED,
+            step_up_required: true,
+            risk_score: riskEval.riskScore,
+            reasons: riskEval.reasons,
+            challenge_token: challengeToken,
+          } as any;
+        }
 
-    this.safePublishEventAsync(() =>
-      this.eventProducer?.publishUserSignedIn({
-        userId: user.id,
-        email: user.email,
-        orgId: user.org_id,
-      }),
-    );
+        const { token, payload } = this.issueTokenAndPayload(user);
 
-    return { token, payload, user, status: AUTH_CONSTANTS.RISK.STATUS_AUTHENTICATED } as any;
+        await Promise.all([
+          this.recordSuccess(ip, email),
+          this.recordAudit(
+            AUTH_CONSTANTS.AUDIT_EVENT_SIGNIN,
+            user.id,
+            user.org_id,
+            validated.ip_address,
+            validated.user_agent,
+          ),
+          this.repo.recordLoginHistory({
+            id: `lh_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+            userId: user.id,
+            ipAddress: ip,
+            latitude: currentTelemetry.latitude,
+            longitude: currentTelemetry.longitude,
+            asn: currentTelemetry.asn,
+            isDatacenter: Boolean(currentTelemetry.isDatacenter),
+            deviceFingerprint: riskEval.currentTelemetry.deviceFingerprint,
+            riskScore: riskEval.riskScore,
+            createdAtMs: Date.now(),
+          }),
+        ]);
+
+        this.safePublishEventAsync(() =>
+          this.eventProducer?.publishUserSignedIn({
+            userId: user.id,
+            email: user.email,
+            orgId: user.org_id,
+          }),
+        );
+
+        span?.setAttribute('auth.sign_in_success', true);
+        return { token, payload, user, status: AUTH_CONSTANTS.RISK.STATUS_AUTHENTICATED } as any;
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          span?.recordException(err);
+          span?.setStatus({ code: 2, message: err.message });
+        }
+        throw err;
+      }
+    });
   }
 
   async resolveRiskChallenge(
@@ -445,7 +477,7 @@ export class UserAuthDomainService {
     return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
   }
 
-  private issueTokenAndPayload(user: AuthUserRecord): { token: string; payload: AuthTokenPayload } {
+  issueTokenAndPayload(user: AuthUserRecord): { token: string; payload: AuthTokenPayload } {
     const token = createToken(user.id, user.email, {
       org_id: user.org_id,
       org_name: user.org_name,

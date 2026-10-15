@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord } from '../../shared/types/auth.types';
 import type { SamlRepositoryPort } from './ports/saml-repository.port';
 
 export interface OrganizationRecord {
@@ -191,6 +191,12 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   assignUserCustomRoles(orgId: string, userId: string, roleIds: readonly string[], assignedBy?: string): Promise<void>;
   listUserCustomRoles(orgId: string, userId: string): Promise<CustomRoleRecord[]>;
   recordRoleAuditLog(log: { id: string; org_id: string; actor_user_id: string; action: string; target_role_id: string; target_user_id?: string; previous_mask?: string; new_mask?: string; reason?: string; created_at_ms: number }): Promise<void>;
+  saveMagicLink(record: MagicLinkRecord): Promise<void>;
+  findMagicLinkByHash(tokenHash: string): Promise<MagicLinkRecord | null>;
+  supersedePendingMagicLinks(orgId: string, userId: string, supersededAtMs: number): Promise<void>;
+  consumeMagicLink(tokenHash: string, consumedAtMs: number, consumedIp?: string): Promise<boolean>;
+  countRecentMagicLinksByEmail(email: string, sinceEpochMs: number): Promise<number>;
+  countRecentMagicLinksByIp(ip: string, sinceEpochMs: number): Promise<number>;
 }
 
 

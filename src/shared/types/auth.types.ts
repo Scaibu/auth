@@ -257,3 +257,33 @@ export const PermissionEvaluationResultSchema = z.object({
   evaluated_permissions: z.array(z.string()),
 });
 export type PermissionEvaluationResult = z.infer<typeof PermissionEvaluationResultSchema>;
+
+export const MagicLinkRecordSchema = z.object({
+  id: z.string().min(1),
+  public_id: z.string().min(1),
+  org_id: z.string().min(1),
+  user_id: z.string().min(1),
+  email: z.string().email(),
+  token_hash: z.string().length(64),
+  redirect_url: z.string().nullable().optional(),
+  request_ip: z.string().nullable().optional(),
+  user_agent_hash: z.string().nullable().optional(),
+  consumed_at_ms: z.number().int().positive().nullable().optional(),
+  consumed_ip: z.string().nullable().optional(),
+  superseded_at_ms: z.number().int().positive().nullable().optional(),
+  version: z.number().int().positive().default(1),
+  expires_at_ms: z.number().int().positive(),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive(),
+  deleted_at: z.string().nullable().optional(),
+});
+export type MagicLinkRecord = z.infer<typeof MagicLinkRecordSchema>;
+
+export const MagicLinkVerifyResultSchema = z.object({
+  valid: z.boolean(),
+  email: z.string().optional(),
+  redirect_url: z.string().nullable().optional(),
+  expires_at_ms: z.number().optional(),
+  error: z.string().optional(),
+});
+export type MagicLinkVerifyResult = z.infer<typeof MagicLinkVerifyResultSchema>;

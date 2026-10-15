@@ -69,6 +69,11 @@ import {
   handleEvaluatePermissions,
 } from './handlers/role.handler';
 import {
+  handleSendMagicLink,
+  handleVerifyMagicLink,
+  handleConsumeMagicLink,
+} from './handlers/magic-link.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -987,6 +992,30 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: false,
     successMessage: 'Permissions evaluated successfully',
     handler: (ctx) => handleEvaluatePermissions(ctx.service, ctx.body),
+  },
+  {
+    name: 'magic_link_send',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MAGIC_LINK_SEND,
+    requiresAuth: false,
+    successMessage: 'Magic link dispatched successfully',
+    handler: (ctx) => handleSendMagicLink(ctx.service, ctx.body, ctx.headers),
+  },
+  {
+    name: 'magic_link_verify',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.MAGIC_LINK_VERIFY,
+    requiresAuth: false,
+    successMessage: 'Magic link verification status retrieved',
+    handler: (ctx) => handleVerifyMagicLink(ctx.service, ctx.queryParams),
+  },
+  {
+    name: 'magic_link_consume',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.MAGIC_LINK_CONSUME,
+    requiresAuth: false,
+    successMessage: 'Magic link authentication successful',
+    handler: (ctx) => handleConsumeMagicLink(ctx.service, ctx.body, ctx.headers),
   },
 ];
 

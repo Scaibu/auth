@@ -1146,6 +1146,60 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   async recordRoleAuditLog(log: any): Promise<void> {
     this.mockRoleAuditLogs.push({ ...log });
   }
+
+  private readonly mockMagicLinks = new Map<string, any>();
+
+  async saveMagicLink(record: any): Promise<void> {
+    this.mockMagicLinks.set(record.token_hash, { ...record });
+  }
+
+  async findMagicLinkByHash(tokenHash: string): Promise<any | null> {
+    const record = this.mockMagicLinks.get(tokenHash);
+    if (!record || record.deleted_at) return null;
+    return { ...record };
+  }
+
+  async supersedePendingMagicLinks(orgId: string, userId: string, supersededAtMs: number): Promise<void> {
+    for (const record of this.mockMagicLinks.values()) {
+      if (record.org_id === orgId && record.user_id === userId && !record.consumed_at_ms && !record.superseded_at_ms) {
+        record.superseded_at_ms = supersededAtMs;
+        record.version = (record.version || 1) + 1;
+        record.updated_at_ms = supersededAtMs;
+      }
+    }
+  }
+
+  async consumeMagicLink(tokenHash: string, consumedAtMs: number, consumedIp?: string): Promise<boolean> {
+    const record = this.mockMagicLinks.get(tokenHash);
+    if (!record || record.consumed_at_ms || record.superseded_at_ms || record.expires_at_ms <= consumedAtMs) {
+      return false;
+    }
+    record.consumed_at_ms = consumedAtMs;
+    record.consumed_ip = consumedIp ?? null;
+    record.version = (record.version || 1) + 1;
+    record.updated_at_ms = consumedAtMs;
+    return true;
+  }
+
+  async countRecentMagicLinksByEmail(email: string, sinceEpochMs: number): Promise<number> {
+    let count = 0;
+    for (const record of this.mockMagicLinks.values()) {
+      if (record.email === email && record.created_at_ms >= sinceEpochMs && !record.deleted_at) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async countRecentMagicLinksByIp(ip: string, sinceEpochMs: number): Promise<number> {
+    let count = 0;
+    for (const record of this.mockMagicLinks.values()) {
+      if (record.request_ip === ip && record.created_at_ms >= sinceEpochMs && !record.deleted_at) {
+        count++;
+      }
+    }
+    return count;
+  }
 }
 
 

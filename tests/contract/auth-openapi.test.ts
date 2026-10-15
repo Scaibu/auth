@@ -109,7 +109,12 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CREATE_CUSTOM_ROLE_REQUEST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.UPDATE_CUSTOM_ROLE_REQUEST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.ASSIGN_USER_ROLES_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.EVALUATE_PERMISSIONS_REQUEST);
+    // Magic Link Passwordless Authentication (ADR 0031)
+    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_SEND);
+    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_VERIFY);
+    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_CONSUME);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.MAGIC_LINK_SEND_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.MAGIC_LINK_CONSUME_REQUEST);
   });
 });
 

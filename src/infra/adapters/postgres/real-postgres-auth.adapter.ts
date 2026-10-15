@@ -1936,6 +1936,79 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       );
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveMagicLink(record: any): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveMagicLink', async () => {
+      await this.pool.query(this.queries.FLOW_MAGIC_LINKS.INSERT_MAGIC_LINK, [
+        record.id,
+        record.public_id,
+        record.org_id,
+        record.user_id,
+        record.email,
+        record.token_hash,
+        record.redirect_url ?? null,
+        record.request_ip ?? null,
+        record.user_agent_hash ?? null,
+        record.version || 1,
+        record.expires_at_ms,
+        record.created_at_ms,
+        record.updated_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findMagicLinkByHash(tokenHash: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.findMagicLinkByHash', async () => {
+      const res = await this.pool.query(this.queries.FLOW_MAGIC_LINKS.FIND_BY_HASH, [tokenHash]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        user_id: row.user_id,
+        email: row.email,
+        token_hash: row.token_hash,
+        redirect_url: row.redirect_url,
+        request_ip: row.request_ip,
+        user_agent_hash: row.user_agent_hash,
+        consumed_at_ms: row.consumed_at_ms ? Number(row.consumed_at_ms) : null,
+        consumed_ip: row.consumed_ip,
+        superseded_at_ms: row.superseded_at_ms ? Number(row.superseded_at_ms) : null,
+        version: Number(row.version),
+        expires_at_ms: Number(row.expires_at_ms),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async supersedePendingMagicLinks(orgId: string, userId: string, supersededAtMs: number): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.supersedePendingMagicLinks', async () => {
+      await this.pool.query(this.queries.FLOW_MAGIC_LINKS.SUPERSEDE_USER_PENDING, [orgId, userId, supersededAtMs]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async consumeMagicLink(tokenHash: string, consumedAtMs: number, consumedIp?: string): Promise<boolean> {
+    return withSpan('RealPostgresAuthAdapter.consumeMagicLink', async () => {
+      const res = await this.pool.query(this.queries.FLOW_MAGIC_LINKS.CONSUME_LINK, [tokenHash, consumedAtMs, consumedIp ?? null]);
+      return (res.rowCount ?? 0) > 0;
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async countRecentMagicLinksByEmail(email: string, sinceEpochMs: number): Promise<number> {
+    return withSpan('RealPostgresAuthAdapter.countRecentMagicLinksByEmail', async () => {
+      const res = await this.pool.query(this.queries.FLOW_MAGIC_LINKS.COUNT_RECENT_BY_EMAIL, [email, sinceEpochMs]);
+      return Number(res.rows[0]?.count ?? 0);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async countRecentMagicLinksByIp(ip: string, sinceEpochMs: number): Promise<number> {
+    return withSpan('RealPostgresAuthAdapter.countRecentMagicLinksByIp', async () => {
+      const res = await this.pool.query(this.queries.FLOW_MAGIC_LINKS.COUNT_RECENT_BY_IP, [ip, sinceEpochMs]);
+      return Number(res.rows[0]?.count ?? 0);
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

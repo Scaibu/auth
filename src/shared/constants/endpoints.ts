@@ -70,6 +70,9 @@ export const AUTH_ENDPOINTS = {
   USER_ROLES: '/api/v1/auth/users/:userId/roles',
   USER_PERMISSIONS: '/api/v1/auth/users/:userId/permissions',
   PERMISSIONS_EVALUATE: '/api/v1/auth/permissions/evaluate',
+  MAGIC_LINK_SEND: '/api/v1/auth/magic-link/send',
+  MAGIC_LINK_VERIFY: '/api/v1/auth/magic-link/verify',
+  MAGIC_LINK_CONSUME: '/api/v1/auth/magic-link/consume',
   HEALTH: '/health',
 } as const;
 

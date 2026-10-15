@@ -225,6 +225,14 @@ export const AUTH_QUERIES = {
     `,
     INSERT_AUDIT_LOG: `INSERT INTO auth_role_audit_logs (id, org_id, actor_user_id, action, target_role_id, target_user_id, previous_mask, new_mask, reason, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
   },
+  FLOW_MAGIC_LINKS: {
+    INSERT_MAGIC_LINK: `INSERT INTO auth_magic_links (id, public_id, org_id, user_id, email, token_hash, redirect_url, request_ip, user_agent_hash, version, expires_at_ms, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    FIND_BY_HASH: `SELECT id, public_id, org_id, user_id, email, token_hash, redirect_url, request_ip, user_agent_hash, consumed_at_ms, consumed_ip, superseded_at_ms, version, expires_at_ms, created_at_ms, updated_at_ms FROM auth_magic_links WHERE token_hash = $1 AND deleted_at IS NULL LIMIT 1`,
+    SUPERSEDE_USER_PENDING: `UPDATE auth_magic_links SET superseded_at_ms = $3, version = version + 1, updated_at_ms = $3 WHERE org_id = $1 AND user_id = $2 AND consumed_at_ms IS NULL AND superseded_at_ms IS NULL AND deleted_at IS NULL`,
+    CONSUME_LINK: `UPDATE auth_magic_links SET consumed_at_ms = $2, consumed_ip = $3, version = version + 1, updated_at_ms = $2 WHERE token_hash = $1 AND consumed_at_ms IS NULL AND superseded_at_ms IS NULL AND expires_at_ms > $2 AND deleted_at IS NULL`,
+    COUNT_RECENT_BY_EMAIL: `SELECT COUNT(*)::int AS count FROM auth_magic_links WHERE email = $1 AND created_at_ms >= $2 AND deleted_at IS NULL`,
+    COUNT_RECENT_BY_IP: `SELECT COUNT(*)::int AS count FROM auth_magic_links WHERE request_ip = $1 AND created_at_ms >= $2 AND deleted_at IS NULL`,
+  },
 } as const;
 
 

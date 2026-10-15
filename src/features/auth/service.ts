@@ -36,7 +36,7 @@ import type { ApiKeyRecord, AuthTokenPayload } from '../../shared/types/auth.typ
 import type { AuthEventProducer } from '../../shared/messaging/producers/auth-event.producer';
 import type { Rule } from '@chief-strategist-j/shared-infra/rules-engine';
 import type { MailerPort } from '../../shared/ports/mailer.port';
-import { UnauthorizedError } from '../../shared/errors/auth.errors';
+import { UnauthorizedError, NotFoundError } from '../../shared/errors/auth.errors';
 import { createToken } from '../../shared/utils/jwt.util';
 import { OrganizationDomainService } from './services/organization.service';
 import { UserManagementDomainService } from './services/user-management.service';
@@ -81,7 +81,8 @@ import { SamlProviderService } from './services/saml-provider.service';
 import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, SamlAuthResult } from './ports/saml-repository.port';
 import { PasskeyService } from './services/passkey.service';
 import { CustomRoleService } from './services/custom-role.service';
-import type { CustomRoleRecord, PermissionEvaluationResult } from '../../shared/types/auth.types';
+import { MagicLinkService } from './services/magic-link.service';
+import type { CustomRoleRecord, PermissionEvaluationResult, MagicLinkVerifyResult } from '../../shared/types/auth.types';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -102,6 +103,7 @@ export class AuthService {
   private readonly samlService: SamlProviderService;
   private readonly passkeyService: PasskeyService;
   private readonly customRoleService: CustomRoleService;
+  private readonly magicLinkService: MagicLinkService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -123,6 +125,7 @@ export class AuthService {
     this.samlService = new SamlProviderService(repo, AUTH_CONFIG.saml);
     this.passkeyService = new PasskeyService(repo);
     this.customRoleService = new CustomRoleService(repo);
+    this.magicLinkService = new MagicLinkService(repo);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
@@ -695,6 +698,35 @@ export class AuthService {
     requiredPermissions: readonly string[]
   ): Promise<PermissionEvaluationResult> {
     return this.customRoleService.evaluateUserPermissions(orgId, userId, requiredPermissions);
+  }
+
+  async sendMagicLink(
+    email: string,
+    redirectUrl?: string,
+    context?: { requestIp?: string; userAgent?: string }
+  ): Promise<{ message: string; rawToken?: string }> {
+    return this.magicLinkService.sendMagicLink(email, redirectUrl, context);
+  }
+
+  async verifyMagicLink(rawToken: string): Promise<MagicLinkVerifyResult> {
+    return this.magicLinkService.verifyMagicLink(rawToken);
+  }
+
+  async consumeMagicLink(
+    rawToken: string,
+    context?: { requestIp?: string }
+  ): Promise<{ token: string; user: AuthUserRecord; redirectUrl?: string | null }> {
+    const consumed = await this.magicLinkService.consumeMagicLink(rawToken, context);
+    const user = await this.repo.findUserById(consumed.userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    const { token } = this.authService.issueTokenAndPayload(user);
+    return {
+      token,
+      user,
+      redirectUrl: consumed.redirectUrl,
+    };
   }
 }
 
