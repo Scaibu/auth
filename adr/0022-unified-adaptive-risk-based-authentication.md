@@ -69,7 +69,7 @@ Given consecutive coordinates $(\phi_1, \lambda_1)$ at time $t_1$ and $(\phi_2, 
 
 $$\Delta \phi = \phi_2 - \phi_1, \quad \Delta \lambda = \lambda_2 - \lambda_1$$
 $$a = \sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)$$
-$$c = 2 \cdot \operatorname{atan2}\left(\sqrt{a}, \sqrt{1-a}\right)$$
+$$c = 2 \cdot \mathrm{atan2}\left(\sqrt{a}, \sqrt{1-a}\right)$$
 $$d = R_{\text{earth}} \cdot c \quad (R_{\text{earth}} = 6371\text{ km})$$
 $$v = \frac{d}{\Delta t} \quad (\text{km/h})$$
 
@@ -79,28 +79,27 @@ If $v > 900\text{ km/h}$ and $\Delta t \ge 60\text{ s}$, trigger $+35$ risk scor
 
 ## 🔌 3. Hexagonal Architecture & Port Topology
 
-Following our zero-coupling hexagonal invariant:
+```mermaid
+graph TD
+    subgraph Driving ["Driving Ingress (REST Handlers)"]
+        H1["POST /api/v1/auth/sign-in"]
+        H2["POST /api/v1/auth/challenge/resolve"]
+    end
 
-```
-src/
-├── features/auth/
-│   ├── ports/
-│   │   ├── geo-ip.port.ts             # GeoIpPort (resolve IP to Lat, Lon, ASN, isDatacenter)
-│   │   └── adaptive-risk.port.ts      # Risk evaluation contracts & DTOs
-│   ├── services/
-│   │   └── adaptive-risk.service.ts   # Core pure algorithmic risk calculator
-│   └── types.ts                       # RiskEvaluationResult, LoginRiskProfile
-├── infra/
-│   ├── adapters/
-│   │   ├── geo/
-│   │   │   └── mock-geo-ip.adapter.ts # Hexagonal GeoIp adapter with deterministic CIDR tables
-│   │   └── postgres/
-│   │       └── alloydb-omni-auth.adapter.ts # Persists & queries auth_login_history
-└── shared/
-    ├── constants/
-    │   └── auth.constants.ts          # Centralized RISK_THRESHOLDS, RISK_FACTORS, AUDIT_EVENT_RISK_*
-    └── errors/
-        └── auth.errors.ts             # AdaptiveStepUpRequiredError, HighRiskSignInBlockedError
+    subgraph Core ["Core Domain (Hexagonal Core)"]
+        SVC["AdaptiveRiskService<br/>- Pure Haversine Calculation<br/>- Weight Accumulation & Bounds<br/>- Decision Matrix: Allow / Challenge / Block"]
+    end
+
+    subgraph DrivenPorts ["Driven Secondary Ports & Adapters"]
+        direction TB
+        GIP["Driven Port: GeoIpPort"] --> MGA["MockGeoIpAdapter / RealGeoIpAdapter<br/>(MaxMind MMDB / Real ASN Lookup)"]
+        ARP["Driven Port: AuthRepositoryPort"] --> ALD["AlloyDBOmniAuthAdapter<br/>(Persists auth_login_history Telemetry)"]
+    end
+
+    H1 --> SVC
+    H2 --> SVC
+    SVC --> GIP
+    SVC --> ARP
 ```
 
 ---
@@ -147,9 +146,36 @@ When $R \ge 75$ (e.g. Datacenter IP $+40$ AND Impossible Velocity $+35$):
 
 ---
 
-## 🗄 5. Database Schema & Telemetry Retention
+## 🗄 5. Database Schema, ERD & Telemetry Retention
 
-Migration `0016_create_auth_risk_events.sql` provisions the `auth_login_history` table:
+### 5.1 Entity-Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    auth_users ||--o{ auth_login_history : "records telemetry (user_id)"
+
+    auth_users {
+        VARCHAR(64) id PK
+        VARCHAR(255) email
+        VARCHAR(255) password_hash
+        BOOLEAN email_verified
+    }
+
+    auth_login_history {
+        VARCHAR(64) id PK
+        VARCHAR(64) user_id FK "REFERENCES auth_users(id)"
+        VARCHAR(45) ip_address "IPv4 or IPv6"
+        DOUBLE_PRECISION latitude "Resolved Geo Latitude"
+        DOUBLE_PRECISION longitude "Resolved Geo Longitude"
+        VARCHAR(64) asn "Autonomous System Number"
+        BOOLEAN is_datacenter "Hosting/Proxy indicator"
+        VARCHAR(64) device_fingerprint "SHA-256 client headers"
+        INTEGER risk_score "Computed cumulative score (0-100)"
+        BIGINT created_at_ms "Epoch ms timestamp"
+    }
+```
+
+### 5.2 Migration DDL (`database/migrations/0016_create_auth_risk_events.sql`)
 
 ```sql
 CREATE TABLE IF NOT EXISTS auth_login_history (
@@ -167,24 +193,79 @@ CREATE TABLE IF NOT EXISTS auth_login_history (
 
 CREATE INDEX IF NOT EXISTS idx_auth_login_history_user_time 
     ON auth_login_history(user_id, created_at_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_auth_login_history_ip
+    ON auth_login_history(ip_address);
 ```
 
 ---
 
-## 🔐 6. Challenge Token Specification & Resolution Protocol
+## 🔐 6. API Specifications & Contracts
 
-Challenge tokens use HMAC-SHA256 signature verification over an ephemeral payload:
+### 6.1 `POST /api/v1/auth/sign-in` (Adaptive Risk Step-Up Response)
+
+When adaptive risk evaluates to moderate risk ($30 \le R < 75$), sign-in returns a challenge envelope:
+
+**Response (`200 OK` - Step-Up Required):**
 ```json
 {
-  "type": "risk_challenge",
-  "userId": "usr_123456",
-  "email": "user@example.com",
-  "riskScore": 40,
-  "reasons": ["DATACENTER_OR_PROXY_ASN"],
-  "exp": 1776249600000
+  "success": true,
+  "status": "success",
+  "statusCode": 200,
+  "message": "Step-up authentication required due to elevated risk",
+  "data": {
+    "status": "step_up_required",
+    "challenge_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "risk_score": 40,
+    "reasons": ["DATACENTER_OR_PROXY_ASN"]
+  },
+  "error": null,
+  "meta": {
+    "requestId": "req_1792046185342",
+    "correlationId": "req_1792046185342",
+    "timestamp": "2026-10-15T06:36:25.342Z",
+    "executionTimeMs": 12,
+    "apiVersion": "1.0.0"
+  }
 }
 ```
-Verification codes are 6-digit cryptographically secure pseudorandom numbers or TOTP codes validated against the user's secret.
+
+### 6.2 `POST /api/v1/auth/challenge/resolve`
+
+**Request:**
+```json
+{
+  "challenge_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "verification_code": "482910"
+}
+```
+
+**Response (`200 OK` - Authenticated):**
+```json
+{
+  "success": true,
+  "status": "success",
+  "statusCode": 200,
+  "message": "Adaptive risk challenge verified successfully",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "usr_948274",
+      "email": "user@example.com",
+      "name": "Security Engineer",
+      "default_org_id": "org_71829"
+    }
+  },
+  "error": null,
+  "meta": {
+    "requestId": "req_1792046185350",
+    "correlationId": "req_1792046185350",
+    "timestamp": "2026-10-15T06:36:25.350Z",
+    "executionTimeMs": 15,
+    "apiVersion": "1.0.0"
+  }
+}
+```
 
 ---
 
@@ -199,3 +280,4 @@ All configuration keys and risk factors are declared in `AUTH_CONSTANTS`:
 - `AUDIT_EVENT_RISK_CHALLENGE_ISSUED = 'RISK_CHALLENGE_ISSUED'`
 - `AUDIT_EVENT_RISK_CHALLENGE_RESOLVED = 'RISK_CHALLENGE_RESOLVED'`
 - `AUDIT_EVENT_HIGH_RISK_BLOCKED = 'HIGH_RISK_SIGNIN_BLOCKED'`
+

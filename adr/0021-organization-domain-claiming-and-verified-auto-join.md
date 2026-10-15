@@ -220,6 +220,31 @@ erDiagram
     }
 ```
 
+### 4.2 Migration DDL (`database/migrations/0014_create_organization_domains.sql`)
+
+```sql
+CREATE TABLE IF NOT EXISTS auth_organization_domains (
+  id VARCHAR(64) PRIMARY KEY,
+  org_id VARCHAR(64) NOT NULL REFERENCES auth_organizations(id) ON DELETE CASCADE,
+  domain_name VARCHAR(255) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'PENDING_VERIFICATION',
+  verification_token VARCHAR(255) NOT NULL,
+  verification_method VARCHAR(32) NOT NULL DEFAULT 'DNS_TXT',
+  default_role VARCHAR(64) NOT NULL DEFAULT 'member',
+  auto_join_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at_ms BIGINT NOT NULL,
+  verified_at_ms BIGINT NULL,
+  last_checked_at_ms BIGINT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+  CONSTRAINT uq_auth_org_domain UNIQUE (domain_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_org_domains_org_id ON auth_organization_domains(org_id);
+CREATE INDEX IF NOT EXISTS idx_auth_org_domains_name ON auth_organization_domains(domain_name);
+CREATE INDEX IF NOT EXISTS idx_auth_org_domains_status ON auth_organization_domains(status);
+```
+
 ---
 
 ## 5. Finite State Machines & Lifecycle Transitions
@@ -247,6 +272,73 @@ stateDiagram-v2
 | `POST` | `/api/v1/auth/domains/:domainId/verify` | Trigger immediate on-demand DNS TXT verification | Yes (Admin) |
 | `PATCH` | `/api/v1/auth/domains/:domainId` | Update domain settings (e.g. toggle `auto_join_enabled`, `default_role`) | Yes (Admin) |
 | `DELETE` | `/api/v1/auth/domains/:domainId` | Revoke domain claim | Yes (Admin / Step-Up) |
+
+### 6.1 `POST /api/v1/auth/domains` (Claim Domain)
+
+**Request:**
+```json
+{
+  "domain_name": "corp.observability.io",
+  "default_role": "member"
+}
+```
+
+**Response (`201 Created`):**
+```json
+{
+  "success": true,
+  "status": "success",
+  "statusCode": 201,
+  "message": "Domain claim initiated successfully",
+  "data": {
+    "id": "dom_71829a",
+    "org_id": "org_9182a",
+    "domain_name": "corp.observability.io",
+    "status": "PENDING_VERIFICATION",
+    "verification_token": "llmobs-verification=a7f29b01c4e8...",
+    "verification_method": "DNS_TXT",
+    "default_role": "member",
+    "auto_join_enabled": true,
+    "created_at_ms": 1792046184953
+  },
+  "error": null,
+  "meta": {
+    "requestId": "req_1792046185200",
+    "correlationId": "req_1792046185200",
+    "timestamp": "2026-10-15T06:36:25.200Z",
+    "executionTimeMs": 8,
+    "apiVersion": "1.0.0"
+  }
+}
+```
+
+### 6.2 `POST /api/v1/auth/domains/:domainId/verify` (Verify DNS Record)
+
+**Response (`200 OK` - Verified):**
+```json
+{
+  "success": true,
+  "status": "success",
+  "statusCode": 200,
+  "message": "Domain successfully verified and activated",
+  "data": {
+    "id": "dom_71829a",
+    "status": "VERIFIED",
+    "domain_name": "corp.observability.io",
+    "verified_at_ms": 1792046185350,
+    "auto_join_enabled": true
+  },
+  "error": null,
+  "meta": {
+    "requestId": "req_1792046185360",
+    "correlationId": "req_1792046185360",
+    "timestamp": "2026-10-15T06:36:25.360Z",
+    "executionTimeMs": 24,
+    "apiVersion": "1.0.0"
+  }
+}
+```
+
 
 ---
 
