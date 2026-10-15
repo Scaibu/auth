@@ -404,8 +404,14 @@ echo "${OIDC_TOKEN_RESP}"
 echo -e "\n--- [49b/53] POST /oauth/token (M2M Client Credentials Grant - RFC 6749 §4.4, ADR 0034) ---"
 M2M_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
   -H "Content-Type: application/json" \
-  -d '{"grant_type":"client_credentials","client_id":"unknown_m2m_client","client_secret":"invalid_secret"}')
+  -d '{"grant_type":"client_credentials","client_id":"m2m_live_worker","client_secret":"sec_super_secret_password_123","scope":"metrics:write traces:read"}')
 echo "${M2M_TOKEN_RESP}"
+
+echo -e "\n--- [49c/53] POST /oauth/token (M2M Client Credentials Rejection on Bad Secret) ---"
+M2M_REJECT_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d '{"grant_type":"client_credentials","client_id":"m2m_live_worker","client_secret":"wrong_secret"}')
+echo "${M2M_REJECT_RESP}"
 
 echo -e "\n--- [50/52] GET /api/v1/auth/saml/metadata (SAML SP Metadata - ADR 0026) ---"
 SAML_META_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/metadata")

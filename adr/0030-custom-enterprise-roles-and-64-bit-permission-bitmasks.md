@@ -32,7 +32,7 @@ We implement a **Tenant-Scoped Custom Role Engine** backed by a **64-bit Permiss
 |---|---|---|---|---|---|---|
 | **`auth_permission_registry`** | `permission_key` | `VARCHAR(64)` | `NO` | - | `PRIMARY KEY`, uppercase canonical key | System-wide unique identifier for permission |
 | | `bit_position` | `INT` | `NO` | - | `UNIQUE`, `CHECK (bit_position >= 0 AND bit_position <= 62)` | Exact bit index in 64-bit mask ($0..62$) |
-| | `bitmask` | `NUMERIC(20, 0)` | `NO` | - | `UNIQUE`, `CHECK (bitmask > 0)` | Numeric representation of $2^{\text{bit\_position}}$ |
+| | `bitmask` | `NUMERIC(20, 0)` | `NO` | - | `UNIQUE`, `CHECK (bitmask > 0)` | Numeric representation of 2^(bit_position) |
 | | `category` | `VARCHAR(32)` | `NO` | - | Bounded string (e.g. `ORGANIZATION`, `USER`, `SECURITY`) | Domain categorization for UI grouping |
 | | `description` | `VARCHAR(255)` | `NO` | - | Explanatory text | Human-readable explanation of granted capability |
 | | `created_at_ms` | `BIGINT` | `NO` | - | Epoch milliseconds | Timestamp of registry insertion |

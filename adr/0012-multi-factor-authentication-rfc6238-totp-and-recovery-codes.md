@@ -260,7 +260,7 @@ stateDiagram-v2
 
 Per RFC 6238 §4:
 
-$$T = \left\lfloor \frac{\text{epoch\_ms}}{1000 \times X} \right\rfloor$$
+$$T = \left\lfloor \frac{\text{epochMs}}{1000 \times X} \right\rfloor$$
 
 Where:
 - $X = 30$ seconds (time interval).

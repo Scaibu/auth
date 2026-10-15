@@ -145,7 +145,7 @@ This strictly binds the dispatch timestamp, dispatch nonce, and full raw HTTP re
 
 ### 2.2 Anti-Replay Nonce Cache & Drift Window Enforcement
 
-- Consumers reject webhooks if $|\text{current\_time} - \text{timestamp}| > 300\text{ seconds}$ (strict 5-minute drift window).
+- Consumers reject webhooks if $|t_{\text{current}} - t_{\text{timestamp}}| > 300\text{ seconds}$ (strict 5-minute drift window).
 - Nonces are tracked in distributed memory (Redis) with a 360-second TTL to guarantee absolute single-delivery execution.
 
 ### 2.3 Constant-Time Timing-Safe Verification
@@ -156,7 +156,7 @@ All signature verifications convert the expected hexadecimal digest and incoming
 
 When a consumer endpoint responds with non-2xx status codes or encounters network timeouts:
 1. Retries are scheduled up to `AUTH_WEBHOOK_DEFAULT_RETRIES` (default: 5).
-2. Delay formula: $T_{\text{delay}} = \min(30000, 2^{\text{attempt}} \times 100\text{ms}) + \text{random}(0, 50\text{ms})$.
+2. Delay formula: $T_{\text{delay}} = \min(30000, 2^{\text{attempt}} \times 100\text{ ms}) + \text{random}(0, 50\text{ ms})$.
 3. Each attempt generates a **fresh nonce** and **updated timestamp**, logging an individual record in `auth_webhook_deliveries` to provide a complete immutable execution audit trail.
 
 ---
