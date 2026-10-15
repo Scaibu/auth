@@ -11,6 +11,8 @@ import { RealRedisCacheAdapter } from './infra/adapters/redis/real-redis-cache.a
 import type { ICachePort } from './shared/ports/cache.interface';
 import { createMailer } from './infra/adapters/mailer/mailer.factory';
 import { PurgeRetentionWorker } from './infra/workers/purge-retention.worker';
+import { DnsVerificationWorker } from './infra/workers/dns-verification.worker';
+import { NodeDnsAdapter } from './infra/adapters/dns/node-dns.adapter';
 
 import type { AuthRepositoryPort } from './features/auth/repository';
 import { AuthEventProducer } from './shared/messaging/producers/auth-event.producer';
@@ -59,6 +61,14 @@ export const purgeRetentionWorker = new PurgeRetentionWorker(
   { enabled: process.env.NODE_ENV !== 'test' }
 );
 purgeRetentionWorker.start();
+
+export const dnsResolverAdapter = new NodeDnsAdapter();
+export const dnsVerificationWorker = new DnsVerificationWorker(
+  repositoryAdapter,
+  dnsResolverAdapter,
+  { enabled: process.env.NODE_ENV !== 'test' }
+);
+dnsVerificationWorker.start();
 
 const mailerAdapter = createMailer(AUTH_CONFIG.mailer);
 

@@ -1,5 +1,15 @@
 # Auth Contracts Changelog
 
+## [1.7.0] - 2026-10-15
+### Added
+- Organization Domain Claiming & Verified Auto-Join (DNS TXT + Email Gate) (ADR 0021):
+  - Added `POST /api/v1/auth/domains`: Register pending domain claim for organization with cryptographic challenge token.
+  - Added `GET /api/v1/auth/domains`: Enumerate claimed domains for tenant.
+  - Added `POST /api/v1/auth/domains/{domainId}/verify`: Execute immediate on-demand DNS TXT challenge verification.
+  - Added `PATCH /api/v1/auth/domains/{domainId}`: Modify domain auto-join settings and default member onboarding role.
+  - Added `DELETE /api/v1/auth/domains/{domainId}`: Revoke domain claim ownership.
+  - Added schema `ClaimedDomainRecord`.
+
 ## [1.6.0] - 2026-10-15
 ### Added
 - Federated Identity Provider (OAuth 2.0 / OIDC) Single Sign-On & Account Linking:

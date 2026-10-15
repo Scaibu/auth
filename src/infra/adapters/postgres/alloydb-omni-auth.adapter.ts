@@ -1,6 +1,6 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 
@@ -28,6 +28,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     createdIp?: string;
     userAgent?: string;
   }>();
+  private readonly mockClaimedDomains = new Map<string, ClaimedDomainRecord & { deleted_at?: number }>();
   public readonly queries = AUTH_QUERIES;
 
   constructor() {
@@ -50,7 +51,19 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     });
 
     this.mockUserOrgs.set(AUTH_CONSTANTS.DEFAULT_ADMIN_ID, new Set([AUTH_CONSTANTS.DEFAULT_ORG_ID]));
+
+    const now = Date.now();
+    for (const domain of AUTH_CONSTANTS.DOMAIN_CLAIM.CANONICAL_BLOCKED_DOMAINS) {
+      this.mockBlockedDomains.set(domain, {
+        domain_name: domain,
+        category: AUTH_CONSTANTS.DOMAIN_CLAIM.CATEGORY_FREEMAIL,
+        reason: AUTH_CONSTANTS.DOMAIN_CLAIM.CATEGORY_FREEMAIL,
+        created_at_ms: now,
+        updated_at_ms: now,
+      });
+    }
   }
+
 
   public getFlowQuery(flow: keyof typeof AUTH_QUERIES): string {
     return JSON.stringify(this.queries[flow]);
@@ -594,4 +607,92 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_FEDERATED_IDENTITY);
     return [...this.mockFederatedIdentities.values()].filter((i) => i.user_id === userId).length;
   }
+
+  async saveClaimedDomain(domainRecord: ClaimedDomainRecord): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    this.mockClaimedDomains.set(domainRecord.id, { ...domainRecord });
+  }
+
+  async findClaimedDomainById(domainId: string): Promise<ClaimedDomainRecord | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    const domain = this.mockClaimedDomains.get(domainId);
+    if (!domain || domain.deleted_at) return null;
+    return { ...domain };
+  }
+
+  async findClaimedDomainByName(domainName: string): Promise<ClaimedDomainRecord | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    for (const d of this.mockClaimedDomains.values()) {
+      if (d.domain_name.toLowerCase() === domainName.toLowerCase() && !d.deleted_at) {
+        return { ...d };
+      }
+    }
+    return null;
+  }
+
+  async listClaimedDomainsByOrgId(orgId: string): Promise<ClaimedDomainRecord[]> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    return [...this.mockClaimedDomains.values()]
+      .filter((d) => d.org_id === orgId && !d.deleted_at)
+      .map((d) => ({ ...d }));
+  }
+
+  async updateClaimedDomainStatus(domainId: string, status: string, verifiedAtMs?: number): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    const domain = this.mockClaimedDomains.get(domainId);
+    if (domain) {
+      domain.status = status as any;
+      if (verifiedAtMs) domain.verified_at_ms = verifiedAtMs;
+      domain.last_checked_at_ms = Date.now();
+    }
+  }
+
+  async updateClaimedDomainSettings(domainId: string, autoJoinEnabled: boolean, defaultRole: string): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    const domain = this.mockClaimedDomains.get(domainId);
+    if (domain) {
+      domain.auto_join_enabled = autoJoinEnabled;
+      domain.default_role = defaultRole;
+    }
+  }
+
+  async deleteClaimedDomain(domainId: string): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    const domain = this.mockClaimedDomains.get(domainId);
+    if (domain) {
+      domain.deleted_at = Date.now();
+    }
+  }
+
+  async listPendingOrVerifiedDomains(): Promise<ClaimedDomainRecord[]> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_DOMAIN_CLAIM);
+    return [...this.mockClaimedDomains.values()]
+      .filter((d) => !d.deleted_at && (d.status === AUTH_CONSTANTS.DOMAIN_CLAIM.STATUS_PENDING || d.status === AUTH_CONSTANTS.DOMAIN_CLAIM.STATUS_VERIFIED))
+      .map((d) => ({ ...d }));
+  }
+
+  private readonly mockBlockedDomains = new Map<string, BlockedDomainRecord>();
+
+  async findBlockedDomain(domainName: string): Promise<BlockedDomainRecord | null> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCKED_DOMAINS);
+    const item = this.mockBlockedDomains.get(domainName.toLowerCase());
+    return item ? { ...item } : null;
+  }
+
+  async listBlockedDomains(): Promise<BlockedDomainRecord[]> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCKED_DOMAINS);
+    return [...this.mockBlockedDomains.values()].map((d) => ({ ...d }));
+  }
+
+  async saveBlockedDomain(record: BlockedDomainRecord): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCKED_DOMAINS);
+    this.mockBlockedDomains.set(record.domain_name.toLowerCase(), { ...record });
+  }
+
+  async deleteBlockedDomain(domainName: string): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_BLOCKED_DOMAINS);
+    this.mockBlockedDomains.delete(domainName.toLowerCase());
+  }
 }
+
+

@@ -148,4 +148,21 @@ export const AUTH_QUERIES = {
     DELETE_IDENTITY: `DELETE FROM auth_federated_identities WHERE user_id = $1 AND provider = $2`,
     COUNT_BY_USER_ID: `SELECT COUNT(*) AS count FROM auth_federated_identities WHERE user_id = $1`,
   },
+  FLOW_DOMAIN_CLAIM: {
+    INSERT_DOMAIN: `INSERT INTO auth_organization_domains (id, org_id, domain_name, status, verification_token, verification_method, default_role, auto_join_enabled, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    FIND_BY_ID: `SELECT id, org_id, domain_name, status, verification_token, verification_method, default_role, auto_join_enabled, created_at_ms, verified_at_ms, last_checked_at_ms FROM auth_organization_domains WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_BY_NAME: `SELECT id, org_id, domain_name, status, verification_token, verification_method, default_role, auto_join_enabled, created_at_ms, verified_at_ms, last_checked_at_ms FROM auth_organization_domains WHERE domain_name = $1 AND deleted_at IS NULL LIMIT 1`,
+    LIST_BY_ORG_ID: `SELECT id, org_id, domain_name, status, verification_token, verification_method, default_role, auto_join_enabled, created_at_ms, verified_at_ms, last_checked_at_ms FROM auth_organization_domains WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at_ms DESC`,
+    UPDATE_STATUS: `UPDATE auth_organization_domains SET status = $1, verified_at_ms = COALESCE($2, verified_at_ms), last_checked_at_ms = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND deleted_at IS NULL`,
+    UPDATE_SETTINGS: `UPDATE auth_organization_domains SET auto_join_enabled = $1, default_role = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND deleted_at IS NULL`,
+    SOFT_DELETE: `UPDATE auth_organization_domains SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`,
+    LIST_PENDING_OR_VERIFIED: `SELECT id, org_id, domain_name, status, verification_token, verification_method, default_role, auto_join_enabled, created_at_ms, verified_at_ms, last_checked_at_ms FROM auth_organization_domains WHERE deleted_at IS NULL AND status IN ('PENDING_VERIFICATION', 'VERIFIED')`,
+  },
+  FLOW_BLOCKED_DOMAINS: {
+    FIND_BY_NAME: `SELECT domain_name, category, reason, created_at_ms, updated_at_ms FROM auth_blocked_domains WHERE domain_name = $1 LIMIT 1`,
+    LIST_ALL: `SELECT domain_name, category, reason, created_at_ms, updated_at_ms FROM auth_blocked_domains ORDER BY domain_name ASC`,
+    INSERT: `INSERT INTO auth_blocked_domains (domain_name, category, reason, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (domain_name) DO UPDATE SET category = EXCLUDED.category, reason = EXCLUDED.reason, updated_at_ms = EXCLUDED.updated_at_ms, updated_at = CURRENT_TIMESTAMP`,
+    DELETE: `DELETE FROM auth_blocked_domains WHERE domain_name = $1`,
+  },
 } as const;
+

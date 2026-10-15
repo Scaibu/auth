@@ -12,7 +12,7 @@
  */
 
 import type { AuthRepositoryPort, OrganizationRecord } from './repository';
-import type { UserDsarExportPayload } from '../../shared/types/auth.types';
+import type { UserDsarExportPayload, BlockedDomainRecord } from '../../shared/types/auth.types';
 import type {
   SignUpInput,
   SignInInput,
@@ -61,11 +61,15 @@ import { OAuthDomainService, type OAuthSessionResult } from './services/oauth.se
 import type { OAuthProviderPort } from './ports/oauth-provider.port';
 import { GoogleOAuthAdapter } from '../../infra/adapters/oauth/google-oauth.adapter';
 import { GitHubOAuthAdapter } from '../../infra/adapters/oauth/github-oauth.adapter';
-import type { FederatedIdentityRecord } from '../../shared/types/auth.types';
+import type { FederatedIdentityRecord, ClaimedDomainRecord } from '../../shared/types/auth.types';
+import { AUTH_CONSTANTS } from '../../shared/constants/auth.constants';
 import { AUTH_CONFIG } from '../../config/env.config';
-
+import { DomainClaimService, type ClaimDomainInput, type ClaimDomainResult, type VerifyDomainResult } from './services/domain-claim.service';
+import type { DnsResolverPort } from './ports/dns-resolver.port';
+import { NodeDnsAdapter } from '../../infra/adapters/dns/node-dns.adapter';
 
 export class AuthService {
+  private readonly repo: AuthRepositoryPort;
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
   private readonly authService: UserAuthDomainService;
@@ -76,6 +80,7 @@ export class AuthService {
   private readonly stepUpService: StepUpDomainService;
   private readonly refreshTokenService: RefreshTokenService;
   private readonly oauthService: OAuthDomainService;
+  private readonly domainClaimService: DomainClaimService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -87,7 +92,9 @@ export class AuthService {
     notificationConfig?: NotificationConfig,
     mfaPort?: MfaPort,
     breachedPasswordDetector?: BreachedPasswordDetectorPort,
+    dnsResolver?: DnsResolverPort,
   ) {
+    this.repo = repo;
     const notificationService = mailer
       ? new NotificationDomainService(mailer, notificationConfig ?? { from: 'noreply@auth.local' })
       : undefined;
@@ -98,6 +105,9 @@ export class AuthService {
       timeoutMs: securityConfig?.breachedPassword?.timeoutMs ?? 1500,
       userAgent: securityConfig?.breachedPassword?.userAgent ?? 'llm-observability-auth/1.0.0',
     }) : undefined);
+
+    const resolver = dnsResolver ?? new NodeDnsAdapter();
+    this.domainClaimService = new DomainClaimService(repo, resolver);
 
     this.orgService = new OrganizationDomainService(repo);
     this.userService = new UserManagementDomainService(repo, notificationService);
@@ -126,7 +136,7 @@ export class AuthService {
       [googleAdapter.providerName, googleAdapter],
       [githubAdapter.providerName, githubAdapter],
     ]);
-    this.oauthService = new OAuthDomainService(providers, repo, this.refreshTokenService, AUTH_CONFIG.jwt.secret);
+    this.oauthService = new OAuthDomainService(providers, repo, this.refreshTokenService, AUTH_CONFIG.jwt.secret, this.domainClaimService);
   }
 
 
@@ -340,4 +350,53 @@ export class AuthService {
   async unlinkOAuthIdentity(userId: string, provider: string): Promise<void> {
     return this.oauthService.unlinkIdentity(userId, provider);
   }
+
+  async claimDomain(orgId: string, input: ClaimDomainInput): Promise<ClaimDomainResult> {
+    return this.domainClaimService.claimDomain(orgId, input);
+  }
+
+  async verifyDomain(domainId: string, orgId: string): Promise<VerifyDomainResult> {
+    return this.domainClaimService.verifyDomain(domainId, orgId);
+  }
+
+  async listClaimedDomains(orgId: string): Promise<ClaimedDomainRecord[]> {
+    return this.domainClaimService.listClaimedDomains(orgId);
+  }
+
+  async updateDomainSettings(
+    domainId: string,
+    orgId: string,
+    patch: { auto_join_enabled?: boolean; default_role?: string },
+  ): Promise<ClaimedDomainRecord> {
+    return this.domainClaimService.updateDomainSettings(domainId, orgId, patch);
+  }
+
+  async deleteClaimedDomain(domainId: string, orgId: string): Promise<void> {
+    return this.domainClaimService.deleteClaimedDomain(domainId, orgId);
+  }
+
+  async listBlockedDomains(): Promise<BlockedDomainRecord[]> {
+    return this.repo.listBlockedDomains();
+  }
+
+  async addBlockedDomain(record: { domain: string; category?: string; reason?: string }): Promise<BlockedDomainRecord> {
+    const domainName = this.domainClaimService.normalizeDomain(record.domain);
+    const now = Date.now();
+    const blockedRecord: BlockedDomainRecord = {
+      domain_name: domainName,
+      category: record.category || AUTH_CONSTANTS.DOMAIN_CLAIM.CATEGORY_FREEMAIL,
+      reason: record.reason || null,
+      created_at_ms: now,
+      updated_at_ms: now,
+    };
+    await this.repo.saveBlockedDomain(blockedRecord);
+    return blockedRecord;
+  }
+
+  async removeBlockedDomain(rawDomain: string): Promise<void> {
+    const domainName = this.domainClaimService.normalizeDomain(rawDomain);
+    await this.repo.deleteBlockedDomain(domainName);
+  }
 }
+
+

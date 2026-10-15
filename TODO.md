@@ -25,7 +25,7 @@
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ⏳ **Pending** | v1.2 | **P2** |
 | **Session Management** | Multi-Device Session Listing & Remote Kill | OWASP ASVS 3.3 | ✅ **Completed (ADR 0019)** | v1.2 | **P2** |
 | **Security & Defense** | Unified Adaptive Risk-Based Authentication (Soft Step-Up) | NIST SP 800-63-3 | ⏳ **Pending** | v1.2 | **P2** |
-| **Enterprise Identity** | Organization Domain Claiming & Verified Auto-Join | DNS TXT + Email Gate | ⏳ **Pending** | v1.2 | **P2** |
+| **Enterprise Identity** | Organization Domain Claiming & Verified Auto-Join | DNS TXT + Email Gate | ✅ **Completed (ADR 0021)** | v1.2 | **P2** |
 | **API Key Engine** | IP / CIDR Subnet Allowlist & Usage Analytics Telemetry | Zero-Trust Network | ⏳ **Pending** | v1.2 | **P2** |
 | **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ⏳ **Pending** | v1.2 | **P2** |
 | **User Lifecycle** | Password History Enforcement (Disallow Prior 10 Passwords) | NIST SP 800-63B | ⏳ **Pending** | v1.2 | **P2** |

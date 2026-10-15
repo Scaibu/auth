@@ -3,7 +3,7 @@ import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../../shared/types/auth.types';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
@@ -886,4 +886,178 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       return Number(res.rows[0]?.count ?? 0);
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveClaimedDomain(domainRecord: ClaimedDomainRecord): Promise<void> {
+    await withSpan('db.saveClaimedDomain', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.INSERT_DOMAIN, [
+        domainRecord.id,
+        domainRecord.org_id,
+        domainRecord.domain_name,
+        domainRecord.status,
+        domainRecord.verification_token,
+        domainRecord.verification_method,
+        domainRecord.default_role,
+        domainRecord.auto_join_enabled,
+        domainRecord.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findClaimedDomainById(domainId: string): Promise<ClaimedDomainRecord | null> {
+    return withSpan('db.findClaimedDomainById', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.FIND_BY_ID, [domainId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        domain_name: row.domain_name,
+        status: row.status,
+        verification_token: row.verification_token,
+        verification_method: row.verification_method,
+        default_role: row.default_role,
+        auto_join_enabled: Boolean(row.auto_join_enabled),
+        created_at_ms: Number(row.created_at_ms),
+        verified_at_ms: row.verified_at_ms ? Number(row.verified_at_ms) : null,
+        last_checked_at_ms: row.last_checked_at_ms ? Number(row.last_checked_at_ms) : null,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findClaimedDomainByName(domainName: string): Promise<ClaimedDomainRecord | null> {
+    return withSpan('db.findClaimedDomainByName', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.FIND_BY_NAME, [domainName]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        domain_name: row.domain_name,
+        status: row.status,
+        verification_token: row.verification_token,
+        verification_method: row.verification_method,
+        default_role: row.default_role,
+        auto_join_enabled: Boolean(row.auto_join_enabled),
+        created_at_ms: Number(row.created_at_ms),
+        verified_at_ms: row.verified_at_ms ? Number(row.verified_at_ms) : null,
+        last_checked_at_ms: row.last_checked_at_ms ? Number(row.last_checked_at_ms) : null,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listClaimedDomainsByOrgId(orgId: string): Promise<ClaimedDomainRecord[]> {
+    return withSpan('db.listClaimedDomainsByOrgId', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.LIST_BY_ORG_ID, [orgId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        org_id: row.org_id,
+        domain_name: row.domain_name,
+        status: row.status,
+        verification_token: row.verification_token,
+        verification_method: row.verification_method,
+        default_role: row.default_role,
+        auto_join_enabled: Boolean(row.auto_join_enabled),
+        created_at_ms: Number(row.created_at_ms),
+        verified_at_ms: row.verified_at_ms ? Number(row.verified_at_ms) : null,
+        last_checked_at_ms: row.last_checked_at_ms ? Number(row.last_checked_at_ms) : null,
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async updateClaimedDomainStatus(domainId: string, status: string, verifiedAtMs?: number): Promise<void> {
+    await withSpan('db.updateClaimedDomainStatus', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const now = Date.now();
+      await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.UPDATE_STATUS, [status, verifiedAtMs ?? null, now, domainId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async updateClaimedDomainSettings(domainId: string, autoJoinEnabled: boolean, defaultRole: string): Promise<void> {
+    await withSpan('db.updateClaimedDomainSettings', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.UPDATE_SETTINGS, [autoJoinEnabled, defaultRole, domainId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteClaimedDomain(domainId: string): Promise<void> {
+    await withSpan('db.deleteClaimedDomain', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.SOFT_DELETE, [domainId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listPendingOrVerifiedDomains(): Promise<ClaimedDomainRecord[]> {
+    return withSpan('db.listPendingOrVerifiedDomains', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_DOMAIN_CLAIM.LIST_PENDING_OR_VERIFIED);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        org_id: row.org_id,
+        domain_name: row.domain_name,
+        status: row.status,
+        verification_token: row.verification_token,
+        verification_method: row.verification_method,
+        default_role: row.default_role,
+        auto_join_enabled: Boolean(row.auto_join_enabled),
+        created_at_ms: Number(row.created_at_ms),
+        verified_at_ms: row.verified_at_ms ? Number(row.verified_at_ms) : null,
+        last_checked_at_ms: row.last_checked_at_ms ? Number(row.last_checked_at_ms) : null,
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findBlockedDomain(domainName: string): Promise<BlockedDomainRecord | null> {
+    return withSpan('db.findBlockedDomain', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_BLOCKED_DOMAINS.FIND_BY_NAME, [domainName.toLowerCase()]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        domain_name: row.domain_name,
+        category: row.category,
+        reason: row.reason,
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listBlockedDomains(): Promise<BlockedDomainRecord[]> {
+    return withSpan('db.listBlockedDomains', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_BLOCKED_DOMAINS.LIST_ALL);
+      return res.rows.map((row: any) => ({
+        domain_name: row.domain_name,
+        category: row.category,
+        reason: row.reason,
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveBlockedDomain(record: BlockedDomainRecord): Promise<void> {
+    await withSpan('db.saveBlockedDomain', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_BLOCKED_DOMAINS.INSERT, [
+        record.domain_name.toLowerCase(),
+        record.category,
+        record.reason ?? null,
+        record.created_at_ms,
+        record.updated_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteBlockedDomain(domainName: string): Promise<void> {
+    await withSpan('db.deleteBlockedDomain', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      await this.pool.query(AUTH_QUERIES.FLOW_BLOCKED_DOMAINS.DELETE, [domainName.toLowerCase()]);
+    }, { kind: SpanKind.CLIENT });
+  }
 }
+

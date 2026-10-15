@@ -154,5 +154,11 @@ export class ForbiddenError extends AuthError {
   }
 }
 
+export class ConflictError extends AuthError {
+  constructor(message = 'Resource conflict') {
+    super(message, 'CONFLICT', 409);
+  }
+}
+
 
 

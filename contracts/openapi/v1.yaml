@@ -347,6 +347,125 @@ paths:
         '404':
           description: Identity not found
 
+  /api/v1/auth/domains:
+    get:
+      summary: List all claimed domains for the authenticated organization
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of claimed domains
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Register pending domain claim for organization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain:
+                  type: string
+                  example: 'blute.co.in'
+                default_role:
+                  type: string
+                  default: 'member'
+                  example: 'member'
+      responses:
+        '201':
+          description: Domain claim registered with DNS TXT verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Invalid domain format or forbidden public freemail domain
+        '409':
+          description: Domain already claimed by another organization
+
+  /api/v1/auth/domains/{domainId}/verify:
+    post:
+      summary: Execute immediate on-demand DNS TXT challenge verification for claimed domain
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: domainId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Domain DNS TXT verification completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: DNS TXT challenge record not found or does not match
+        '404':
+          description: Domain not found
+
+  /api/v1/auth/domains/{domainId}:
+    patch:
+      summary: Update domain auto-join settings and default onboarding role
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: domainId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                auto_join_enabled:
+                  type: boolean
+                default_role:
+                  type: string
+      responses:
+        '200':
+          description: Domain settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '404':
+          description: Domain not found
+    delete:
+      summary: Revoke claimed domain
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: domainId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Domain claim deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '404':
+          description: Domain not found
+
   /api/v1/auth/organizations:
     get:
       summary: List all organizations the authenticated user belongs to

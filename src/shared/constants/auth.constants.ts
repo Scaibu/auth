@@ -183,7 +183,10 @@ export const AUTH_CONSTANTS = {
     FLOW_AUDIT_LOGS: 'FLOW_AUDIT_LOGS',
     FLOW_REFRESH_TOKEN: 'FLOW_REFRESH_TOKEN',
     FLOW_FEDERATED_IDENTITY: 'FLOW_FEDERATED_IDENTITY',
+    FLOW_DOMAIN_CLAIM: 'FLOW_DOMAIN_CLAIM',
+    FLOW_BLOCKED_DOMAINS: 'FLOW_BLOCKED_DOMAINS',
   },
+
 
   ERROR_MESSAGES: {
     INVALID_REFRESH_TOKEN: 'Invalid or unrecognised refresh token',
@@ -200,7 +203,41 @@ export const AUTH_CONSTANTS = {
     OAUTH_EMAIL_UNVERIFIED: 'Identity provider email is unverified; automatic linking rejected',
     OAUTH_UNLINK_NOT_PERMITTED: 'Cannot unlink identity: account has no password and no alternative login method',
     OAUTH_IDENTITY_NOT_FOUND: 'Federated identity not found for user',
+    DOMAIN_ALREADY_CLAIMED: 'Domain is already claimed by another organization',
+    DOMAIN_PUBLIC_FREEMAIL_FORBIDDEN: 'Public email domains cannot be claimed for enterprise auto-join',
+    DOMAIN_NOT_FOUND: 'Claimed domain record not found',
+    DOMAIN_VERIFICATION_FAILED: 'DNS TXT verification challenge record not found or does not match expected token',
+    DOMAIN_ALREADY_VERIFIED: 'Domain is already verified',
   },
+
+  DOMAIN_CLAIM: {
+    STATUS_PENDING: 'PENDING_VERIFICATION',
+    STATUS_VERIFIED: 'VERIFIED',
+    STATUS_SUSPENDED: 'SUSPENDED',
+    METHOD_DNS_TXT: 'DNS_TXT',
+    CHALLENGE_SUBDOMAIN_PREFIX: '_llmobs-challenge',
+    VERIFICATION_PREFIX: 'llmobs-verification=',
+    CATEGORY_FREEMAIL: 'FREEMAIL',
+    CATEGORY_DISPOSABLE: 'DISPOSABLE',
+    CATEGORY_RESTRICTED: 'RESTRICTED',
+    GRACE_PERIOD_MS: 72 * 60 * 60 * 1000,
+    CANONICAL_BLOCKED_DOMAINS: [
+      'gmail.com',
+      'googlemail.com',
+      'yahoo.com',
+      'hotmail.com',
+      'outlook.com',
+      'icloud.com',
+      'proton.me',
+      'protonmail.com',
+      'aol.com',
+      'mail.com',
+      'zoho.com',
+      'yandex.com',
+    ],
+  },
+
+
 
   CONTRACT_SCHEMAS: {
     USER_SESSION_SUMMARY: 'UserSessionSummary',
@@ -222,9 +259,12 @@ export const AUTH_CONSTANTS = {
     STATUS_423: "'423'",
     STATUS_429: "'429'",
     FEDERATED_USER_PROFILE: 'FederatedUserProfile',
+    CLAIMED_DOMAIN_RECORD: 'ClaimedDomainRecord',
     OPENAPI_OAUTH_AUTHORIZE: '/api/v1/auth/oauth/{provider}/authorize',
     OPENAPI_OAUTH_CALLBACK: '/api/v1/auth/oauth/{provider}/callback',
     OPENAPI_OAUTH_UNLINK: '/api/v1/auth/oauth/identities/{provider}',
+    OPENAPI_DOMAINS: '/api/v1/auth/domains',
+    OPENAPI_DOMAINS_VERIFY: '/api/v1/auth/domains/{domainId}/verify',
   },
 
   OAUTH: {
@@ -245,4 +285,10 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_OAUTH_SIGNIN: 'USER_OAUTH_SIGNIN',
   AUDIT_EVENT_OAUTH_LINK: 'USER_OAUTH_LINK',
   AUDIT_EVENT_OAUTH_UNLINK: 'USER_OAUTH_UNLINK',
+  AUDIT_EVENT_DOMAIN_CLAIMED: 'DOMAIN_CLAIMED',
+  AUDIT_EVENT_DOMAIN_VERIFIED: 'DOMAIN_VERIFIED',
+  AUDIT_EVENT_DOMAIN_REVOKED: 'DOMAIN_REVOKED',
+  AUDIT_EVENT_USER_AUTO_JOINED: 'USER_AUTO_JOINED_ORGANIZATION',
+  AUDIT_EVENT_BLOCKED_DOMAIN_ADDED: 'BLOCKED_DOMAIN_ADDED',
+  AUDIT_EVENT_BLOCKED_DOMAIN_REMOVED: 'BLOCKED_DOMAIN_REMOVED',
 } as const;

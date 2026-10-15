@@ -34,6 +34,16 @@ import { handleVerifyEmail, handleResendVerification } from './handlers/email-ve
 import { handleMfaSetup, handleMfaVerify, handleMfaChallenge, handleMfaRegenerateRecoveryCodes } from './handlers/mfa.handler';
 import { handleStepUpVerify, handleImpersonateUser, handleDisableMfa, handlePurgeExpired } from './handlers/step-up.handler';
 import { handleOAuthAuthorize, handleOAuthCallback, handleListOAuthIdentities, handleUnlinkOAuthIdentity } from './handlers/oauth.handler';
+import {
+  handleClaimDomain,
+  handleVerifyDomain,
+  handleListClaimedDomains,
+  handleUpdateDomainSettings,
+  handleDeleteClaimedDomain,
+  handleListBlockedDomains,
+  handleAddBlockedDomain,
+  handleRemoveBlockedDomain,
+} from './handlers/domain.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -526,4 +536,71 @@ export const ROUTE_RULES: RouteRule[] = [
     successMessage: 'OAuth identity unlinked successfully',
     handler: (ctx, session) => handleUnlinkOAuthIdentity(ctx.service, session, ctx.params?.provider ?? ''),
   },
+  {
+    name: 'claim_domain',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.DOMAINS,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Domain claim registered successfully',
+    handler: (ctx, session) => handleClaimDomain(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'list_claimed_domains',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.DOMAINS,
+    requiresAuth: true,
+    successMessage: 'Claimed domains retrieved successfully',
+    handler: (ctx, session) => handleListClaimedDomains(ctx.service, session),
+  },
+  {
+    name: 'verify_domain',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.DOMAINS_VERIFY,
+    requiresAuth: true,
+    successMessage: 'Domain DNS verification executed',
+    handler: (ctx, session) => handleVerifyDomain(ctx.service, ctx.params?.domainId ?? '', session),
+  },
+  {
+    name: 'update_domain_settings',
+    method: HTTP_METHODS.PATCH,
+    pattern: AUTH_ENDPOINTS.DOMAINS_ITEM,
+    requiresAuth: true,
+    successMessage: 'Domain settings updated successfully',
+    handler: (ctx, session) => handleUpdateDomainSettings(ctx.service, ctx.params?.domainId ?? '', ctx.body, session),
+  },
+  {
+    name: 'delete_claimed_domain',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.DOMAINS_ITEM,
+    requiresAuth: true,
+    successMessage: 'Domain claim deleted successfully',
+    handler: (ctx, session) => handleDeleteClaimedDomain(ctx.service, ctx.params?.domainId ?? '', session),
+  },
+  {
+    name: 'admin_list_blocked_domains',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.ADMIN_BLOCKED_DOMAINS,
+    requiresAuth: true,
+    successMessage: 'Blocked domains retrieved successfully',
+    handler: (ctx, session) => handleListBlockedDomains(ctx.service, session),
+  },
+  {
+    name: 'admin_add_blocked_domain',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.ADMIN_BLOCKED_DOMAINS,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Blocked domain added successfully',
+    handler: (ctx, session) => handleAddBlockedDomain(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'admin_remove_blocked_domain',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.ADMIN_BLOCKED_DOMAIN_ITEM,
+    requiresAuth: true,
+    successMessage: 'Blocked domain removed successfully',
+    handler: (ctx, session) => handleRemoveBlockedDomain(ctx.service, ctx.params?.domain ?? '', session),
+  },
 ];
+

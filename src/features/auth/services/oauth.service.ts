@@ -24,12 +24,15 @@ export interface OAuthSessionResult {
   };
 }
 
+import type { DomainClaimService } from './domain-claim.service';
+
 export class OAuthDomainService {
   constructor(
     private readonly providers: Map<string, OAuthProviderPort>,
     private readonly repository: AuthRepositoryPort,
     private readonly refreshTokenService: RefreshTokenService,
-    private readonly jwtSecret: string
+    private readonly jwtSecret: string,
+    private readonly domainClaimService?: DomainClaimService,
   ) {}
 
   public generateStateToken(provider: string, redirectUri?: string): string {
@@ -201,26 +204,53 @@ export class OAuthDomainService {
     }
 
     const now = Date.now();
-    const newOrgId = `org_${Math.random().toString(36).substring(2, 10)}`;
-    const orgName = `${profile.name}'s Organization`;
     const newUserId = `usr_${Math.random().toString(36).substring(2, 10)}`;
     const disabledPassword = `${AUTH_CONSTANTS.OAUTH.DISABLED_PASSWORD_PREFIX}${randomBytes(16).toString(AUTH_CONSTANTS.CRYPTO.ENCODING_HEX)}`;
+    let targetOrgId = `org_${Math.random().toString(36).substring(2, 10)}`;
+    let targetOrgName = `${profile.name}'s Organization`;
+    let targetRole: string = AUTH_CONSTANTS.DEFAULT_ADMIN_ROLE;
+    let shouldCreateOrg = true;
 
+    if (profile.email_verified && this.domainClaimService) {
+      const claimedDomain = await this.domainClaimService.findVerifiedDomainForEmail(profile.email);
+      if (claimedDomain) {
+        const orgRecord = await this.repository.getOrganizationById(claimedDomain.org_id);
+        if (orgRecord) {
+          targetOrgId = claimedDomain.org_id;
+          targetOrgName = orgRecord.name;
+          targetRole = claimedDomain.default_role;
+          shouldCreateOrg = false;
+        }
+      }
+    }
 
     const newUser = {
       id: newUserId,
       email: profile.email,
       password_hash: disabledPassword,
       name: profile.name,
-      org_id: newOrgId,
-      org_name: orgName,
-      role: AUTH_CONSTANTS.DEFAULT_ADMIN_ROLE as any,
+      org_id: targetOrgId,
+      org_name: targetOrgName,
+      role: targetRole as any,
       blocked: false,
       user_permissions: [AUTH_CONSTANTS.PERMISSION_ADMIN_ALL],
       email_verified: true,
     };
 
-    await this.repository.createOrganizationAndUser(newUser);
+    if (shouldCreateOrg) {
+      await this.repository.createOrganizationAndUser(newUser);
+    } else {
+      await this.repository.createUser(newUser);
+      await this.repository.recordAuditLog({
+        id: `aud_${now}_${randomBytes(4).toString(AUTH_CONSTANTS.CRYPTO.ENCODING_HEX)}`,
+        user_id: newUserId,
+        org_id: targetOrgId,
+        event_type: AUTH_CONSTANTS.AUDIT_EVENT_USER_AUTO_JOINED,
+        ip_address: AUTH_CONSTANTS.DEFAULTS.IP_ADDRESS,
+        user_agent: AUTH_CONSTANTS.DEFAULTS.USER_AGENT,
+        timestamp_ms: now,
+      });
+    }
 
     const identityRecord: FederatedIdentityRecord = {
       id: `fed_${now}_${Math.random().toString(36).substring(2, 9)}`,

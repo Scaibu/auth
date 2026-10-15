@@ -124,3 +124,34 @@ export const FederatedUserProfileSchema = z.object({
 });
 export type FederatedUserProfile = z.infer<typeof FederatedUserProfileSchema>;
 
+export const DomainStatusSchema = z.enum([
+  AUTH_CONSTANTS.DOMAIN_CLAIM.STATUS_PENDING,
+  AUTH_CONSTANTS.DOMAIN_CLAIM.STATUS_VERIFIED,
+  AUTH_CONSTANTS.DOMAIN_CLAIM.STATUS_SUSPENDED,
+]);
+export type DomainStatus = z.infer<typeof DomainStatusSchema>;
+
+export const ClaimedDomainRecordSchema = z.object({
+  id: z.string().min(1),
+  org_id: z.string().min(1),
+  domain_name: z.string().min(1),
+  status: DomainStatusSchema,
+  verification_token: z.string().min(1),
+  verification_method: z.string().min(1),
+  default_role: z.string().min(1),
+  auto_join_enabled: z.boolean(),
+  created_at_ms: z.number().int().positive(),
+  verified_at_ms: z.number().int().positive().nullable().optional(),
+  last_checked_at_ms: z.number().int().positive().nullable().optional(),
+});
+export type ClaimedDomainRecord = z.infer<typeof ClaimedDomainRecordSchema>;
+
+export const BlockedDomainRecordSchema = z.object({
+  domain_name: z.string().min(1),
+  category: z.string().min(1),
+  reason: z.string().nullable().optional(),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive(),
+});
+export type BlockedDomainRecord = z.infer<typeof BlockedDomainRecordSchema>;
+

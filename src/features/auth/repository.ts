@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../shared/types/auth.types';
 
 export interface OrganizationRecord {
   id: string;
@@ -94,6 +94,18 @@ export interface AuthRepositoryPort {
   saveFederatedIdentity(identity: FederatedIdentityRecord): Promise<void>;
   deleteFederatedIdentity(userId: string, provider: string): Promise<void>;
   countFederatedIdentitiesByUserId(userId: string): Promise<number>;
+  saveClaimedDomain(domainRecord: ClaimedDomainRecord): Promise<void>;
+  findClaimedDomainById(domainId: string): Promise<ClaimedDomainRecord | null>;
+  findClaimedDomainByName(domainName: string): Promise<ClaimedDomainRecord | null>;
+  listClaimedDomainsByOrgId(orgId: string): Promise<ClaimedDomainRecord[]>;
+  updateClaimedDomainStatus(domainId: string, status: string, verifiedAtMs?: number): Promise<void>;
+  updateClaimedDomainSettings(domainId: string, autoJoinEnabled: boolean, defaultRole: string): Promise<void>;
+  deleteClaimedDomain(domainId: string): Promise<void>;
+  listPendingOrVerifiedDomains(): Promise<ClaimedDomainRecord[]>;
+  findBlockedDomain(domainName: string): Promise<BlockedDomainRecord | null>;
+  listBlockedDomains(): Promise<BlockedDomainRecord[]>;
+  saveBlockedDomain(record: BlockedDomainRecord): Promise<void>;
+  deleteBlockedDomain(domainName: string): Promise<void>;
 }
 
 
