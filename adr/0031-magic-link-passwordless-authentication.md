@@ -214,6 +214,54 @@ flowchart TD
 
 ---
 
+## 🔄 7. Magic Link Single-Use Token Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Dispatched: POST /magic-link/send (rawToken = crypto.randomBytes(32))
+    Dispatched --> PendingStored: token_hash = SHA-256(rawToken) persisted (expires_at = now + 15m)
+    
+    state PendingStored {
+        [*] --> ScannerGetInspection
+        ScannerGetInspection --> ChallengeReturned: GET /magic-link/verify?token=...
+        ChallengeReturned --> UnconsumedReady: Token NOT mutated (consumed_at_ms IS NULL)
+    }
+
+    PendingStored --> Superseded: Novel request sent by user before consumption (superseded_at_ms = now)
+    Superseded --> [*]: Disallowed for authentication
+
+    PendingStored --> Expired: now > expires_at_ms (15 minutes elapsed)
+    Expired --> [*]: 400 Bad Request
+
+    PendingStored --> ConsumptionAttempt: POST /magic-link/consume { token }
+    
+    state ConsumptionAttempt {
+        [*] --> AtomicConditionalUpdate
+        AtomicConditionalUpdate --> ConsumptionSucceeded: WHERE token_hash = $1 AND consumed_at_ms IS NULL
+        AtomicConditionalUpdate --> ReplayRejected: Rows affected == 0 (Already consumed / raced)
+    }
+
+    ReplayRejected --> [*]: 409 Conflict / Replay Blocked
+    ConsumptionSucceeded --> SessionIssued: JWT Bearer & Refresh Token issued
+    SessionIssued --> [*]
+```
+
+---
+
+## 🛡 8. Threat Mitigation Matrix & Architecture Invariant Adherence
+
+| Threat Vector | Mitigation Strategy | Architectural Invariant |
+|---|---|---|
+| **Automated Mail Crawlers (Mimecast / SafeLinks)** | Decoupled verification (`GET` verifies without consuming; only `POST` consumes). | RFC 7231 Safe Method Idempotency |
+| **Token Interception via Referer Headers** | Token not echoed or passed in query parameters during cross-site asset loads. | OWASP ASVS §2.7 |
+| **Database Read Compromise** | Cryptographic one-way SHA-256 hashing before write. Plaintext discarded after dispatch. | NIST SP 800-63B |
+| **Distributed Token Flooding / DoS** | Dual-track sliding-window rate limit (3/15m per email, 10/15m per IP). | Zero-Trust Defense Perimeter |
+
+- **Functions & Classes Writing Rules**: Domain coordination in `MagicLinkService` complies with [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md) (stateless, zero inline comments, constructor dependency injection, explicit `try/catch/finally` span lifecycle).
+- **API Response Envelopes**: Complies with [2-apis.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/2-apis.writing.rule.md) with standardized envelopes (`success`, `statusCode`, `data`, `meta`).
+
+---
+
 ## Consequences
 
 - **Positive**:
@@ -223,3 +271,4 @@ flowchart TD
   - Strict compliance with [05-db-writing-rules.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/05-db-writing-rules.md) and enterprise auditability.
 - **Negative**:
   - Dependent on email infrastructure delivery latency (mitigated by 15-minute token TTL).
+

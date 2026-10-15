@@ -389,3 +389,46 @@ attributes:
 | **B. Unsalted Hashes / Fast Hashes (SHA-256 / MD5)** | Fast comparison ($< 1$ ms). | Catastrophic vulnerability to offline dictionary attacks and cross-user correlation. | **Rejected**: Violates NIST SP 800-63B and OWASP ASVS storage rules. |
 | **C. In-Memory Bloom Filter in Redis** | Instant membership lookup ($O(1)$). | Probabilistic false positives (can reject valid novel passwords); impossible to reliably evict on a FIFO basis without rotating filter structures. | **Rejected**: False positives degrade user trust and violate deterministic validation requirements. |
 | **D. 24-Password History Window** | Extends retention across longer timeframe. | Increases Argon2id verification computational overhead proportionally; degrades user experience without adding meaningful entropy security. | **Rejected**: NIST SP 800-63B recommends minimum 10; 10 strikes the optimal security/performance balance. |
+
+---
+
+## 🔄 9. Password Lifecycle & FIFO Eviction State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Gen0Active: User Provisioned (signUp / inviteUser / createUser)
+    Gen0Active --> HistoryPersisted: Genesis Argon2id hash inserted into auth_password_history (N=1)
+    
+    HistoryPersisted --> RotationCandidate: Candidate password submitted (changePassword / resetPassword)
+    
+    state RotationCandidate {
+        [*] --> CurrentPasswordCheck
+        CurrentPasswordCheck --> RejectCurrent: Matches user.password_hash (HTTP 400)
+        CurrentPasswordCheck --> EvaluateHistoryParallel: Unique against active hash
+        
+        EvaluateHistoryParallel --> ParallelArgon2idVerify: Query top 10 historical hashes (auth_password_history)
+        ParallelArgon2idVerify --> RejectHistorical: Matches any of top 10 hashes (PASSWORD_RECENTLY_USED)
+        ParallelArgon2idVerify --> AcceptNovel: Zero matches across history window
+    }
+    
+    RejectCurrent --> RotationAborted: 400 Bad Request
+    RejectHistorical --> RotationAborted: 400 Bad Request (SIEM Event Emitted)
+    
+    AcceptNovel --> AtomicallyCommitted: UPDATE auth_users SET password_hash = newHash
+    AtomicallyCommitted --> InsertHistory: INSERT INTO auth_password_history (user_id, hash, created_at_ms)
+    InsertHistory --> PruneOldEntries: DELETE FROM auth_password_history WHERE id NOT IN (top 10 by created_at_ms)
+    PruneOldEntries --> RotationActive: Fresh session issued, history window clamped to N=10
+    
+    RotationAborted --> [*]
+    RotationActive --> [*]
+```
+
+---
+
+## ⚡ 10. Memory & Performance Guardrails (Parallel Evaluation)
+
+To ensure Argon2id evaluations adhere to [4-performance-and-durability.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/code-quality/coding-standards/4-performance-and-durability.md) and bounded execution:
+- **Bounded Worker Pool**: Historical Argon2id verifications execute using `Promise.all` with maximum concurrency bounded to `parallelism = 4`, preventing worker thread pool starvation.
+- **Circuit Breaker on History Query**: If database query exceeds $200\text{ ms}$, the service fails closed to prevent unverified password reuse during database degradation.
+- **Strict Compliance**: Adheres to [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md) with typed `Result<T, E>` returns and zero inline comments.
+

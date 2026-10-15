@@ -418,8 +418,74 @@ ORDER BY anomaly_flagged_at_ms DESC;
 
 ---
 
-## 🔒 7. Reverse-Proxy Ingress Security Invariant
+---
+
+## 🔄 8. API Key Lifecycle & Zero-Trust Quarantine State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> ActiveKey: POST /api/v1/auth/api-keys (ip_allowlist, rate_quota_rpm)
+    
+    state ActiveKey {
+        [*] --> VerificationPass
+        VerificationPass --> RateEvaluated: IP in Allowlist (or Allowlist empty)
+        RateEvaluated --> VerifiedOK: Sliding 60s requests <= rate_quota_rpm
+        RateEvaluated --> RateThrottled: Sliding 60s requests > rate_quota_rpm
+        RateThrottled --> AnomalyTripped: Sliding 60s requests > (3 * rate_quota_rpm)
+        AnomalyTripped --> Quarantined: Async DB trigger: anomaly_flag = TRUE
+        RateThrottled --> VerificationPass: Window resets (Next epoch minute)
+    }
+
+    ActiveKey --> AllowlistModified: PATCH /api/v1/auth/api-keys/:id/allowlist
+    AllowlistModified --> ActiveKey: New CIDR subnets applied in-memory
+
+    ActiveKey --> ExpiredKey: Current epoch > expires_at_ms (401 Unauthorized)
+    ActiveKey --> RevokedKey: DELETE /api/v1/auth/api-keys/:id (deleted_at = NOW())
+    
+    Quarantined --> Quarantined: SOC alert dispatched to SIEM
+    Quarantined --> RevokedKey: Manual or automated administrative isolation
+    
+    ExpiredKey --> [*]
+    RevokedKey --> [*]
+```
+
+---
+
+## ⚡ 9. Redis Lua Atomic Token-Bucket Script Specification
+
+To eliminate race conditions during high-concurrency bursts across distributed ingress nodes, quota increments execute via a single atomic Redis Lua script:
+
+```lua
+-- KEYS[1]: auth:rate_quota:{key_id}:{epochMinute}
+-- ARGV[1]: rate_quota_rpm (number)
+-- ARGV[2]: anomaly_multiplier (e.g. 3)
+-- ARGV[3]: window_ttl_seconds (e.g. 65)
+
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+    redis.call('EXPIRE', KEYS[1], tonumber(ARGV[3]))
+end
+
+local quota = tonumber(ARGV[1])
+local multiplier = tonumber(ARGV[2])
+local anomaly_threshold = quota * multiplier
+
+local status = 'OK'
+if current > anomaly_threshold then
+    status = 'ANOMALY_TRIPPED'
+elseif current > quota then
+    status = 'RATE_EXCEEDED'
+end
+
+return { current, status }
+```
+
+---
+
+## 🔒 10. Reverse-Proxy Ingress Security Invariant
 
 When running behind reverse proxies (AWS ALB, Cloudflare, Nginx, Envoy):
 - **Never trust raw headers blindly**: Do not extract `client_ip` from an arbitrary `X-Forwarded-For` header supplied by an untrusted public client.
 - **Trusted Proxy Stripping**: The edge gateway must either take the direct socket address (`req.socket.remoteAddress`) or strip untrusted hops using a verified `trusted_proxies` CIDR table before passing `client_ip` to `verifyApiKey`.
+- **Zero Inline Comments Doctrine**: Handlers strictly follow [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md) with self-documenting types and structured try/catch/finally telemetry.
+

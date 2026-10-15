@@ -303,9 +303,43 @@ sequenceDiagram
 
 ---
 
+## 🔄 7. Multi-Tenant Role Composition & Bitwise Aggregation Tree
+
+```mermaid
+flowchart LR
+    subgraph OrganizationBoundary ["Tenant Isolation Boundary (org_id = $1)"]
+        direction TB
+        CR1["Custom Role: Telemetry Analyst<br/>Mask: 0x0000000003000000n<br/>(TELEMETRY_READ | TELEMETRY_WRITE)"]
+        CR2["Custom Role: User Manager<br/>Mask: 0x0000000000000300n<br/>(USERS_READ | USERS_INVITE)"]
+        CR3["Custom Role: Audit Inspector<br/>Mask: 0x0000000100000000n<br/>(AUDIT_LOGS_READ)"]
+    end
+
+    User(["Assigned User: usr_enterprise99"]) --> CR1
+    User --> CR2
+    User --> CR3
+
+    CR1 --> BitwiseEngine["Bitwise Aggregator (OR Operator)<br/>EffectiveMask = CR1 | CR2 | CR3"]
+    CR2 --> BitwiseEngine
+    CR3 --> BitwiseEngine
+
+    BitwiseEngine --> Evaluator{"Permission Check:<br/>(Effective &amp; Required) == Required"}
+    Evaluator -- "Sub-Microsecond Bitwise AND" --> FastDecision(["Zero-IO Decision: GRANTED / DENIED"])
+```
+
+---
+
+## 🛡 8. Architectural & Clean Code Invariants
+
+- **Functions & Classes**: Adheres strictly to [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md) (stateless domain service, zero comments in code, constructor dependency injection, explicit `try/catch/finally` span ownership).
+- **Shared Code Discipline**: Conforms to [3.shared.code.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/3.shared.code.writing.rule.md) with pure bitwise operations in `src/shared/utils/` and centralized error hierarchy.
+- **API Response Envelopes**: Complies with [2-apis.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/2-apis.writing.rule.md) ensuring all role management endpoints wrap payloads in standardized response envelopes.
+
+---
+
 ## Consequences
 - **Positive**:
   - Full adherence to [05-db-writing-rules.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/05-db-writing-rules.md) with surrogate `id`, external `public_id`, composite `(org_id, id)` FKs, check constraints, version columns, and audit logging.
   - $O(1)$ authorization evaluation in critical telemetry and control planes.
 - **Negative**:
   - Maximum 63 bits per permission set (extensible with multi-word arrays when needed).
+

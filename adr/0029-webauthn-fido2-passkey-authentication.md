@@ -297,3 +297,61 @@ CREATE INDEX IF NOT EXISTS idx_auth_passkey_challenges_lookup
 | `PASSKEY_AUTHENTICATED` | LOW | Successful biometric assertion | Reset login failure counters |
 | `PASSKEY_REVOKED` | MEDIUM | User deleted passkey | Audit trail logging |
 | `PASSKEY_CLONE_DETECTED` | **CRITICAL** | Signature counter $\le$ recorded counter | Revoke session, lock passkey, dispatch SecOps alert |
+
+---
+
+## 🔄 7. Authenticator Credential Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> ChallengeCreated: POST /passkeys/register/start (crypto.randomBytes(32), 300s TTL)
+    
+    state RegistrationPhase {
+        ChallengeCreated --> AttestationReceived: Navigator credentials.create() biometric sign
+        AttestationReceived --> ValidateClientData: clientDataJSON.type === 'webauthn.create'
+        ValidateClientData --> ValidateOrigin: clientDataJSON.origin === AUTH_CONSTANTS.WEBAUTHN.ORIGIN
+        ValidateOrigin --> ValidateChallengeMatch: challenge matches auth_passkey_challenges
+        ValidateChallengeMatch --> ConsumeChallenge: Challenge atomically invalidated
+        ConsumeChallenge --> CheckDuplicateCred: Query auth_passkey_credentials WHERE credential_id
+        CheckDuplicateCred --> RejectDuplicate: Credential ID already registered (409 Conflict)
+        CheckDuplicateCred --> PersistCredential: Save public key & signCount = 0
+    }
+    
+    RejectDuplicate --> [*]
+    PersistCredential --> RegisteredActive: Passkey ready for assertion
+
+    state AuthenticationPhase {
+        RegisteredActive --> AssertionChallengeEmitted: POST /passkeys/authenticate/start
+        AssertionChallengeEmitted --> AssertionSignatureReceived: POST /passkeys/authenticate/finish
+        AssertionSignatureReceived --> VerifyClientDataGet: clientDataJSON.type === 'webauthn.get'
+        VerifyClientDataGet --> CheckCloneCounter: Compare authenticatorData signCount with storedCounter
+        CheckCloneCounter --> CloneDetected: incoming signCount <= storedCounter AND storedCounter > 0
+        CheckCloneCounter --> ValidCounterIncrement: incoming signCount > storedCounter
+        ValidCounterIncrement --> SessionIssued: UPDATE counter = nextCounter, issue JWT session
+    }
+
+    CloneDetected --> QuarantinedClone: PASSKEY_CLONE_DETECTED alert dispatched to SIEM
+    QuarantinedClone --> [*]: 401 Unauthorized, immediate credential revocation
+
+    SessionIssued --> RegisteredActive: User returns to active operational state
+    RegisteredActive --> SoftDeleted: DELETE /passkeys/:id (deleted_at = NOW())
+    SoftDeleted --> [*]
+```
+
+---
+
+## 🔏 8. Supported COSE Cryptographic Algorithms Matrix
+
+| Algorithm Name | COSE Identifier | Curve / Parameters | NIST AAL3 Status | Platform Support |
+|---|---|---|---|---|
+| **ES256** | `-7` | ECDSA over NIST P-256 with SHA-256 | Preferred Standard | Apple Touch/Face ID, Windows Hello, Android Biometrics, YubiKey 5 |
+| **Ed25519 (EdDSA)** | `-8` | PureEdDSA over Curve25519 | Modern High-Assurance | Hardware Security Keys (YubiKey 5.2+, Nitrokey) |
+| **RS256** | `-257` | RSASSA-PKCS1-v1_5 with SHA-256 | Legacy Compatibility | TPM 1.2/2.0 Windows Hello Enterprise Enclaves |
+
+---
+
+## 🛡 9. API & Architecture Invariant Adherence
+
+- **Response Envelopes**: All endpoints adhere to [2-apis.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/2-apis.writing.rule.md) with strict envelope wrapping (`success`, `statusCode`, `data`, `meta`).
+- **Zero Inline Comments Doctrine**: Handlers strictly follow [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md).
+
