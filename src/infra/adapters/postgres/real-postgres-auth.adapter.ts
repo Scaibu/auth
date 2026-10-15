@@ -3,7 +3,7 @@ import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
@@ -1120,6 +1120,118 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       };
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveRelationTuple(tuple: RelationTuple): Promise<void> {
+    return withSpan('db.saveRelationTuple', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      span.setAttribute('tenant.org_id', tuple.org_id);
+      await this.pool.query(AUTH_QUERIES.FLOW_RELATION_TUPLES.INSERT, [
+        tuple.id,
+        tuple.org_id,
+        tuple.subject_type,
+        tuple.subject_id,
+        tuple.relation,
+        tuple.object_type,
+        tuple.object_id,
+        JSON.stringify(tuple.conditions || {}),
+        tuple.status || 'ACTIVE',
+        tuple.expires_at_ms ?? null,
+        tuple.granted_by ?? null,
+        tuple.version ?? 1,
+        tuple.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteRelationTuple(
+    orgId: string,
+    subjectType: string,
+    subjectId: string,
+    relation: string,
+    objectType: string,
+    objectId: string,
+  ): Promise<boolean> {
+    return withSpan('db.deleteRelationTuple', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      span.setAttribute('tenant.org_id', orgId);
+      const res = await this.pool.query(AUTH_QUERIES.FLOW_RELATION_TUPLES.DELETE, [
+        orgId,
+        subjectType,
+        subjectId,
+        relation,
+        objectType,
+        objectId,
+      ]);
+      return (res.rowCount ?? 0) > 0;
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findRelationTuples(
+    orgId: string,
+    filter?: {
+      subject_type?: string;
+      subject_id?: string;
+      relation?: string;
+      object_type?: string;
+      object_id?: string;
+    },
+  ): Promise<RelationTuple[]> {
+    return withSpan('db.findRelationTuples', async (span) => {
+      span.setAttribute(AUTH_CONSTANTS.SPAN_DB_SYSTEM, AUTH_CONSTANTS.SPAN_DB_SYSTEM_VAL);
+      span.setAttribute('tenant.org_id', orgId);
+
+      const now = Date.now();
+      const conditions = [
+        'org_id = $1',
+        'deleted_at IS NULL',
+        "status = 'ACTIVE'",
+        '(expires_at_ms IS NULL OR expires_at_ms > $2)',
+      ];
+      const values: unknown[] = [orgId, now];
+      let paramIdx = 3;
+
+      if (filter?.subject_type) {
+        conditions.push(`subject_type = $${paramIdx++}`);
+        values.push(filter.subject_type);
+      }
+      if (filter?.subject_id) {
+        conditions.push(`subject_id = $${paramIdx++}`);
+        values.push(filter.subject_id);
+      }
+      if (filter?.relation) {
+        conditions.push(`relation = $${paramIdx++}`);
+        values.push(filter.relation);
+      }
+      if (filter?.object_type) {
+        conditions.push(`object_type = $${paramIdx++}`);
+        values.push(filter.object_type);
+      }
+      if (filter?.object_id) {
+        conditions.push(`object_id = $${paramIdx++}`);
+        values.push(filter.object_id);
+      }
+
+      const sql = `SELECT id, org_id, subject_type, subject_id, relation, object_type, object_id, conditions, status, expires_at_ms, granted_by, version, created_at_ms FROM auth_relation_tuples WHERE ${conditions.join(' AND ')} ORDER BY created_at_ms ASC`;
+      const res = await this.pool.query(sql, values);
+      return res.rows.map((row) => ({
+        id: row.id,
+        org_id: row.org_id,
+        subject_type: row.subject_type,
+        subject_id: row.subject_id,
+        relation: row.relation,
+        object_type: row.object_type,
+        object_id: row.object_id,
+        conditions: typeof row.conditions === 'string' ? JSON.parse(row.conditions) : (row.conditions || {}),
+        status: row.status,
+        expires_at_ms: row.expires_at_ms !== null ? Number(row.expires_at_ms) : undefined,
+        granted_by: row.granted_by ?? undefined,
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
 }
+
+
 
 

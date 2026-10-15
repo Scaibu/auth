@@ -1,6 +1,6 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 
@@ -744,7 +744,67 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
     return { ...userHistory[0]! };
   }
+
+  private readonly mockRelationTuples = new Map<string, RelationTuple>();
+
+  async saveRelationTuple(tuple: RelationTuple): Promise<void> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RELATION_TUPLES);
+    const key = `${tuple.org_id}:${tuple.subject_type}:${tuple.subject_id}:${tuple.relation}:${tuple.object_type}:${tuple.object_id}`;
+    this.mockRelationTuples.set(key, { ...tuple });
+  }
+
+  async deleteRelationTuple(
+    orgId: string,
+    subjectType: string,
+    subjectId: string,
+    relation: string,
+    objectType: string,
+    objectId: string,
+  ): Promise<boolean> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RELATION_TUPLES);
+    const key = `${orgId}:${subjectType}:${subjectId}:${relation}:${objectType}:${objectId}`;
+    const existing = this.mockRelationTuples.get(key);
+    if (!existing || existing.deleted_at_ms) return false;
+    existing.status = 'REVOKED';
+    existing.deleted_at_ms = Date.now();
+    return true;
+  }
+
+  async findRelationTuples(
+    orgId: string,
+    filter?: {
+      subject_type?: string;
+      subject_id?: string;
+      relation?: string;
+      object_type?: string;
+      object_id?: string;
+    },
+  ): Promise<RelationTuple[]> {
+    this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_RELATION_TUPLES);
+    const now = Date.now();
+    let results = [...this.mockRelationTuples.values()].filter(
+      (t) => t.org_id === orgId && !t.deleted_at_ms && t.status === 'ACTIVE' && (!t.expires_at_ms || t.expires_at_ms > now)
+    );
+    if (filter?.subject_type) {
+      results = results.filter((t) => t.subject_type === filter.subject_type);
+    }
+    if (filter?.subject_id) {
+      results = results.filter((t) => t.subject_id === filter.subject_id);
+    }
+    if (filter?.relation) {
+      results = results.filter((t) => t.relation === filter.relation);
+    }
+    if (filter?.object_type) {
+      results = results.filter((t) => t.object_type === filter.object_type);
+    }
+    if (filter?.object_id) {
+      results = results.filter((t) => t.object_id === filter.object_id);
+    }
+    return results.map((t) => ({ ...t }));
+  }
+
 }
+
 
 
 

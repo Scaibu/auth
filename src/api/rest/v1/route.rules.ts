@@ -45,6 +45,12 @@ import {
   handleAddBlockedDomain,
   handleRemoveBlockedDomain,
 } from './handlers/domain.handler';
+import {
+  handleEvaluatePolicy,
+  handleCreateRelation,
+  handleDeleteRelation,
+  handleListRelations,
+} from './handlers/policy.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -610,5 +616,39 @@ export const ROUTE_RULES: RouteRule[] = [
     successMessage: 'Blocked domain removed successfully',
     handler: (ctx, session) => handleRemoveBlockedDomain(ctx.service, ctx.params?.domain ?? '', session),
   },
+  {
+    name: 'policies_evaluate',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.POLICIES_EVALUATE,
+    requiresAuth: true,
+    successMessage: 'Policy evaluation decision computed successfully',
+    handler: (ctx, session) => handleEvaluatePolicy(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'policies_create_relation',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.POLICIES_RELATIONS,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Relationship tuple created successfully',
+    handler: (ctx, session) => handleCreateRelation(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'policies_delete_relation',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.POLICIES_RELATIONS,
+    requiresAuth: true,
+    successMessage: 'Relationship tuple deleted successfully',
+    handler: (ctx, session) => handleDeleteRelation(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'policies_list_relations',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.POLICIES_RELATIONS,
+    requiresAuth: true,
+    successMessage: 'Relationship tuples retrieved successfully',
+    handler: (ctx, session) => handleListRelations(ctx.service, ctx.queryParams, session),
+  },
 ];
+
 

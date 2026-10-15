@@ -36,7 +36,7 @@ echo -e "\n--- [4/34] POST /api/v1/auth/sign-up (Register Admin & Org with Secur
 TIMESTAMP=$(date +%s)
 ADMIN_EMAIL="admin_${TIMESTAMP}@observability.io"
 ORG_NAME="Org Primary ${TIMESTAMP}"
-PASSWORD="StrongPassword123!"
+PASSWORD="Unbr3ach4bl3_P@ssw0rd_${TIMESTAMP}!"
 
 SIGNUP_RAW=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-up" \
   -H "Content-Type: application/json" \
@@ -313,11 +313,25 @@ REVOKE_ALL_OTHER_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/sessions" \
   -H "x-session-family: fam_primary_laptop")
 echo "${REVOKE_ALL_OTHER_RESP}"
 
-echo -e "\n--- [41/41] POST /api/v1/auth/challenge/resolve (Adaptive Risk Challenge Resolution - ADR 0022) ---"
+echo -e "\n--- [41/43] POST /api/v1/auth/challenge/resolve (Adaptive Risk Challenge Resolution - ADR 0022) ---"
 CHALLENGE_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/challenge/resolve" \
   -H "Content-Type: application/json" \
   -d '{"challenge_token":"invalid_token","verification_code":"123456"}')
 echo "${CHALLENGE_RESP}"
+
+echo -e "\n--- [42/43] POST /api/v1/auth/policies/relations (Create ReBAC Relationship Tuple - ADR 0023) ---"
+POLICY_REL_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/policies/relations" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"subject_type":"user","subject_id":"usr_test_curl","relation":"editor","object_type":"report","object_id":"rep_curl"}')
+echo "${POLICY_REL_RESP}"
+
+echo -e "\n--- [43/43] POST /api/v1/auth/policies/evaluate (Evaluate Fine-Grained Policy - ADR 0023) ---"
+POLICY_EVAL_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/policies/evaluate" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"subject_type":"user","subject_id":"usr_test_curl","action":"read","object_type":"report","object_id":"rep_curl"}')
+echo "${POLICY_EVAL_RESP}"
 
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
@@ -325,6 +339,7 @@ SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 41 Auth Endpoints Executed and Verified Successfully! "
+echo " All 43 Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
+
 

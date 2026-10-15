@@ -155,3 +155,41 @@ export const BlockedDomainRecordSchema = z.object({
 });
 export type BlockedDomainRecord = z.infer<typeof BlockedDomainRecordSchema>;
 
+export const RelationTupleSchema = z.object({
+  id: z.string().min(1),
+  org_id: z.string().min(1),
+  subject_type: z.string().min(1),
+  subject_id: z.string().min(1),
+  relation: z.string().min(1),
+  object_type: z.string().min(1),
+  object_id: z.string().min(1),
+  conditions: z.record(z.unknown()).default({}),
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'EXPIRED', 'REVOKED']).default('ACTIVE'),
+  expires_at_ms: z.number().int().positive().nullable().optional(),
+  granted_by: z.string().nullable().optional(),
+  version: z.number().int().positive().default(1),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive().optional(),
+  deleted_at_ms: z.number().int().positive().nullable().optional(),
+});
+export type RelationTuple = z.infer<typeof RelationTupleSchema>;
+
+export const PolicyEvaluationRequestSchema = z.object({
+  subject_type: z.string().min(1),
+  subject_id: z.string().min(1),
+  action: z.string().min(1),
+  object_type: z.string().min(1),
+  object_id: z.string().min(1),
+  context: z.record(z.unknown()).optional(),
+});
+export type PolicyEvaluationRequest = z.infer<typeof PolicyEvaluationRequestSchema>;
+
+export const PolicyEvaluationResultSchema = z.object({
+  allowed: z.boolean(),
+  reason: z.string(),
+  decision: z.string(),
+  evaluated_at: z.string(),
+});
+export type PolicyEvaluationResult = z.infer<typeof PolicyEvaluationResultSchema>;
+
+

@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../shared/types/auth.types';
 
 export interface OrganizationRecord {
   id: string;
@@ -130,6 +130,25 @@ export interface AuthRepositoryPort {
     riskScore: number;
     createdAtMs: number;
   } | null>;
+  saveRelationTuple(tuple: RelationTuple): Promise<void>;
+  deleteRelationTuple(
+    orgId: string,
+    subjectType: string,
+    subjectId: string,
+    relation: string,
+    objectType: string,
+    objectId: string,
+  ): Promise<boolean>;
+  findRelationTuples(
+    orgId: string,
+    filter?: {
+      subject_type?: string;
+      subject_id?: string;
+      relation?: string;
+      object_type?: string;
+      object_id?: string;
+    },
+  ): Promise<RelationTuple[]>;
 }
 
 

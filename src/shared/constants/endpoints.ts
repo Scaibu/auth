@@ -39,6 +39,8 @@ export const AUTH_ENDPOINTS = {
   ADMIN_BLOCKED_DOMAINS: '/api/v1/auth/admin/blocked-domains',
   ADMIN_BLOCKED_DOMAIN_ITEM: '/api/v1/auth/admin/blocked-domains/:domain',
   CHALLENGE_RESOLVE: '/api/v1/auth/challenge/resolve',
+  POLICIES_EVALUATE: '/api/v1/auth/policies/evaluate',
+  POLICIES_RELATIONS: '/api/v1/auth/policies/relations',
   HEALTH: '/health',
 } as const;
 

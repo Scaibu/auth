@@ -186,6 +186,7 @@ export const AUTH_CONSTANTS = {
     FLOW_DOMAIN_CLAIM: 'FLOW_DOMAIN_CLAIM',
     FLOW_BLOCKED_DOMAINS: 'FLOW_BLOCKED_DOMAINS',
     FLOW_LOGIN_HISTORY: 'FLOW_LOGIN_HISTORY',
+    FLOW_RELATION_TUPLES: 'FLOW_RELATION_TUPLES',
   },
 
 
@@ -369,5 +370,32 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_RISK_CHALLENGE_ISSUED: 'RISK_CHALLENGE_ISSUED',
   AUDIT_EVENT_RISK_CHALLENGE_RESOLVED: 'RISK_CHALLENGE_RESOLVED',
   AUDIT_EVENT_HIGH_RISK_BLOCKED: 'HIGH_RISK_SIGNIN_BLOCKED',
+  AUDIT_EVENT_RELATION_CREATED: 'RELATION_TUPLE_CREATED',
+  AUDIT_EVENT_RELATION_REVOKED: 'RELATION_TUPLE_REVOKED',
+  AUDIT_EVENT_POLICY_EVALUATED: 'POLICY_EVALUATED',
+
+  POLICY: {
+    RELATION_OWNER: 'owner',
+    RELATION_EDITOR: 'editor',
+    RELATION_VIEWER: 'viewer',
+    RELATION_ADMIN: 'admin',
+    RELATION_MEMBER: 'member',
+    SUBJECT_TYPE_USER: 'user',
+    SUBJECT_TYPE_TEAM: 'team',
+    SUBJECT_TYPE_ORG: 'organization',
+    ACTION_READ: 'read',
+    ACTION_WRITE: 'write',
+    ACTION_DELETE: 'delete',
+    ACTION_MANAGE: 'manage',
+    MAX_TRAVERSAL_DEPTH: 5,
+    DECISION_ALLOWED: 'ALLOWED',
+    DECISION_DENIED: 'DENIED',
+    REASON_DIRECT_MATCH: 'Subject has direct relation to object',
+    REASON_IMPLIED_HIERARCHY: 'Subject satisfies relation via transitive role hierarchy',
+    REASON_GROUP_INHERITANCE: 'Subject inherits relation via team membership',
+    REASON_NO_RELATION_FOUND: 'No matching relationship tuple satisfies target action',
+    REASON_MFA_REQUIRED: 'Action requires active multi-factor authentication (MFA)',
+  },
 } as const;
+
 

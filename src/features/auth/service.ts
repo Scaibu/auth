@@ -58,6 +58,10 @@ import type { MfaPort, MfaSetupResult, MfaVerificationResult } from '../../share
 import type { BreachedPasswordDetectorPort } from '../../shared/ports/breached-password-detector.port';
 import { HaveIBeenPwnedAdapter } from '../../infra/adapters/security/pwned-passwords.adapter';
 import { OAuthDomainService, type OAuthSessionResult } from './services/oauth.service';
+import type { PolicyEnginePort } from './ports/policy-engine.port';
+import { PolicyEngineService } from './services/policy-engine.service';
+import { NativePolicyEngineAdapter } from '../../infra/adapters/policy/native-policy-engine.adapter';
+import type { RelationTuple, PolicyEvaluationRequest, PolicyEvaluationResult } from '../../shared/types/auth.types';
 import type { OAuthProviderPort } from './ports/oauth-provider.port';
 import { GoogleOAuthAdapter } from '../../infra/adapters/oauth/google-oauth.adapter';
 import { GitHubOAuthAdapter } from '../../infra/adapters/oauth/github-oauth.adapter';
@@ -82,6 +86,7 @@ export class AuthService {
   private readonly refreshTokenService: RefreshTokenService;
   private readonly oauthService: OAuthDomainService;
   private readonly domainClaimService: DomainClaimService;
+  private readonly policyEngineService: PolicyEngineService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -95,8 +100,12 @@ export class AuthService {
     breachedPasswordDetector?: BreachedPasswordDetectorPort,
     dnsResolver?: DnsResolverPort,
     geoIpPort?: GeoIpPort,
+    policyEnginePort?: PolicyEnginePort,
   ) {
     this.repo = repo;
+    const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
+    this.policyEngineService = new PolicyEngineService(policyEngine, repo);
+
     const notificationService = mailer
       ? new NotificationDomainService(mailer, notificationConfig ?? { from: 'noreply@auth.local' })
       : undefined;
@@ -410,6 +419,56 @@ export class AuthService {
     const domainName = this.domainClaimService.normalizeDomain(rawDomain);
     await this.repo.deleteBlockedDomain(domainName);
   }
+
+  async evaluatePolicy(
+    orgId: string,
+    request: PolicyEvaluationRequest,
+  ): Promise<PolicyEvaluationResult> {
+    return this.policyEngineService.evaluatePolicy(orgId, request);
+  }
+
+  async createRelation(
+    orgId: string,
+    payload: {
+      subject_type: string;
+      subject_id: string;
+      relation: string;
+      object_type: string;
+      object_id: string;
+      conditions?: Record<string, unknown>;
+      expires_at_ms?: number;
+      granted_by?: string;
+    },
+  ): Promise<RelationTuple> {
+    return this.policyEngineService.createRelation(orgId, payload);
+  }
+
+  async deleteRelation(
+    orgId: string,
+    payload: {
+      subject_type: string;
+      subject_id: string;
+      relation: string;
+      object_type: string;
+      object_id: string;
+    },
+  ): Promise<boolean> {
+    return this.policyEngineService.deleteRelation(orgId, payload);
+  }
+
+  async listRelations(
+    orgId: string,
+    filter?: {
+      subject_type?: string;
+      subject_id?: string;
+      relation?: string;
+      object_type?: string;
+      object_id?: string;
+    },
+  ): Promise<readonly RelationTuple[]> {
+    return this.policyEngineService.listRelations(orgId, filter);
+  }
 }
+
 
 

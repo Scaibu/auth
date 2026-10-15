@@ -168,5 +168,12 @@ export const AUTH_QUERIES = {
     INSERT: `INSERT INTO auth_login_history (id, user_id, ip_address, latitude, longitude, asn, is_datacenter, device_fingerprint, risk_score, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     FIND_LATEST_BY_USER: `SELECT id, user_id, ip_address, latitude, longitude, asn, is_datacenter, device_fingerprint, risk_score, created_at_ms FROM auth_login_history WHERE user_id = $1 ORDER BY created_at_ms DESC LIMIT 1`,
   },
+  FLOW_RELATION_TUPLES: {
+    INSERT: `INSERT INTO auth_relation_tuples (id, org_id, subject_type, subject_id, relation, object_type, object_id, conditions, status, expires_at_ms, granted_by, version, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT (org_id, subject_type, subject_id, relation, object_type, object_id) DO UPDATE SET conditions = EXCLUDED.conditions, status = EXCLUDED.status, expires_at_ms = EXCLUDED.expires_at_ms, version = auth_relation_tuples.version + 1, updated_at = CURRENT_TIMESTAMP`,
+    DELETE: `UPDATE auth_relation_tuples SET status = 'REVOKED', deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE org_id = $1 AND subject_type = $2 AND subject_id = $3 AND relation = $4 AND object_type = $5 AND object_id = $6 AND deleted_at IS NULL`,
+    FIND_FILTERED_BASE: `SELECT id, org_id, subject_type, subject_id, relation, object_type, object_id, conditions, status, expires_at_ms, granted_by, version, created_at_ms FROM auth_relation_tuples WHERE org_id = $1 AND deleted_at IS NULL AND status = 'ACTIVE' AND (expires_at_ms IS NULL OR expires_at_ms > $2)`,
+  },
 } as const;
+
+
 

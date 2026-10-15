@@ -11,7 +11,7 @@ describe('Domain Claiming & Verified Auto-Join End-to-End API Flow', () => {
   let adminToken: string;
   let corporateOrgId: string;
   const corporateDomain = `enterprise-${Date.now()}.com`;
-  const mockDnsRecords = new Map<string, string[]>();
+  const mockDnsRecords = new Map<string, string[][]>();
 
   beforeAll(async () => {
     const repo = new AlloyDBOmniAuthAdapter();
@@ -116,7 +116,7 @@ describe('Domain Claiming & Verified Auto-Join End-to-End API Flow', () => {
 
     mockDnsRecords.set(
       `${AUTH_CONSTANTS.DOMAIN_CLAIM.CHALLENGE_SUBDOMAIN_PREFIX}.${corporateDomain}`,
-      [domainData.verification_token],
+      [[domainData.verification_token]],
     );
 
     const verifyRes = await router.route(

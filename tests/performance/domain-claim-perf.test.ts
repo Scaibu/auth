@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { RealPostgresAuthAdapter } from '../../src/infra/adapters/postgres/real-postgres-auth.adapter';
 import { DomainClaimService } from '../../src/features/auth/services/domain-claim.service';
 import type { DnsResolverPort } from '../../src/features/auth/ports/dns-resolver.port';

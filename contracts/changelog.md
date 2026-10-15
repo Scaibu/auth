@@ -1,5 +1,14 @@
 # Auth Contracts Changelog
 
+## [1.9.0] - 2026-10-15
+### Added
+- Fine-Grained Policy Engine (ABAC / ReBAC) with Zanzibar-Style Relationship Tuples (ADR 0023):
+  - Added `POST /api/v1/auth/policies/evaluate`: Deterministic evaluation of permissions with transitive relation inheritance and ABAC conditions.
+  - Added `POST /api/v1/auth/policies/relations`: Creates 6-ary relationship tuple `(org_id, subject_type, subject_id, relation, object_type, object_id)`.
+  - Added `DELETE /api/v1/auth/policies/relations`: Revokes relationship tuple.
+  - Added `GET /api/v1/auth/policies/relations`: Enumerates active relationship tuples filtered by subject or object.
+  - Added schemas `RelationTuple`, `PolicyEvaluationRequest`, and `PolicyEvaluationResult`.
+
 ## [1.8.0] - 2026-10-15
 ### Added
 - Unified Adaptive Risk-Based Authentication & Soft Step-Up (NIST SP 800-63-3 / ADR 0022):
