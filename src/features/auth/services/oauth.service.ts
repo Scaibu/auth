@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import type { AuthRepositoryPort, OrganizationRecord } from '../repository';
+import type { AuthRepositoryPort } from '../repository';
 import type { OAuthProviderPort } from '../ports/oauth-provider.port';
 import type { RefreshTokenService } from './refresh-token.service';
 import type { FederatedIdentityRecord, FederatedUserProfile } from '../../../shared/types/auth.types';
@@ -203,15 +203,9 @@ export class OAuthDomainService {
     const now = Date.now();
     const newOrgId = `org_${Math.random().toString(36).substring(2, 10)}`;
     const orgName = `${profile.name}'s Organization`;
-    const orgSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const newUserId = `usr_${Math.random().toString(36).substring(2, 10)}`;
     const disabledPassword = `${AUTH_CONSTANTS.OAUTH.DISABLED_PASSWORD_PREFIX}${randomBytes(16).toString(AUTH_CONSTANTS.CRYPTO.ENCODING_HEX)}`;
 
-    const newOrg: OrganizationRecord = {
-      id: newOrgId,
-      name: orgName,
-      slug: orgSlug,
-    };
 
     const newUser = {
       id: newUserId,
@@ -226,8 +220,7 @@ export class OAuthDomainService {
       email_verified: true,
     };
 
-    await this.repository.createOrganization(newOrg, newUserId);
-    await this.repository.createUser(newUser);
+    await this.repository.createOrganizationAndUser(newUser);
 
     const identityRecord: FederatedIdentityRecord = {
       id: `fed_${now}_${Math.random().toString(36).substring(2, 9)}`,

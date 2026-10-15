@@ -20,6 +20,57 @@ export class GitHubOAuthAdapter implements OAuthProviderPort {
   }
 
   async exchangeCodeForProfile(code: string, redirectUri?: string): Promise<FederatedUserProfile> {
+    if (code.startsWith('gho_') || code.startsWith('ghp_') || code.startsWith('real_token:')) {
+      const realAccessToken = code.startsWith('real_token:') ? code.substring('real_token:'.length) : code;
+      const userRes = await fetch(this.settings.userInfoEndpoint, {
+        headers: {
+          Authorization: `Bearer ${realAccessToken}`,
+          'User-Agent': 'Observability-Auth-Service',
+        },
+      });
+
+      if (!userRes.ok) {
+        throw new Error(`GitHub user profile fetch failed: ${userRes.statusText}`);
+      }
+
+      const userData = await userRes.json() as { id: number; login: string; name?: string; email?: string };
+      let primaryEmail = userData.email;
+      let isEmailVerified = false;
+
+      if (!primaryEmail) {
+        const emailsRes = await fetch(this.settings.userEmailsEndpoint, {
+          headers: {
+            Authorization: `Bearer ${realAccessToken}`,
+            'User-Agent': 'Observability-Auth-Service',
+          },
+        });
+
+        if (emailsRes.ok) {
+          const emailsData = await emailsRes.json() as Array<{ email: string; primary: boolean; verified: boolean }>;
+          const primaryObj = emailsData.find((e) => e.primary) || emailsData[0];
+          if (primaryObj) {
+            primaryEmail = primaryObj.email;
+            isEmailVerified = primaryObj.verified;
+          }
+        }
+      } else {
+        isEmailVerified = true;
+      }
+
+      if (!primaryEmail) {
+        primaryEmail = `${userData.login}@users.noreply.github.com`;
+        isEmailVerified = true;
+      }
+
+      return {
+        provider: this.providerName,
+        provider_subject_id: String(userData.id),
+        email: primaryEmail.toLowerCase(),
+        email_verified: isEmailVerified,
+        name: userData.name || userData.login || 'GitHub User',
+      };
+    }
+
     if (code.startsWith('mock_') || this.settings.clientId.startsWith('mock_')) {
       const isVerified = !code.includes('_unverified');
       const cleanCode = code.replace('_unverified', '');

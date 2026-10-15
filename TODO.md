@@ -21,7 +21,7 @@
 
 | **Audit & Compliance** | GDPR Data Subject Access Request (DSAR) JSON Export | GDPR Article 15 | ✅ **Completed (ADR 0017)** | v1.1 | **P1** |
 | **Security & Defense** | Automated Security Headers & Strict CSP (Nonces) | W3C CSP Level 3 | ✅ **Completed (ADR 0018)** | v1.1 | **P1** |
-| **Enterprise Identity** | OAuth2 / OIDC Social Login (Google, GitHub, GitLab) | RFC 6749 / OIDC | ⏳ **Pending** | v1.1 | **P1** |
+| **Enterprise Identity** | OAuth2 / OIDC Social Login (Google, GitHub, GitLab) | RFC 6749 / OIDC | ✅ **Completed (ADR 0020)** | v1.1 | **P1** |
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ⏳ **Pending** | v1.2 | **P2** |
 | **Session Management** | Multi-Device Session Listing & Remote Kill | OWASP ASVS 3.3 | ✅ **Completed (ADR 0019)** | v1.2 | **P2** |
 | **Security & Defense** | Unified Adaptive Risk-Based Authentication (Soft Step-Up) | NIST SP 800-63-3 | ⏳ **Pending** | v1.2 | **P2** |

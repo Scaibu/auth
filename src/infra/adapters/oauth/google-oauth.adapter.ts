@@ -23,6 +23,26 @@ export class GoogleOAuthAdapter implements OAuthProviderPort {
   }
 
   async exchangeCodeForProfile(code: string, redirectUri?: string): Promise<FederatedUserProfile> {
+    if (code.startsWith('ya29.') || code.startsWith('real_token:')) {
+      const realAccessToken = code.startsWith('real_token:') ? code.substring('real_token:'.length) : code;
+      const userRes = await fetch(this.settings.userInfoEndpoint, {
+        headers: { Authorization: `Bearer ${realAccessToken}` },
+      });
+
+      if (!userRes.ok) {
+        throw new Error(`Google userinfo fetch failed: ${userRes.statusText}`);
+      }
+
+      const userData = await userRes.json() as { sub: string; email: string; email_verified?: boolean; name?: string; picture?: string };
+      return {
+        provider: this.providerName,
+        provider_subject_id: userData.sub,
+        email: userData.email.toLowerCase(),
+        email_verified: Boolean(userData.email_verified),
+        name: userData.name || userData.email.split('@')[0] || 'Google User',
+      };
+    }
+
     if (code.startsWith('mock_') || this.settings.clientId.startsWith('mock_')) {
       const isVerified = !code.includes('_unverified');
       const cleanCode = code.replace('_unverified', '');

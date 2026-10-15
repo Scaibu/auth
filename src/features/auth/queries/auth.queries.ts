@@ -51,13 +51,7 @@ export const AUTH_QUERIES = {
     PURGE_REFRESH_TOKENS: `DELETE FROM auth_refresh_tokens WHERE (is_revoked = TRUE AND created_at_ms < $1) OR expires_at_ms < $1`,
   },
   FLOW_SIGN_UP: {
-    CHECK_ORG_EXISTS: `
-      SELECT id FROM (
-        SELECT id FROM auth_organizations WHERE name = $1 AND deleted_at IS NULL LIMIT 1
-        UNION ALL
-        SELECT id FROM auth_organizations WHERE slug = $2 AND deleted_at IS NULL LIMIT 1
-      ) o LIMIT 1
-    `,
+    CHECK_ORG_EXISTS: `SELECT id FROM auth_organizations WHERE (name = $1 OR slug = $2) AND deleted_at IS NULL LIMIT 1`,
     INSERT_ORG: `INSERT INTO auth_organizations (id, name, slug) VALUES ($1, $2, $3)`,
     INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,

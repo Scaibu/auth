@@ -118,7 +118,7 @@ classDiagram
         -repo: AuthRepositoryPort
         -refreshTokenService: RefreshTokenService
         -jwtSecret: string
-        +getAuthorizationUrl(provider: string, redirectUri?: string) Promise~{ url: string, state: string }~
+        +getAuthorizationUrl(provider: string, redirectUri?: string) Promise~OAuthAuthorizationResult~
         +handleCallback(provider: string, code: string, state: string, ip: string, userAgent: string) Promise~AuthSessionPayload~
         +listLinkedIdentities(userId: string) Promise~FederatedIdentityRecord[]~
         +unlinkIdentity(userId: string, provider: string) Promise~void~
@@ -434,3 +434,246 @@ curl -X GET "http://localhost:3000/api/v1/auth/oauth/identities" \
 | **Account Takeover via Email Spoofing** | Attacker registers IdP account with victim's email (unverified) | Automatic linking strictly denied unless `email_verified: true` from IdP |
 | **Token Interception in Referrer** | Authorization code leaked via browser referer headers | Callback parameters delivered via POST body; HTTPS strict transport security (HSTS) |
 | **Permanent Account Lockout** | User deletes sole federated identity when no local password is set | Precondition check: unlinking rejected if no password and no other identities exist |
+
+---
+
+---
+
+## 11. Provider Extensibility Guide: Step-by-Step Implementation Blueprint
+
+The authentication subsystem is structured around **Hexagonal Architecture (Ports and Adapters)** and the **Strategy Pattern**. Adding support for any new Identity Provider (such as Microsoft Entra ID / Azure AD, Okta, GitLab, or Apple) requires **zero changes to SQL migrations, zero changes to routing tables, and zero changes to domain core linking rules**.
+
+Follow this precise, 5-step implementation workflow to integrate a new provider:
+
+---
+
+### Step 1: Register Provider Constants & Error Codes
+Open `src/shared/constants/auth.constants.ts` and add the provider identifier constant under `AUTH_CONSTANTS.OAUTH`:
+
+```typescript
+export const AUTH_CONSTANTS = {
+  OAUTH: {
+    PROVIDER_GOOGLE: 'google',
+    PROVIDER_GITHUB: 'github',
+    PROVIDER_MICROSOFT: 'microsoft', // <-- Add unique canonical identifier
+    STATE_TTL_MS: 600000,
+    DISABLED_PASSWORD_PREFIX: '!federated_sso_',
+    CRYPTO: {
+      HMAC_ALGORITHM: 'sha256',
+      ENCODING_BASE64URL: 'base64url',
+      ENCODING_HEX: 'hex',
+    },
+  },
+  // ...
+} as const;
+```
+
+---
+
+### Step 2: Configure Environment Schema & Endpoint Resolution
+Update `src/config/oauth.config.ts` to define the configuration interface and load environment variables:
+
+```typescript
+export interface MicrosoftOAuthSettings extends OAuthProviderSettings {
+  tenantId: string;
+}
+
+export interface OAuthConfig {
+  google: OAuthProviderSettings;
+  github: GitHubOAuthSettings;
+  microsoft: MicrosoftOAuthSettings; // <-- Add provider settings type
+}
+
+export function loadOAuthConfig(): OAuthConfig {
+  const msTenant = process.env.AUTH_OAUTH_MICROSOFT_TENANT_ID || 'common';
+  return {
+    // ... existing google & github configs ...
+    microsoft: {
+      tenantId: msTenant,
+      clientId: process.env.AUTH_OAUTH_MICROSOFT_CLIENT_ID || 'mock_ms_client_id_001',
+      clientSecret: process.env.AUTH_OAUTH_MICROSOFT_CLIENT_SECRET || 'mock_ms_client_secret_001',
+      redirectUri: process.env.AUTH_OAUTH_MICROSOFT_REDIRECT_URI || 'http://localhost:3000/api/v1/auth/oauth/microsoft/callback',
+      authEndpoint: `https://login.microsoftonline.com/${msTenant}/oauth2/v2.0/authorize`,
+      tokenEndpoint: `https://login.microsoftonline.com/${msTenant}/oauth2/v2.0/token`,
+      userInfoEndpoint: 'https://graph.microsoft.com/v1.0/me',
+    },
+  };
+}
+```
+
+Add the corresponding keys to `.env.example`:
+```bash
+AUTH_OAUTH_MICROSOFT_TENANT_ID=common
+AUTH_OAUTH_MICROSOFT_CLIENT_ID=your-azure-app-client-id
+AUTH_OAUTH_MICROSOFT_CLIENT_SECRET=your-azure-app-client-secret
+AUTH_OAUTH_MICROSOFT_REDIRECT_URI=http://localhost:3001/api/v1/auth/oauth/microsoft/callback
+```
+
+---
+
+### Step 3: Implement the Driven Port Adapter (`OAuthProviderPort`)
+Create `src/infra/adapters/oauth/microsoft-oauth.adapter.ts`. The adapter is responsible for:
+1. Constructing the provider's authorization URL with required OIDC scopes (`openid profile email`).
+2. Exchanging the authorization code for tokens and querying the profile endpoint.
+3. Normalizing the returned profile into the canonical `FederatedUserProfile` shape.
+
+```typescript
+import type { OAuthProviderPort } from '../../../features/auth/ports/oauth-provider.port';
+import type { FederatedUserProfile } from '../../../shared/types/auth.types';
+import type { MicrosoftOAuthSettings } from '../../../config/oauth.config';
+import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
+
+export class MicrosoftOAuthAdapter implements OAuthProviderPort {
+  public readonly providerName = AUTH_CONSTANTS.OAUTH.PROVIDER_MICROSOFT;
+
+  constructor(private readonly settings: MicrosoftOAuthSettings) {}
+
+  async getAuthorizationUrl(state: string, redirectUri?: string): Promise<string> {
+    const targetRedirect = redirectUri || this.settings.redirectUri;
+    const params = new URLSearchParams({
+      client_id: this.settings.clientId,
+      response_type: 'code',
+      redirect_uri: targetRedirect,
+      response_mode: 'query',
+      scope: 'openid profile email User.Read',
+      state,
+    });
+    return `${this.settings.authEndpoint}?${params.toString()}`;
+  }
+
+  async exchangeCodeForProfile(code: string, redirectUri?: string): Promise<FederatedUserProfile> {
+    // 1. Direct / Mock bypass for automated test suites
+    if (code.startsWith('mock_') || this.settings.clientId.startsWith('mock_')) {
+      const isVerified = !code.includes('_unverified');
+      const cleanCode = code.replace('_unverified', '');
+      const match = cleanCode.match(/^mock_([^_:]+)[:_](.+)$/);
+      const subject = match?.[1] || 'ms_sub_12345';
+      const email = match?.[2] || `user_${subject}@outlook.com`;
+      return {
+        provider: this.providerName,
+        provider_subject_id: subject,
+        email: decodeURIComponent(email).toLowerCase(),
+        email_verified: isVerified,
+        name: `Microsoft User ${subject.substring(0, 6)}`,
+      };
+    }
+
+    // 2. Real Token Exchange with Microsoft Identity Platform
+    const targetRedirect = redirectUri || this.settings.redirectUri;
+    const tokenRes = await fetch(this.settings.tokenEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: this.settings.clientId,
+        client_secret: this.settings.clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: targetRedirect,
+        scope: 'openid profile email User.Read',
+      }).toString(),
+    });
+
+    if (!tokenRes.ok) {
+      throw new Error(`Microsoft token exchange failed: ${tokenRes.statusText}`);
+    }
+
+    const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
+    if (!tokenData.access_token) {
+      throw new Error(`Microsoft token response error: ${tokenData.error || 'missing access_token'}`);
+    }
+
+    // 3. Query Microsoft Graph API for normalized user claims
+    const userRes = await fetch(this.settings.userInfoEndpoint, {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!userRes.ok) {
+      throw new Error(`Microsoft Graph userinfo fetch failed: ${userRes.statusText}`);
+    }
+
+    const userData = await userRes.json() as { id: string; userPrincipalName: string; mail?: string; displayName?: string };
+    const email = (userData.mail || userData.userPrincipalName).toLowerCase();
+
+    return {
+      provider: this.providerName,
+      provider_subject_id: userData.id,
+      email,
+      email_verified: true, // Microsoft Graph emails from corporate/personal tenants are verified
+      name: userData.displayName || email.split('@')[0] || 'Microsoft User',
+    };
+  }
+}
+```
+
+---
+
+### Step 4: Register the Strategy in `AuthService`
+In `src/features/auth/service.ts`, import `MicrosoftOAuthAdapter` and insert it into the provider map during service construction:
+
+```typescript
+import { MicrosoftOAuthAdapter } from '../../infra/adapters/oauth/microsoft-oauth.adapter';
+
+// Inside constructor:
+const googleAdapter = new GoogleOAuthAdapter(AUTH_CONFIG.oauth.google);
+const githubAdapter = new GitHubOAuthAdapter(AUTH_CONFIG.oauth.github);
+const microsoftAdapter = new MicrosoftOAuthAdapter(AUTH_CONFIG.oauth.microsoft);
+
+const providers = new Map<string, OAuthProviderPort>([
+  [googleAdapter.providerName, googleAdapter],
+  [githubAdapter.providerName, githubAdapter],
+  [microsoftAdapter.providerName, microsoftAdapter], // <-- Provider registered
+]);
+
+this.oauthService = new OAuthDomainService(providers, repo, this.refreshTokenService, AUTH_CONFIG.jwt.secret);
+```
+
+---
+
+### Step 5: Automatic Dynamic Ingress & Verification
+Because [AuthRestV1Router](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/api/rest/v1/router.ts) routes dynamically resolve `:provider` parameters from the URI pattern `/api/v1/auth/oauth/:provider/*`, **no new routing code is required**. The following endpoints become operational immediately:
+
+1. **Initiate Authorization**:
+   ```bash
+   GET /api/v1/auth/oauth/microsoft/authorize?redirect_uri=https://your-frontend.com/callback
+   ```
+2. **Execute Callback & Link Account**:
+   ```bash
+   POST /api/v1/auth/oauth/microsoft/callback
+   Content-Type: application/json
+   {
+     "code": "M.R3_BAY...",
+     "state": "eyJub25jZSI6..."
+   }
+   ```
+3. **Unlink Identity**:
+   ```bash
+   DELETE /api/v1/auth/oauth/identities/microsoft
+   Authorization: Bearer <jwt>
+   ```
+
+---
+
+### Step 6: Automated Test Verification
+Add unit coverage in `tests/unit/oauth-sso.test.ts`:
+```typescript
+it('should generate signed authorization URL for Microsoft with state parameter', async () => {
+  const res = await router.route('GET', '/api/v1/auth/oauth/microsoft/authorize');
+  expect(res.statusCode).toBe(200);
+  expect(res.payload.data.provider).toBe('microsoft');
+  expect(res.payload.data.authorization_url).toContain('login.microsoftonline.com');
+});
+
+it('should provision new account via Microsoft callback with mock code', async () => {
+  const authRes = await router.route('GET', '/api/v1/auth/oauth/microsoft/authorize');
+  const { state } = authRes.payload.data;
+  const callbackRes = await router.route('POST', '/api/v1/auth/oauth/microsoft/callback', {
+    code: 'mock_ms_id_7788:corpuser@enterprise.com',
+    state,
+  });
+  expect(callbackRes.statusCode).toBe(200);
+  expect(callbackRes.payload.data.user.email).toBe('corpuser@enterprise.com');
+});
+```
