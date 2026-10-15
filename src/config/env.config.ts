@@ -6,6 +6,8 @@ import { loadMailerConfig, type MailerConfig, type SesMailerConfig, type Sendgri
 import { loadSecurityHeadersConfig, type SecurityHeadersConfig } from './security-headers.config';
 import { loadOAuthConfig, type OAuthConfig } from './oauth.config';
 import { loadGeoIpConfig, type GeoIpConfig } from './geoip.config';
+import { loadOidcConfig, type OidcConfig } from './oidc.config';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,8 +78,10 @@ export const AUTH_CONFIG = Object.freeze({
   mailer: loadMailerConfig(),
   oauth: loadOAuthConfig(),
   geoIp: loadGeoIpConfig(),
+  oidc: loadOidcConfig(),
 });
 
-export type { RateLimitConfig, SessionDenylistConfig, SecurityLimitsConfig, SecurityHeadersConfig, MailerConfig, SesMailerConfig, SendgridMailerConfig, SmtpMailerConfig, MailerProvider, OAuthConfig, GeoIpConfig };
+export type { RateLimitConfig, SessionDenylistConfig, SecurityLimitsConfig, SecurityHeadersConfig, MailerConfig, SesMailerConfig, SendgridMailerConfig, SmtpMailerConfig, MailerProvider, OAuthConfig, GeoIpConfig, OidcConfig };
 export const authEnv = AUTH_CONFIG;
+
 export default AUTH_CONFIG;

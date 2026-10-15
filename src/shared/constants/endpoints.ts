@@ -48,6 +48,11 @@ export const AUTH_ENDPOINTS = {
   SCIM_USER_ITEM: '/scim/v2/Users/:id',
   SCIM_GROUPS: '/scim/v2/Groups',
   SCIM_GROUP_ITEM: '/scim/v2/Groups/:id',
+  OIDC_OPENID_CONFIGURATION: '/.well-known/openid-configuration',
+  OIDC_JWKS: '/oauth/jwks.json',
+  OIDC_AUTHORIZE: '/oauth/authorize',
+  OIDC_TOKEN: '/oauth/token',
+  OIDC_USERINFO: '/oauth/userinfo',
   HEALTH: '/health',
 } as const;
 

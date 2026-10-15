@@ -44,6 +44,10 @@ services:
       - AUTH_SECURITY_HEADERS_ENABLED=true
       - AUTH_SECURITY_HEADERS_HSTS_ENABLED=true
       - AUTH_SECURITY_HEADERS_CSP_ENABLED=true
+      - AUTH_OIDC_ISSUER=http://localhost:3001
+      - AUTH_OIDC_CODE_TTL_MS=300000
+      - AUTH_OIDC_TOKEN_TTL_SECONDS=3600
+
     depends_on:
       auth-db:
         condition: service_healthy

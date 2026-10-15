@@ -64,6 +64,13 @@ import {
   handlePatchScimGroup,
   handleDeleteScimGroup,
 } from './handlers/scim.handler';
+import {
+  handleGetOpenIdConfiguration,
+  handleGetJwks,
+  handleOidcAuthorize,
+  handleOAuthToken,
+  handleOAuthUserInfo,
+} from './handlers/oidc.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
@@ -753,6 +760,46 @@ export const ROUTE_RULES: RouteRule[] = [
     successStatus: 204,
     successMessage: 'SCIM group deleted successfully',
     handler: (ctx) => handleDeleteScimGroup(ctx.service, ctx.params?.id ?? '', ctx.headers?.authorization),
+  },
+  {
+    name: 'oidc_openid_configuration',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OIDC_OPENID_CONFIGURATION,
+    requiresAuth: false,
+    successMessage: 'OpenID configuration retrieved successfully',
+    handler: (ctx) => handleGetOpenIdConfiguration(ctx.service),
+  },
+  {
+    name: 'oidc_jwks',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OIDC_JWKS,
+    requiresAuth: false,
+    successMessage: 'JWKS public keys retrieved successfully',
+    handler: (ctx) => handleGetJwks(ctx.service),
+  },
+  {
+    name: 'oidc_authorize',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OIDC_AUTHORIZE,
+    requiresAuth: true,
+    successMessage: 'Authorization code issued successfully',
+    handler: (ctx, session) => handleOidcAuthorize(ctx.service, ctx.queryParams, session),
+  },
+  {
+    name: 'oidc_token',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.OIDC_TOKEN,
+    requiresAuth: false,
+    successMessage: 'Token exchanged successfully',
+    handler: (ctx) => handleOAuthToken(ctx.service, ctx.body),
+  },
+  {
+    name: 'oidc_userinfo',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.OIDC_USERINFO,
+    requiresAuth: true,
+    successMessage: 'UserInfo claims retrieved successfully',
+    handler: (ctx, session) => handleOAuthUserInfo(ctx.service, session),
   },
 ];
 

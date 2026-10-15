@@ -20,6 +20,7 @@ describe('Breached Password Screening Performance & Benchmarks (NIST SP 800-63B)
     const mockResponseText = lines.join('\r\n');
 
     const iterations = 2000;
+    const splitLines = mockResponseText.split('\r\n');
     const start = performance.now();
 
     for (let i = 0; i < iterations; i++) {
@@ -28,9 +29,9 @@ describe('Breached Password Screening Performance & Benchmarks (NIST SP 800-63B)
       const targetSuffix = sha1.substring(5);
 
       // In-memory line matching logic
-      const splitLines = mockResponseText.split('\r\n');
       let found = false;
       for (let j = 0; j < splitLines.length; j++) {
+
         const line = splitLines[j]!;
         const colonIdx = line.indexOf(':');
         const suffix = colonIdx !== -1 ? line.substring(0, colonIdx) : line;

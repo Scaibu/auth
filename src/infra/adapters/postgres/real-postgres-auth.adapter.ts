@@ -1357,6 +1357,119 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }));
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveOAuthClient(client: { id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveOAuthClient', async () => {
+      const sql = `INSERT INTO auth_oauth_clients (id, org_id, client_name, client_secret_hash, redirect_uris, grant_types, response_types, client_type, status, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO UPDATE SET client_name = $3, redirect_uris = $5, status = $9`;
+      await this.pool.query(sql, [
+        client.id,
+        client.org_id,
+        client.client_name,
+        client.client_secret_hash ?? null,
+        JSON.stringify(client.redirect_uris),
+        JSON.stringify(client.grant_types),
+        JSON.stringify(client.response_types),
+        client.client_type,
+        client.status,
+        client.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findOAuthClientById(clientId: string): Promise<{ id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number } | null> {
+    return withSpan('RealPostgresAuthAdapter.findOAuthClientById', async () => {
+      const sql = `SELECT id, org_id, client_name, client_secret_hash, redirect_uris, grant_types, response_types, client_type, status, created_at_ms FROM auth_oauth_clients WHERE id = $1 AND deleted_at IS NULL AND status = 'ACTIVE'`;
+      const res = await this.pool.query(sql, [clientId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        org_id: row.org_id,
+        client_name: row.client_name,
+        client_secret_hash: row.client_secret_hash ?? undefined,
+        redirect_uris: typeof row.redirect_uris === 'string' ? JSON.parse(row.redirect_uris) : (row.redirect_uris || []),
+        grant_types: typeof row.grant_types === 'string' ? JSON.parse(row.grant_types) : (row.grant_types || []),
+        response_types: typeof row.response_types === 'string' ? JSON.parse(row.response_types) : (row.response_types || []),
+        client_type: row.client_type,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveAuthorizationCode(codeRecord: { code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveAuthorizationCode', async () => {
+      const sql = `INSERT INTO auth_oauth_codes (code, client_id, user_id, org_id, redirect_uri, code_challenge, code_challenge_method, scope, used, expires_at_ms, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`;
+      await this.pool.query(sql, [
+        codeRecord.code,
+        codeRecord.client_id,
+        codeRecord.user_id,
+        codeRecord.org_id,
+        codeRecord.redirect_uri,
+        codeRecord.code_challenge,
+        codeRecord.code_challenge_method,
+        codeRecord.scope,
+        codeRecord.used,
+        codeRecord.expires_at_ms,
+        codeRecord.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findAuthorizationCode(code: string): Promise<{ code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number } | null> {
+    return withSpan('RealPostgresAuthAdapter.findAuthorizationCode', async () => {
+      const sql = `SELECT code, client_id, user_id, org_id, redirect_uri, code_challenge, code_challenge_method, scope, used, expires_at_ms, created_at_ms FROM auth_oauth_codes WHERE code = $1`;
+      const res = await this.pool.query(sql, [code]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        code: row.code,
+        client_id: row.client_id,
+        user_id: row.user_id,
+        org_id: row.org_id,
+        redirect_uri: row.redirect_uri,
+        code_challenge: row.code_challenge,
+        code_challenge_method: row.code_challenge_method,
+        scope: row.scope,
+        used: Boolean(row.used),
+        expires_at_ms: Number(row.expires_at_ms),
+        created_at_ms: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async consumeAuthorizationCode(code: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.consumeAuthorizationCode', async () => {
+      const sql = `UPDATE auth_oauth_codes SET used = TRUE WHERE code = $1`;
+      await this.pool.query(sql, [code]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveSigningKey(key: { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveSigningKey', async () => {
+      const sql = `INSERT INTO auth_signing_keys (kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (kid) DO NOTHING`;
+      await this.pool.query(sql, [key.kid, key.kty, key.alg, key.use, key.public_key_pem, key.private_key_pem, key.status, key.created_at_ms]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async getActiveSigningKey(): Promise<{ kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number } | null> {
+    return withSpan('RealPostgresAuthAdapter.getActiveSigningKey', async () => {
+      const sql = `SELECT kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms FROM auth_signing_keys WHERE status = 'ACTIVE' ORDER BY created_at_ms DESC LIMIT 1`;
+      const res = await this.pool.query(sql);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        kid: row.kid,
+        kty: row.kty,
+        alg: row.alg,
+        use: row.use,
+        public_key_pem: row.public_key_pem,
+        private_key_pem: row.private_key_pem,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

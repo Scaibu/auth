@@ -1535,7 +1535,146 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiErrorResponse'
 
+  /.well-known/openid-configuration:
+    get:
+      summary: OpenID Connect Discovery 1.0 Provider Metadata
+      description: Returns OIDC authorization server discovery document per RFC 8414
+      responses:
+        '200':
+          description: OIDC discovery metadata document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OidcDiscoveryResponse'
+
+  /oauth/jwks.json:
+    get:
+      summary: Public JSON Web Key Set (RFC 7517)
+      description: Returns active public keys for verifying RS256 ID tokens and access tokens
+      responses:
+        '200':
+          description: Public JWKS keys array
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+
+  /oauth/authorize:
+    get:
+      summary: OAuth 2.0 / OIDC Authorization Code Issuance
+      description: Issues authorization code with mandatory PKCE (S256) and strict redirect URI validation
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: response_type
+          required: true
+          schema:
+            type: string
+            enum: [code]
+        - in: query
+          name: client_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: redirect_uri
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: code_challenge
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: code_challenge_method
+          required: true
+          schema:
+            type: string
+            enum: [S256]
+        - in: query
+          name: scope
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: state
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization code generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Validation error or invalid redirect_uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+        '401':
+          description: Unauthenticated user or invalid client_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+
+  /oauth/token:
+    post:
+      summary: OAuth 2.0 / OIDC Authorization Code Token Exchange
+      description: Exchanges authorization code and PKCE code_verifier for RS256 signed ID token and access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthTokenRequest'
+      responses:
+        '200':
+          description: Access token and ID token issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthTokenResponse'
+        '400':
+          description: Invalid request parameters or grant type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+        '401':
+          description: Invalid, expired, or previously consumed authorization code or PKCE failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+
+  /oauth/userinfo:
+    get:
+      summary: OpenID Connect UserInfo Claims
+      description: Returns identity profile and email claims for authenticated subject
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Subject claims retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OidcUserInfoResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiErrorResponse'
+
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
@@ -1855,4 +1994,116 @@ components:
         is_current:
           type: boolean
           description: Indicates whether this session belongs to the requesting client device
+
+    OidcDiscoveryResponse:
+      type: object
+      required: [issuer, authorization_endpoint, token_endpoint, userinfo_endpoint, jwks_uri, response_types_supported, subject_types_supported, id_token_signing_alg_values_supported, scopes_supported, token_endpoint_auth_methods_supported, code_challenge_methods_supported]
+      properties:
+        issuer:
+          type: string
+        authorization_endpoint:
+          type: string
+        token_endpoint:
+          type: string
+        userinfo_endpoint:
+          type: string
+        jwks_uri:
+          type: string
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+
+    JwksResponse:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            required: [kty, use, kid, alg, n, e]
+            properties:
+              kty:
+                type: string
+                example: RSA
+              use:
+                type: string
+                example: sig
+              kid:
+                type: string
+              alg:
+                type: string
+                example: RS256
+              n:
+                type: string
+              e:
+                type: string
+
+    OAuthTokenRequest:
+      type: object
+      required: [grant_type, client_id, code, redirect_uri, code_verifier]
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code]
+        client_id:
+          type: string
+        code:
+          type: string
+        redirect_uri:
+          type: string
+        code_verifier:
+          type: string
+
+    OAuthTokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, id_token, scope]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          example: 3600
+        id_token:
+          type: string
+        scope:
+          type: string
+
+    OidcUserInfoResponse:
+      type: object
+      required: [sub]
+      properties:
+        sub:
+          type: string
+        email:
+          type: string
+        email_verified:
+          type: boolean
+        name:
+          type: string
+
 

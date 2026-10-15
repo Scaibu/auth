@@ -1,6 +1,16 @@
 # Auth Contracts Changelog
 
+## [1.11.0] - 2026-10-15
+### Added
+- OpenID Connect (OIDC) Identity Provider & Discovery Core (RFC 8414 / RFC 7636 / RFC 7517 / ADR 0025):
+  - Added `GET /.well-known/openid-configuration`: Standard OpenID Connect discovery metadata document.
+  - Added `GET /oauth/jwks.json`: Public JSON Web Key Set for asymmetric RS256 token verification.
+  - Added `GET /oauth/authorize`: Authorization code issuance endpoint with mandatory PKCE (`code_challenge_method = S256`) and strict redirect URI matching.
+  - Added `POST /oauth/token`: Authorization code exchange returning asymmetric RS256 signed ID Tokens and Access Tokens.
+  - Added `GET /oauth/userinfo`: Standard OIDC claims endpoint returning user profile and email claims.
+
 ## [1.10.0] - 2026-10-15
+
 ### Added
 - SCIM 2.0 User & Group Provisioning API (RFC 7643 / RFC 7644 / ADR 0024):
   - Added `GET /scim/v2/ServiceProviderConfig`: Discovers SCIM service provider capabilities, supported filters, and authentication schemes.

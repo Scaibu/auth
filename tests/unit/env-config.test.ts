@@ -34,5 +34,11 @@ describe('Centralized Environment Configuration & Existence Validation', () => {
     expect(AUTH_CONFIG.security.rateLimit.emailCaptchaThreshold).toBe(3);
     expect(AUTH_CONFIG.security.sessionDenylist.keyPrefix).toBe('auth:denylist:');
     expect(AUTH_CONFIG.security.sessionDenylist.defaultTtlSeconds).toBe(3600);
+
+    // OIDC Configuration
+    expect(AUTH_CONFIG.oidc.issuer).toBe('http://localhost:3001');
+    expect(AUTH_CONFIG.oidc.codeTtlMs).toBe(300000);
+    expect(AUTH_CONFIG.oidc.tokenTtlSeconds).toBe(3600);
   });
 });
+

@@ -74,8 +74,11 @@ import { NodeDnsAdapter } from '../../infra/adapters/dns/node-dns.adapter';
 import type { GeoIpPort } from './ports/geo-ip.port';
 import { ScimProvisioningService } from './services/scim-provisioning.service';
 import type { CreateScimUserInput, CreateScimGroupInput, ScimUserRecord, ScimGroupRecord, ScimListResponse, ScimPatchRequest } from './ports/scim-repository.port';
+import { OidcProviderService } from './services/oidc-provider.service';
+import type { JwksKey, OidcTokenResponse, OidcUserInfoResponse } from './ports/oidc-repository.port';
 
 export class AuthService {
+
   private readonly repo: AuthRepositoryPort;
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
@@ -90,6 +93,7 @@ export class AuthService {
   private readonly domainClaimService: DomainClaimService;
   private readonly policyEngineService: PolicyEngineService;
   private readonly scimService: ScimProvisioningService;
+  private readonly oidcService: OidcProviderService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -107,6 +111,8 @@ export class AuthService {
   ) {
     this.repo = repo;
     this.scimService = new ScimProvisioningService(repo);
+    this.oidcService = new OidcProviderService(repo, AUTH_CONFIG.oidc);
+
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
     this.policyEngineService = new PolicyEngineService(policyEngine, repo);
 
@@ -519,6 +525,42 @@ export class AuthService {
 
   async deleteScimGroup(orgId: string, groupId: string): Promise<void> {
     return this.scimService.deleteGroup(orgId, groupId);
+  }
+
+  async getOpenIdConfiguration(): Promise<Record<string, unknown>> {
+    return this.oidcService.getOpenIdConfiguration();
+  }
+
+  async getOidcJwks(): Promise<{ keys: ReadonlyArray<JwksKey> }> {
+    return this.oidcService.getJwks();
+  }
+
+  async createOAuthAuthorizationCode(params: {
+    client_id: string;
+    redirect_uri: string;
+    response_type: string;
+    scope?: string;
+    code_challenge: string;
+    code_challenge_method: string;
+    state?: string;
+    user_id: string;
+    org_id: string;
+  }): Promise<{ code: string; redirect_uri: string; state?: string }> {
+    return this.oidcService.createAuthorizationCode(params);
+  }
+
+  async exchangeOAuthCodeForTokens(params: {
+    grant_type: string;
+    client_id: string;
+    code: string;
+    redirect_uri: string;
+    code_verifier: string;
+  }): Promise<OidcTokenResponse> {
+    return this.oidcService.exchangeCodeForTokens(params);
+  }
+
+  async getOidcUserInfo(userId: string): Promise<OidcUserInfoResponse> {
+    return this.oidcService.getUserInfo(userId);
   }
 }
 

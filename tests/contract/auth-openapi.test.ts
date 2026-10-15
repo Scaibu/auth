@@ -62,6 +62,19 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.JTI);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_423);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_429);
+
+    // OpenID Connect (OIDC) IdP Endpoints (ADR 0025)
+    expect(content).toContain(AUTH_ENDPOINTS.OIDC_OPENID_CONFIGURATION);
+    expect(content).toContain(AUTH_ENDPOINTS.OIDC_JWKS);
+    expect(content).toContain(AUTH_ENDPOINTS.OIDC_AUTHORIZE);
+    expect(content).toContain(AUTH_ENDPOINTS.OIDC_TOKEN);
+    expect(content).toContain(AUTH_ENDPOINTS.OIDC_USERINFO);
+    expect(content).toContain('OidcDiscoveryResponse');
+    expect(content).toContain('JwksResponse');
+    expect(content).toContain('OAuthTokenRequest');
+    expect(content).toContain('OAuthTokenResponse');
+    expect(content).toContain('OidcUserInfoResponse');
   });
 });
+
 
