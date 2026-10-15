@@ -80,6 +80,8 @@ import type { JwksKey, OidcTokenResponse, OidcUserInfoResponse } from './ports/o
 import { SamlProviderService } from './services/saml-provider.service';
 import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, SamlAuthResult } from './ports/saml-repository.port';
 import { PasskeyService } from './services/passkey.service';
+import { CustomRoleService } from './services/custom-role.service';
+import type { CustomRoleRecord, PermissionEvaluationResult } from '../../shared/types/auth.types';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -99,6 +101,7 @@ export class AuthService {
   private readonly oidcService: OidcProviderService;
   private readonly samlService: SamlProviderService;
   private readonly passkeyService: PasskeyService;
+  private readonly customRoleService: CustomRoleService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -119,6 +122,7 @@ export class AuthService {
     this.oidcService = new OidcProviderService(repo, AUTH_CONFIG.oidc);
     this.samlService = new SamlProviderService(repo, AUTH_CONFIG.saml);
     this.passkeyService = new PasskeyService(repo);
+    this.customRoleService = new CustomRoleService(repo);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
@@ -645,6 +649,52 @@ export class AuthService {
 
   async deleteUserPasskey(passkeyId: string, userId: string) {
     return this.passkeyService.deletePasskey(passkeyId, userId);
+  }
+
+  async createCustomRole(
+    orgId: string,
+    params: Readonly<{ name: string; description?: string; permission_mask: string }>,
+    creatorUserId?: string
+  ): Promise<CustomRoleRecord> {
+    return this.customRoleService.createCustomRole(orgId, params, creatorUserId);
+  }
+
+  async getCustomRole(id: string, orgId: string): Promise<CustomRoleRecord> {
+    return this.customRoleService.getCustomRoleById(id, orgId);
+  }
+
+  async listCustomRoles(orgId: string): Promise<CustomRoleRecord[]> {
+    return this.customRoleService.listCustomRoles(orgId);
+  }
+
+  async updateCustomRole(
+    id: string,
+    orgId: string,
+    patch: Readonly<{ name?: string; description?: string; permission_mask?: string }>,
+    actorUserId?: string
+  ): Promise<CustomRoleRecord> {
+    return this.customRoleService.updateCustomRole(id, orgId, patch, actorUserId);
+  }
+
+  async deleteCustomRole(id: string, orgId: string, actorUserId?: string): Promise<void> {
+    return this.customRoleService.deleteCustomRole(id, orgId, actorUserId);
+  }
+
+  async assignUserCustomRoles(
+    orgId: string,
+    userId: string,
+    roleIds: readonly string[],
+    actorUserId?: string
+  ): Promise<void> {
+    return this.customRoleService.assignUserRoles(orgId, userId, roleIds, actorUserId);
+  }
+
+  async evaluateUserPermissions(
+    orgId: string,
+    userId: string,
+    requiredPermissions: readonly string[]
+  ): Promise<PermissionEvaluationResult> {
+    return this.customRoleService.evaluateUserPermissions(orgId, userId, requiredPermissions);
   }
 }
 

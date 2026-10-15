@@ -220,6 +220,28 @@ export const PasskeyAuthFinishInputSchema = z.object({
   }),
 });
 
+export const CreateCustomRoleInputSchema = z.object({
+  name: z.string().min(1, 'Role name is required').max(64, 'Role name cannot exceed 64 characters'),
+  description: z.string().max(255).default(''),
+  permission_mask: z.string().regex(/^\d+$/, 'Permission mask must be a numeric string representing a 64-bit unsigned integer'),
+});
+
+export const UpdateCustomRoleInputSchema = z.object({
+  name: z.string().min(1).max(64).optional(),
+  description: z.string().max(255).optional(),
+  permission_mask: z.string().regex(/^\d+$/).optional(),
+});
+
+export const AssignUserRolesInputSchema = z.object({
+  role_ids: z.array(z.string().min(1)),
+});
+
+export const EvaluatePermissionsInputSchema = z.object({
+  user_id: z.string().min(1, 'User ID is required'),
+  org_id: z.string().min(1, 'Org ID is required'),
+  required_permissions: z.array(z.string().min(1)).min(1, 'At least one required permission must be specified'),
+});
+
 export const AUTH_JSON_MAPPING = {
   fromApi: [
     { op: 'rename', from: 'emailAddress', to: 'email' },

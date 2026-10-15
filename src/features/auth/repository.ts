@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord } from '../../shared/types/auth.types';
 import type { SamlRepositoryPort } from './ports/saml-repository.port';
 
 export interface OrganizationRecord {
@@ -182,6 +182,15 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   listPasskeysByUserId(userId: string): Promise<Array<{ id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number; last_used_at_ms?: number | null }>>;
   updatePasskeyCounter(credentialId: string, counter: number, lastUsedAtMs: number): Promise<void>;
   deletePasskey(passkeyId: string, userId: string): Promise<void>;
+  saveCustomRole(role: CustomRoleRecord): Promise<void>;
+  findCustomRoleById(id: string, orgId: string): Promise<CustomRoleRecord | null>;
+  findCustomRoleByName(name: string, orgId: string): Promise<CustomRoleRecord | null>;
+  listCustomRolesByOrgId(orgId: string): Promise<CustomRoleRecord[]>;
+  updateCustomRole(id: string, orgId: string, patch: { name?: string; description?: string; permission_mask?: string }): Promise<void>;
+  deleteCustomRole(id: string, orgId: string): Promise<void>;
+  assignUserCustomRoles(orgId: string, userId: string, roleIds: readonly string[], assignedBy?: string): Promise<void>;
+  listUserCustomRoles(orgId: string, userId: string): Promise<CustomRoleRecord[]>;
+  recordRoleAuditLog(log: { id: string; org_id: string; actor_user_id: string; action: string; target_role_id: string; target_user_id?: string; previous_mask?: string; new_mask?: string; reason?: string; created_at_ms: number }): Promise<void>;
 }
 
 

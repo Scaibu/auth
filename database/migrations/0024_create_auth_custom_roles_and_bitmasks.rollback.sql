@@ -1,0 +1,13 @@
+DROP TRIGGER IF EXISTS trg_auth_role_audit_append_only ON auth_role_audit_logs;
+DROP FUNCTION IF EXISTS trg_enforce_role_audit_append_only();
+DROP TRIGGER IF EXISTS trg_auth_custom_roles_immutability ON auth_custom_roles;
+DROP FUNCTION IF EXISTS trg_enforce_role_immutability();
+DROP INDEX IF EXISTS idx_auth_role_audit_logs_org_time;
+DROP INDEX IF EXISTS idx_auth_user_custom_roles_role_lookup;
+DROP INDEX IF EXISTS idx_auth_user_custom_roles_user_lookup;
+DROP INDEX IF EXISTS idx_auth_custom_roles_system;
+DROP INDEX IF EXISTS idx_auth_custom_roles_org_lookup;
+DROP TABLE IF EXISTS auth_role_audit_logs CASCADE;
+DROP TABLE IF EXISTS auth_user_custom_roles CASCADE;
+DROP TABLE IF EXISTS auth_custom_roles CASCADE;
+DROP TABLE IF EXISTS auth_permission_registry CASCADE;

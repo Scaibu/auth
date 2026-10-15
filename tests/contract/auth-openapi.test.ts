@@ -100,6 +100,16 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_DELETE.replace(':id', '{id}'));
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_REGISTER_FINISH_REQUEST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_AUTH_FINISH_REQUEST);
+
+    // Custom Enterprise Roles & 64-bit Permission Bitmasks (ADR 0030)
+    expect(content).toContain(AUTH_ENDPOINTS.ROLES);
+    expect(content).toContain(AUTH_ENDPOINTS.ROLES_ITEM.replace(':id', '{id}'));
+    expect(content).toContain(AUTH_ENDPOINTS.USER_ROLES.replace(':userId', '{userId}'));
+    expect(content).toContain(AUTH_ENDPOINTS.PERMISSIONS_EVALUATE);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CREATE_CUSTOM_ROLE_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.UPDATE_CUSTOM_ROLE_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.ASSIGN_USER_ROLES_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.EVALUATE_PERMISSIONS_REQUEST);
   });
 });
 

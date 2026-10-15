@@ -736,6 +736,137 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
 
+  /api/v1/auth/roles:
+    post:
+      summary: Create custom enterprise role with 64-bit permission bitmask
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomRoleRequest'
+      responses:
+        '201':
+          description: Custom role created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    get:
+      summary: List all custom roles for current organization
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of custom enterprise roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/roles/{id}:
+    get:
+      summary: Get custom role by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Custom role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    put:
+      summary: Update custom role
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomRoleRequest'
+      responses:
+        '200':
+          description: Custom role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    delete:
+      summary: Delete custom role
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Custom role deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/users/{userId}/roles:
+    post:
+      summary: Assign custom roles to user
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserRolesRequest'
+      responses:
+        '200':
+          description: User roles assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/permissions/evaluate:
+    post:
+      summary: Evaluate 64-bit permission bitmask in O(1) time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePermissionsRequest'
+      responses:
+        '200':
+          description: Permission evaluation decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
   /api/v1/auth/organizations:
     get:
       summary: List all organizations the authenticated user belongs to
@@ -2483,5 +2614,51 @@ components:
                   type: string
                 userHandle:
                   type: string
+
+    CreateCustomRoleRequest:
+      type: object
+      required: [name, permission_mask]
+      properties:
+        name:
+          type: string
+          example: 'SRE Lead'
+        description:
+          type: string
+          example: 'Full telemetry write and policy administration'
+        permission_mask:
+          type: string
+          example: '100663296'
+
+    UpdateCustomRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permission_mask:
+          type: string
+
+    AssignUserRolesRequest:
+      type: object
+      required: [role_ids]
+      properties:
+        role_ids:
+          type: array
+          items:
+            type: string
+
+    EvaluatePermissionsRequest:
+      type: object
+      required: [user_id, org_id, required_permissions]
+      properties:
+        user_id:
+          type: string
+        org_id:
+          type: string
+        required_permissions:
+          type: array
+          items:
+            type: string
 
 

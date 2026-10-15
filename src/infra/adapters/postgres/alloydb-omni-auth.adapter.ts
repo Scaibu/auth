@@ -1073,6 +1073,79 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       }
     }
   }
+
+  private readonly mockCustomRoles = new Map<string, any>();
+  private readonly mockUserCustomRoles = new Map<string, Set<string>>();
+  private readonly mockRoleAuditLogs: any[] = [];
+
+  async saveCustomRole(role: any): Promise<void> {
+    this.mockCustomRoles.set(`${role.org_id}:${role.id}`, { ...role, deleted_at: null });
+  }
+
+  async findCustomRoleById(id: string, orgId: string): Promise<any | null> {
+    const role = this.mockCustomRoles.get(`${orgId}:${id}`);
+    if (!role || role.deleted_at) return null;
+    return { ...role };
+  }
+
+  async findCustomRoleByName(name: string, orgId: string): Promise<any | null> {
+    for (const role of this.mockCustomRoles.values()) {
+      if (role.org_id === orgId && role.name === name && !role.deleted_at) {
+        return { ...role };
+      }
+    }
+    return null;
+  }
+
+  async listCustomRolesByOrgId(orgId: string): Promise<any[]> {
+    const results: any[] = [];
+    for (const role of this.mockCustomRoles.values()) {
+      if (role.org_id === orgId && !role.deleted_at) {
+        results.push({ ...role });
+      }
+    }
+    return results;
+  }
+
+  async updateCustomRole(id: string, orgId: string, patch: { name?: string; description?: string; permission_mask?: string }): Promise<void> {
+    const role = this.mockCustomRoles.get(`${orgId}:${id}`);
+    if (role && !role.is_system_role && !role.deleted_at) {
+      if (patch.name !== undefined) role.name = patch.name;
+      if (patch.description !== undefined) role.description = patch.description;
+      if (patch.permission_mask !== undefined) role.permission_mask = patch.permission_mask;
+      role.version = (role.version || 1) + 1;
+      role.updated_at_ms = Date.now();
+    }
+  }
+
+  async deleteCustomRole(id: string, orgId: string): Promise<void> {
+    const role = this.mockCustomRoles.get(`${orgId}:${id}`);
+    if (role && !role.is_system_role) {
+      role.deleted_at = new Date().toISOString();
+    }
+  }
+
+  async assignUserCustomRoles(orgId: string, userId: string, roleIds: readonly string[], _assignedBy?: string): Promise<void> {
+    const key = `${orgId}:${userId}`;
+    this.mockUserCustomRoles.set(key, new Set(roleIds));
+  }
+
+  async listUserCustomRoles(orgId: string, userId: string): Promise<any[]> {
+    const key = `${orgId}:${userId}`;
+    const roleIds = this.mockUserCustomRoles.get(key) || new Set<string>();
+    const roles: any[] = [];
+    for (const roleId of roleIds) {
+      const role = this.mockCustomRoles.get(`${orgId}:${roleId}`);
+      if (role && !role.deleted_at) {
+        roles.push({ ...role });
+      }
+    }
+    return roles;
+  }
+
+  async recordRoleAuditLog(log: any): Promise<void> {
+    this.mockRoleAuditLogs.push({ ...log });
+  }
 }
 
 

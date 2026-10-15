@@ -1775,6 +1775,167 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       await this.pool.query(this.queries.FLOW_PASSKEYS.SOFT_DELETE_CREDENTIAL, [passkeyId, userId]);
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveCustomRole(role: any): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveCustomRole', async () => {
+      await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.INSERT_ROLE, [
+        role.id,
+        role.public_id || `pub_${role.id}`,
+        role.org_id,
+        role.name,
+        role.description || '',
+        role.permission_mask,
+        Boolean(role.is_system_role),
+        role.version || 1,
+        role.created_at_ms,
+        role.updated_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findCustomRoleById(id: string, orgId: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.findCustomRoleById', async () => {
+      const res = await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.FIND_ROLE_BY_ID, [id, orgId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        name: row.name,
+        description: row.description,
+        permission_mask: row.permission_mask,
+        is_system_role: Boolean(row.is_system_role),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findCustomRoleByName(name: string, orgId: string): Promise<any | null> {
+    return withSpan('RealPostgresAuthAdapter.findCustomRoleByName', async () => {
+      const res = await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.FIND_ROLE_BY_NAME, [orgId, name]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        name: row.name,
+        description: row.description,
+        permission_mask: row.permission_mask,
+        is_system_role: Boolean(row.is_system_role),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listCustomRolesByOrgId(orgId: string): Promise<any[]> {
+    return withSpan('RealPostgresAuthAdapter.listCustomRolesByOrgId', async () => {
+      const res = await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.LIST_ROLES_BY_ORG, [orgId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        name: row.name,
+        description: row.description,
+        permission_mask: row.permission_mask,
+        is_system_role: Boolean(row.is_system_role),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async updateCustomRole(id: string, orgId: string, patch: { name?: string; description?: string; permission_mask?: string }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.updateCustomRole', async () => {
+      await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.UPDATE_ROLE, [
+        id,
+        orgId,
+        patch.name ?? null,
+        patch.description ?? null,
+        patch.permission_mask ?? null,
+        Date.now(),
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteCustomRole(id: string, orgId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.deleteCustomRole', async () => {
+      await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.DELETE_ROLE, [id, orgId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async assignUserCustomRoles(orgId: string, userId: string, roleIds: readonly string[], _assignedBy?: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.assignUserCustomRoles', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(this.queries.FLOW_CUSTOM_ROLES.DELETE_USER_ROLES, [orgId, userId]);
+        const now = Date.now();
+        for (const roleId of roleIds) {
+          const ucroleId = `ucrole_${crypto.randomUUID()}`;
+          const pubId = `pub_${ucroleId}`;
+          await client.query(this.queries.FLOW_CUSTOM_ROLES.INSERT_USER_ROLE, [
+            ucroleId,
+            pubId,
+            orgId,
+            userId,
+            roleId,
+            now,
+          ]);
+        }
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listUserCustomRoles(orgId: string, userId: string): Promise<any[]> {
+    return withSpan('RealPostgresAuthAdapter.listUserCustomRoles', async () => {
+      const res = await this.pool.query(this.queries.FLOW_CUSTOM_ROLES.LIST_USER_ROLES, [orgId, userId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        name: row.name,
+        description: row.description,
+        permission_mask: row.permission_mask,
+        is_system_role: Boolean(row.is_system_role),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async recordRoleAuditLog(log: any): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.recordRoleAuditLog', async () => {
+      await this.pool.query(
+        this.queries.FLOW_CUSTOM_ROLES.INSERT_AUDIT_LOG,
+        [
+          log.id,
+          log.org_id,
+          log.actor_user_id,
+          log.action,
+          log.target_role_id,
+          log.target_user_id ?? null,
+          log.previous_mask ?? null,
+          log.new_mask ?? null,
+          log.reason ?? '',
+          log.created_at_ms,
+        ]
+      );
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

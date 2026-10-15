@@ -207,6 +207,24 @@ export const AUTH_QUERIES = {
     UPDATE_COUNTER_AND_LAST_USED: `UPDATE auth_passkey_credentials SET counter = $2, last_used_at_ms = $3, updated_at = CURRENT_TIMESTAMP WHERE credential_id = $1 AND deleted_at IS NULL`,
     SOFT_DELETE_CREDENTIAL: `UPDATE auth_passkey_credentials SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
   },
+  FLOW_CUSTOM_ROLES: {
+    INSERT_ROLE: `INSERT INTO auth_custom_roles (id, public_id, org_id, name, description, permission_mask, is_system_role, version, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    FIND_ROLE_BY_ID: `SELECT id, public_id, org_id, name, description, permission_mask::text, is_system_role, version, created_at_ms, updated_at_ms FROM auth_custom_roles WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL LIMIT 1`,
+    FIND_ROLE_BY_NAME: `SELECT id, public_id, org_id, name, description, permission_mask::text, is_system_role, version, created_at_ms, updated_at_ms FROM auth_custom_roles WHERE org_id = $1 AND name = $2 AND deleted_at IS NULL LIMIT 1`,
+    LIST_ROLES_BY_ORG: `SELECT id, public_id, org_id, name, description, permission_mask::text, is_system_role, version, created_at_ms, updated_at_ms FROM auth_custom_roles WHERE org_id = $1 AND deleted_at IS NULL ORDER BY is_system_role DESC, name ASC`,
+    UPDATE_ROLE: `UPDATE auth_custom_roles SET name = COALESCE($3, name), description = COALESCE($4, description), permission_mask = COALESCE($5, permission_mask), version = version + 1, updated_at_ms = $6 WHERE id = $1 AND org_id = $2 AND is_system_role = FALSE AND deleted_at IS NULL`,
+    DELETE_ROLE: `UPDATE auth_custom_roles SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2 AND is_system_role = FALSE AND deleted_at IS NULL`,
+    INSERT_USER_ROLE: `INSERT INTO auth_user_custom_roles (id, public_id, org_id, user_id, role_id, version, assigned_at_ms) VALUES ($1, $2, $3, $4, $5, 1, $6) ON CONFLICT (org_id, user_id, role_id) DO UPDATE SET deleted_at = NULL`,
+    DELETE_USER_ROLES: `DELETE FROM auth_user_custom_roles WHERE org_id = $1 AND user_id = $2`,
+    LIST_USER_ROLES: `
+      SELECT r.id, r.public_id, r.org_id, r.name, r.description, r.permission_mask::text, r.is_system_role, r.version, r.created_at_ms, r.updated_at_ms
+      FROM auth_custom_roles r
+      INNER JOIN auth_user_custom_roles ur ON ur.role_id = r.id AND ur.org_id = r.org_id
+      WHERE ur.org_id = $1 AND ur.user_id = $2 AND ur.deleted_at IS NULL AND r.deleted_at IS NULL
+      ORDER BY r.name ASC
+    `,
+    INSERT_AUDIT_LOG: `INSERT INTO auth_role_audit_logs (id, org_id, actor_user_id, action, target_role_id, target_user_id, previous_mask, new_mask, reason, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+  },
 } as const;
 
 

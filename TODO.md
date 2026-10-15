@@ -31,7 +31,7 @@
 | **API Key Engine** | IP / CIDR Subnet Allowlist & Usage Analytics Telemetry | Zero-Trust Network | ✅ **Completed (ADR 0027)** | v1.2 | **P2** |
 | **User Lifecycle** | Password History Enforcement (Disallow Prior 10 Passwords) | NIST SP 800-63B | ✅ **Completed (ADR 0028)** | v1.2 | **P2** |
 | **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ✅ **Completed (ADR 0029)** | v1.2 | **P2** |
-| **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ⏳ **Pending** | v1.2 | **P2** |
+| **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ✅ **Completed (ADR 0030)** | v1.2 | **P2** |
 | **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ⏳ **Pending** | v1.2 | **P2** |
 | **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ⏳ **Pending** | v1.2 | **P2** |
 | **Security & Defense** | Webhook Cryptographic Signatures & Anti-Replay Nonces | RFC 2104 HMAC-SHA256 | ⏳ **Pending** | v1.2 | **P2** |

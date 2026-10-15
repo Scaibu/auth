@@ -65,6 +65,11 @@ export const AUTH_ENDPOINTS = {
   PASSKEYS_AUTHENTICATE_FINISH: '/api/v1/auth/passkeys/authenticate/finish',
   PASSKEYS_LIST: '/api/v1/auth/passkeys',
   PASSKEYS_DELETE: '/api/v1/auth/passkeys/:id',
+  ROLES: '/api/v1/auth/roles',
+  ROLES_ITEM: '/api/v1/auth/roles/:id',
+  USER_ROLES: '/api/v1/auth/users/:userId/roles',
+  USER_PERMISSIONS: '/api/v1/auth/users/:userId/permissions',
+  PERMISSIONS_EVALUATE: '/api/v1/auth/permissions/evaluate',
   HEALTH: '/health',
 } as const;
 

@@ -225,5 +225,35 @@ export const PasskeyChallengeRecordSchema = z.object({
   created_at_ms: z.number().int().positive(),
 });
 export type PasskeyChallengeRecord = z.infer<typeof PasskeyChallengeRecordSchema>;
+export const CustomRoleRecordSchema = z.object({
+  id: z.string().min(1),
+  public_id: z.string().min(1),
+  org_id: z.string().min(1),
+  name: z.string().min(1).max(64),
+  description: z.string().max(255).default(''),
+  permission_mask: z.string().regex(/^\d+$/),
+  is_system_role: z.boolean().default(false),
+  version: z.number().int().positive().default(1),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive(),
+});
+export type CustomRoleRecord = z.infer<typeof CustomRoleRecordSchema>;
 
+export const UserCustomRoleRecordSchema = z.object({
+  id: z.string().min(1),
+  public_id: z.string().min(1),
+  org_id: z.string().min(1),
+  user_id: z.string().min(1),
+  role_id: z.string().min(1),
+  version: z.number().int().positive().default(1),
+  assigned_at_ms: z.number().int().positive(),
+});
+export type UserCustomRoleRecord = z.infer<typeof UserCustomRoleRecordSchema>;
 
+export const PermissionEvaluationResultSchema = z.object({
+  granted: z.boolean(),
+  effective_mask: z.string(),
+  missing_bits: z.string(),
+  evaluated_permissions: z.array(z.string()),
+});
+export type PermissionEvaluationResult = z.infer<typeof PermissionEvaluationResultSchema>;
