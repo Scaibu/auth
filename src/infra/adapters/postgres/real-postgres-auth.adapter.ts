@@ -2,6 +2,7 @@ import { Pool } from 'pg';
 import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
+import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../../shared/types/auth.types';
 import { REAL_POSTGRES_QUERIES, AUTH_QUERIES } from './queries/real-postgres.queries';
@@ -1430,10 +1431,9 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     }, { kind: SpanKind.CLIENT });
   }
 
-  async saveOAuthClient(client: { id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number }): Promise<void> {
+  async saveOAuthClient(client: OAuthClientRecord): Promise<void> {
     await withSpan('RealPostgresAuthAdapter.saveOAuthClient', async () => {
-      const sql = `INSERT INTO auth_oauth_clients (id, org_id, client_name, client_secret_hash, redirect_uris, grant_types, response_types, client_type, status, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO UPDATE SET client_name = $3, redirect_uris = $5, status = $9`;
-      await this.pool.query(sql, [
+      await this.pool.query(this.queries.OAUTH.INSERT_CLIENT, [
         client.id,
         client.org_id,
         client.client_name,
@@ -1444,14 +1444,16 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         client.client_type,
         client.status,
         client.created_at_ms,
+        client.secret_prefix ?? null,
+        JSON.stringify(client.allowed_scopes ?? []),
+        client.token_ttl_seconds ?? 3600,
       ]);
     }, { kind: SpanKind.CLIENT });
   }
 
-  async findOAuthClientById(clientId: string): Promise<{ id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number } | null> {
+  async findOAuthClientById(clientId: string): Promise<OAuthClientRecord | null> {
     return withSpan('RealPostgresAuthAdapter.findOAuthClientById', async () => {
-      const sql = `SELECT id, org_id, client_name, client_secret_hash, redirect_uris, grant_types, response_types, client_type, status, created_at_ms FROM auth_oauth_clients WHERE id = $1 AND deleted_at IS NULL AND status = 'ACTIVE'`;
-      const res = await this.pool.query(sql, [clientId]);
+      const res = await this.pool.query(this.queries.OAUTH.FIND_CLIENT_BY_ID, [clientId]);
       if (res.rows.length === 0) return null;
       const row = res.rows[0];
       return {
@@ -1459,9 +1461,12 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         org_id: row.org_id,
         client_name: row.client_name,
         client_secret_hash: row.client_secret_hash ?? undefined,
+        secret_prefix: row.secret_prefix ?? undefined,
         redirect_uris: typeof row.redirect_uris === 'string' ? JSON.parse(row.redirect_uris) : (row.redirect_uris || []),
         grant_types: typeof row.grant_types === 'string' ? JSON.parse(row.grant_types) : (row.grant_types || []),
         response_types: typeof row.response_types === 'string' ? JSON.parse(row.response_types) : (row.response_types || []),
+        allowed_scopes: typeof row.allowed_scopes === 'string' ? JSON.parse(row.allowed_scopes) : (row.allowed_scopes || []),
+        token_ttl_seconds: row.token_ttl_seconds ? Number(row.token_ttl_seconds) : 3600,
         client_type: row.client_type,
         status: row.status,
         created_at_ms: Number(row.created_at_ms),

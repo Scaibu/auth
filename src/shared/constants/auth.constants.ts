@@ -456,6 +456,7 @@ export const AUTH_CONSTANTS = {
   OIDC: {
     ISSUER: 'https://auth.observability.io',
     GRANT_TYPE_AUTHORIZATION_CODE: 'authorization_code',
+    GRANT_TYPE_CLIENT_CREDENTIALS: 'client_credentials',
     RESPONSE_TYPE_CODE: 'code',
     PKCE_METHOD_S256: 'S256',
     SCOPE_OPENID: 'openid',
@@ -470,6 +471,7 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_OIDC_CLIENT_CREATED: 'OIDC_CLIENT_CREATED',
   AUDIT_EVENT_OIDC_CODE_ISSUED: 'OIDC_CODE_ISSUED',
   AUDIT_EVENT_OIDC_TOKEN_ISSUED: 'OIDC_TOKEN_ISSUED',
+  AUDIT_EVENT_M2M_TOKEN_ISSUED: 'M2M_TOKEN_ISSUED',
 
   SAML: {
     XML_PROLOG: '<?xml version="1.0" encoding="UTF-8"?>',

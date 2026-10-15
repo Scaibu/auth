@@ -1,9 +1,10 @@
-import { createHash, generateKeyPairSync, createSign } from 'crypto';
+import { createHash, generateKeyPairSync, createSign, timingSafeEqual } from 'crypto';
 import type { AuthRepositoryPort } from '../repository';
 import type {
   SigningKeyRecord,
   JwksKey,
   OidcTokenResponse,
+  M2mTokenResponse,
   OidcUserInfoResponse,
 } from '../ports/oidc-repository.port';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';

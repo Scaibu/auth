@@ -1,4 +1,5 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
+import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
@@ -948,15 +949,15 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     });
   }
 
-  private readonly mockOAuthClients = new Map<string, { id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number }>();
+  private readonly mockOAuthClients = new Map<string, OAuthClientRecord>();
   private readonly mockAuthCodes = new Map<string, { code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number }>();
   private readonly mockSigningKeys = new Map<string, { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }>();
 
-  async saveOAuthClient(client: { id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number }): Promise<void> {
+  async saveOAuthClient(client: OAuthClientRecord): Promise<void> {
     this.mockOAuthClients.set(client.id, { ...client });
   }
 
-  async findOAuthClientById(clientId: string): Promise<{ id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number } | null> {
+  async findOAuthClientById(clientId: string): Promise<OAuthClientRecord | null> {
     const client = this.mockOAuthClients.get(clientId);
     return client ? { ...client } : null;
   }

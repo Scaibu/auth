@@ -1,6 +1,7 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
 import type { SamlRepositoryPort } from './ports/saml-repository.port';
+import type { OAuthClientRecord } from './ports/oidc-repository.port';
 
 export interface OrganizationRecord {
   id: string;
@@ -164,8 +165,8 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   addScimGroupMember(groupId: string, userId: string): Promise<void>;
   removeScimGroupMember(groupId: string, userId: string): Promise<void>;
   listScimGroupMembers(groupId: string): Promise<ReadonlyArray<{ value: string; display?: string }>>;
-  saveOAuthClient(client: { id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number }): Promise<void>;
-  findOAuthClientById(clientId: string): Promise<{ id: string; org_id: string; client_name: string; client_secret_hash?: string; redirect_uris: ReadonlyArray<string>; grant_types: ReadonlyArray<string>; response_types: ReadonlyArray<string>; client_type: 'public' | 'confidential'; status: 'ACTIVE' | 'SUSPENDED'; created_at_ms: number } | null>;
+  saveOAuthClient(client: OAuthClientRecord): Promise<void>;
+  findOAuthClientById(clientId: string): Promise<OAuthClientRecord | null>;
   saveAuthorizationCode(codeRecord: { code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number }): Promise<void>;
   findAuthorizationCode(code: string): Promise<{ code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number } | null>;
   consumeAuthorizationCode(code: string): Promise<void>;

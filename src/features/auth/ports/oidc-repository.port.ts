@@ -3,9 +3,12 @@ export interface OAuthClientRecord {
   readonly org_id: string;
   readonly client_name: string;
   readonly client_secret_hash?: string;
+  readonly secret_prefix?: string;
   readonly redirect_uris: ReadonlyArray<string>;
   readonly grant_types: ReadonlyArray<string>;
   readonly response_types: ReadonlyArray<string>;
+  readonly allowed_scopes?: ReadonlyArray<string>;
+  readonly token_ttl_seconds?: number;
   readonly client_type: 'public' | 'confidential';
   readonly status: 'ACTIVE' | 'SUSPENDED';
   readonly created_at_ms: number;
@@ -49,7 +52,14 @@ export interface OidcTokenResponse {
   readonly access_token: string;
   readonly token_type: 'Bearer';
   readonly expires_in: number;
-  readonly id_token: string;
+  readonly id_token?: string;
+  readonly scope: string;
+}
+
+export interface M2mTokenResponse {
+  readonly access_token: string;
+  readonly token_type: 'Bearer';
+  readonly expires_in: number;
   readonly scope: string;
 }
 
