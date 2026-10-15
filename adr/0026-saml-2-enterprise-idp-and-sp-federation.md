@@ -292,3 +292,57 @@ Declared in `AUTH_CONSTANTS.SAML`:
 - `NAMEID_FORMAT_EMAIL = 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'`
 - `DEFAULT_CLOCK_SKEW_MS = 120000`
 - `DEFAULT_RELAY_STATE_TTL_MS = 300000`
+
+---
+
+## 🛠 8. How to Configure, Integrate & Operate Enterprise SAML (Operator Runbook)
+
+### 8.1 Step 1: Register Service Provider (SP) in Identity Provider (Okta / Entra ID)
+1. **Fetch SP Metadata**: Run `GET /api/v1/auth/saml/metadata`.
+2. **Configure in IdP Console**:
+   - **Single Sign On URL (ACS)**: `https://<YOUR_AUTH_DOMAIN>/api/v1/auth/saml/acs`
+   - **Audience URI (SP Entity ID)**: `https://<YOUR_AUTH_DOMAIN>/api/v1/auth/saml/metadata`
+   - **Name ID Format**: `EmailAddress`
+   - **Attribute Statements**:
+     - `email` $\rightarrow$ `user.email`
+     - `name` $\rightarrow$ `user.displayName`
+
+### 8.2 Step 2: Register Enterprise IdP in Auth Service
+Admins register the IdP metadata via `POST /api/v1/auth/saml/providers`:
+
+```bash
+curl -X POST "https://<YOUR_AUTH_DOMAIN>/api/v1/auth/saml/providers" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idp_entity_id": "https://identity-provider.com/saml/metadata",
+    "idp_sso_url": "https://identity-provider.com/saml/sso",
+    "idp_certificate_pem": "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----",
+    "sp_entity_id": "https://<YOUR_AUTH_DOMAIN>/api/v1/auth/saml/metadata",
+    "attribute_mapping": {
+      "email": "email",
+      "name": "displayName"
+    }
+  }'
+```
+
+### 8.3 Step 3: Trigger SP-Initiated Login
+When an employee clicks "Log in with SAML SSO", redirect their browser to:
+```bash
+GET /api/v1/auth/saml/login?org_id=<ORGANIZATION_ID>&return_url=https://app.observability.io/dashboard
+```
+The Auth Service:
+1. Validates the organization's active SAML provider.
+2. Generates an `AuthNRequest` XML using `buildAuthNRequestXml()`.
+3. Stores an ephemeral `RelayState` challenge in `auth_saml_requests` with a 5-minute TTL.
+4. Returns an IdP redirect URL: `https://identity-provider.com/saml/sso?SAMLRequest=...&RelayState=...`
+
+### 8.4 Step 4: Assertion Consumption & Automatic JIT Provisioning
+The IdP posts the user back to `/api/v1/auth/saml/acs` with `SAMLResponse` and `RelayState`.
+The service:
+1. Consumes and deletes the `RelayState` challenge (single-use).
+2. Verifies XMLDSig cryptographic signature against the registered IdP certificate.
+3. Checks `NotBefore` and `NotOnOrAfter` with 120s clock skew tolerance.
+4. Checks and records `assertion_id` in `auth_saml_assertion_replay` to prevent replay attacks.
+5. Locates or Just-In-Time (JIT) provisions the user with `ROLE_MEMBER` and issues a valid session JWT.
+
