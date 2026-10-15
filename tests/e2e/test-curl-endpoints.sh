@@ -302,6 +302,36 @@ AUDIT_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/audit-logs?event_type=ORG_S
   -H "Authorization: Bearer ${SWITCHED_TOKEN}")
 echo "${AUDIT_RESP}"
 
+echo -e "\n--- [36b/56] POST /api/v1/auth/webhooks/subscriptions (Create Webhook Subscription - ADR 0033) ---"
+WEBHOOK_SUB_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/webhooks/subscriptions" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_url": "https://consumer.example.com/webhooks/receiver",
+    "subscribed_events": ["user.created", "role.assigned"]
+  }')
+echo "${WEBHOOK_SUB_RESP}"
+WEBHOOK_SUB_ID=$(echo "${WEBHOOK_SUB_RESP}" | node -e "const fs=require('fs'); try { const d=JSON.parse(fs.readFileSync(0, 'utf-8')); console.log(d.data?.subscription?.id || ''); } catch { console.log(''); }")
+
+echo -e "\n--- [36c/56] GET /api/v1/auth/webhooks/subscriptions (List Webhook Subscriptions - ADR 0033) ---"
+WEBHOOK_LIST_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/webhooks/subscriptions" \
+  -H "Authorization: Bearer ${SWITCHED_TOKEN}")
+echo "${WEBHOOK_LIST_RESP}"
+
+echo -e "\n--- [36d/56] GET /api/v1/auth/webhooks/subscriptions/:id (Get Webhook Subscription - ADR 0033) ---"
+if [ -n "${WEBHOOK_SUB_ID}" ]; then
+  WEBHOOK_GET_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/webhooks/subscriptions/${WEBHOOK_SUB_ID}" \
+    -H "Authorization: Bearer ${SWITCHED_TOKEN}")
+  echo "${WEBHOOK_GET_RESP}"
+fi
+
+echo -e "\n--- [36e/56] GET /api/v1/auth/webhooks/subscriptions/:id/deliveries (List Deliveries - ADR 0033) ---"
+if [ -n "${WEBHOOK_SUB_ID}" ]; then
+  WEBHOOK_DELIV_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/webhooks/subscriptions/${WEBHOOK_SUB_ID}/deliveries" \
+    -H "Authorization: Bearer ${SWITCHED_TOKEN}")
+  echo "${WEBHOOK_DELIV_RESP}"
+fi
+
 echo -e "\n--- [37/37] DELETE /api/v1/auth/organizations/:id (Soft-Delete Organization) ---"
 DEL_ORG_RESP=$(curl -s -X DELETE "${BASE_URL}/api/v1/auth/organizations/${SEC_ORG_ID}")
 echo "${DEL_ORG_RESP}"

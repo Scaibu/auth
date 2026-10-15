@@ -2116,13 +2116,125 @@ paths:
       summary: List registered SAML providers for organization
       security:
         - BearerAuth: []
+  /api/v1/auth/webhooks/subscriptions:
+    post:
+      summary: Register a new webhook subscription for tenant
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_url]
+              properties:
+                target_url:
+                  type: string
+                  format: uri
+                subscribed_events:
+                  type: array
+                  items:
+                    type: string
       responses:
-        '200':
-          description: List of registered SAML providers
+        '201':
+          description: Webhook subscription created with one-time raw signing secret
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
+        '400':
+          description: Invalid URL format or missing fields
+    get:
+      summary: List all active webhook subscriptions for tenant
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of active webhook subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/webhooks/subscriptions/{id}:
+    get:
+      summary: Get details of a webhook subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook subscription details
+        '404':
+          description: Subscription not found
+    patch:
+      summary: Update webhook subscription URL, events, or active state
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_url:
+                  type: string
+                  format: uri
+                subscribed_events:
+                  type: array
+                  items:
+                    type: string
+                active:
+                  type: boolean
+      responses:
+        '200':
+          description: Subscription updated successfully
+        '404':
+          description: Subscription not found
+    delete:
+      summary: Soft-delete webhook subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription soft-deleted
+        '404':
+          description: Subscription not found
+
+  /api/v1/auth/webhooks/subscriptions/{id}/deliveries:
+    get:
+      summary: List historical delivery ledger records for subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of recent delivery attempts and responses
+        '404':
+          description: Subscription not found
 
 components:
 

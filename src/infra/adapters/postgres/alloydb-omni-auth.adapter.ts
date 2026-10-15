@@ -1200,6 +1200,58 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
     return count;
   }
+
+  private readonly mockWebhookSubscriptions = new Map<string, any>();
+  private readonly mockWebhookDeliveries = new Map<string, any>();
+
+  async saveWebhookSubscription(subscription: any): Promise<void> {
+    this.mockWebhookSubscriptions.set(subscription.id, { ...subscription });
+  }
+
+  async findWebhookSubscriptionById(id: string, orgId: string): Promise<any | null> {
+    const sub = this.mockWebhookSubscriptions.get(id);
+    if (!sub || sub.org_id !== orgId || sub.deleted_at) return null;
+    return { ...sub };
+  }
+
+  async listWebhookSubscriptionsByOrgId(orgId: string): Promise<any[]> {
+    return [...this.mockWebhookSubscriptions.values()]
+      .filter((sub) => sub.org_id === orgId && !sub.deleted_at)
+      .map((sub) => ({ ...sub }));
+  }
+
+  async updateWebhookSubscription(
+    id: string,
+    orgId: string,
+    patch: { target_url?: string; subscribed_events?: readonly string[]; active?: boolean }
+  ): Promise<void> {
+    const sub = this.mockWebhookSubscriptions.get(id);
+    if (sub && sub.org_id === orgId && !sub.deleted_at) {
+      if (patch.target_url !== undefined) sub.target_url = patch.target_url;
+      if (patch.subscribed_events !== undefined) sub.subscribed_events = [...patch.subscribed_events];
+      if (patch.active !== undefined) sub.active = patch.active;
+      sub.version = (sub.version || 1) + 1;
+      sub.updated_at_ms = Date.now();
+    }
+  }
+
+  async deleteWebhookSubscription(id: string, orgId: string): Promise<void> {
+    const sub = this.mockWebhookSubscriptions.get(id);
+    if (sub && sub.org_id === orgId) {
+      sub.deleted_at = new Date().toISOString();
+      sub.active = false;
+    }
+  }
+
+  async recordWebhookDelivery(delivery: any): Promise<void> {
+    this.mockWebhookDeliveries.set(delivery.id, { ...delivery });
+  }
+
+  async listWebhookDeliveriesBySubscriptionId(subscriptionId: string, orgId: string): Promise<any[]> {
+    return [...this.mockWebhookDeliveries.values()]
+      .filter((deliv) => deliv.subscription_id === subscriptionId && deliv.org_id === orgId)
+      .map((deliv) => ({ ...deliv }));
+  }
 }
 
 

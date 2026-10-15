@@ -3,7 +3,7 @@ import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../../shared/types/auth.types';
 import { REAL_POSTGRES_QUERIES, AUTH_QUERIES } from './queries/real-postgres.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
@@ -2007,6 +2007,124 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     return withSpan('RealPostgresAuthAdapter.countRecentMagicLinksByIp', async () => {
       const res = await this.pool.query(this.queries.FLOW_MAGIC_LINKS.COUNT_RECENT_BY_IP, [ip, sinceEpochMs]);
       return Number(res.rows[0]?.count ?? 0);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveWebhookSubscription(subscription: WebhookSubscriptionRecord): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveWebhookSubscription', async () => {
+      await this.pool.query(this.queries.FLOW_WEBHOOKS.INSERT_SUBSCRIPTION, [
+        subscription.id,
+        subscription.public_id,
+        subscription.org_id,
+        subscription.target_url,
+        subscription.secret_hash,
+        subscription.secret_prefix,
+        JSON.stringify(subscription.subscribed_events),
+        subscription.active,
+        subscription.version,
+        subscription.created_at_ms,
+        subscription.updated_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findWebhookSubscriptionById(id: string, orgId: string): Promise<WebhookSubscriptionRecord | null> {
+    return withSpan('RealPostgresAuthAdapter.findWebhookSubscriptionById', async () => {
+      const res = await this.pool.query(this.queries.FLOW_WEBHOOKS.FIND_SUBSCRIPTION_BY_ID, [id, orgId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        target_url: row.target_url,
+        secret_hash: row.secret_hash,
+        secret_prefix: row.secret_prefix,
+        subscribed_events: typeof row.subscribed_events === 'string' ? JSON.parse(row.subscribed_events) : row.subscribed_events,
+        active: Boolean(row.active),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listWebhookSubscriptionsByOrgId(orgId: string): Promise<WebhookSubscriptionRecord[]> {
+    return withSpan('RealPostgresAuthAdapter.listWebhookSubscriptionsByOrgId', async () => {
+      const res = await this.pool.query(this.queries.FLOW_WEBHOOKS.LIST_SUBSCRIPTIONS_BY_ORG, [orgId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        public_id: row.public_id,
+        org_id: row.org_id,
+        target_url: row.target_url,
+        secret_hash: row.secret_hash,
+        secret_prefix: row.secret_prefix,
+        subscribed_events: typeof row.subscribed_events === 'string' ? JSON.parse(row.subscribed_events) : row.subscribed_events,
+        active: Boolean(row.active),
+        version: Number(row.version),
+        created_at_ms: Number(row.created_at_ms),
+        updated_at_ms: Number(row.updated_at_ms),
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async updateWebhookSubscription(
+    id: string,
+    orgId: string,
+    patch: { target_url?: string; subscribed_events?: readonly string[]; active?: boolean }
+  ): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.updateWebhookSubscription', async () => {
+      await this.pool.query(this.queries.FLOW_WEBHOOKS.UPDATE_SUBSCRIPTION, [
+        id,
+        orgId,
+        patch.target_url ?? null,
+        patch.subscribed_events ? JSON.stringify(patch.subscribed_events) : null,
+        patch.active ?? null,
+        Date.now(),
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deleteWebhookSubscription(id: string, orgId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.deleteWebhookSubscription', async () => {
+      await this.pool.query(this.queries.FLOW_WEBHOOKS.DELETE_SUBSCRIPTION, [id, orgId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async recordWebhookDelivery(delivery: WebhookDeliveryRecord): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.recordWebhookDelivery', async () => {
+      await this.pool.query(this.queries.FLOW_WEBHOOKS.INSERT_DELIVERY, [
+        delivery.id,
+        delivery.public_id,
+        delivery.subscription_id,
+        delivery.org_id,
+        delivery.event_type,
+        delivery.nonce,
+        delivery.response_status,
+        delivery.execution_duration_ms,
+        delivery.success,
+        delivery.failure_reason ?? null,
+        delivery.delivered_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listWebhookDeliveriesBySubscriptionId(subscriptionId: string, orgId: string): Promise<WebhookDeliveryRecord[]> {
+    return withSpan('RealPostgresAuthAdapter.listWebhookDeliveriesBySubscriptionId', async () => {
+      const res = await this.pool.query(this.queries.FLOW_WEBHOOKS.LIST_DELIVERIES_BY_SUB, [subscriptionId, orgId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        public_id: row.public_id,
+        subscription_id: row.subscription_id,
+        org_id: row.org_id,
+        event_type: row.event_type,
+        nonce: row.nonce,
+        response_status: Number(row.response_status),
+        execution_duration_ms: Number(row.execution_duration_ms),
+        success: Boolean(row.success),
+        failure_reason: row.failure_reason,
+        delivered_at_ms: Number(row.delivered_at_ms),
+      }));
     }, { kind: SpanKind.CLIENT });
   }
 }

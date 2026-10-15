@@ -287,3 +287,34 @@ export const MagicLinkVerifyResultSchema = z.object({
   error: z.string().optional(),
 });
 export type MagicLinkVerifyResult = z.infer<typeof MagicLinkVerifyResultSchema>;
+
+export const WebhookSubscriptionRecordSchema = z.object({
+  id: z.string().min(1),
+  public_id: z.string().min(1),
+  org_id: z.string().min(1),
+  target_url: z.string().url(),
+  secret_hash: z.string().min(1),
+  secret_prefix: z.string().min(1),
+  subscribed_events: z.array(z.string()).default(['*']),
+  active: z.boolean().default(true),
+  version: z.number().int().positive().default(1),
+  created_at_ms: z.number().int().positive(),
+  updated_at_ms: z.number().int().positive(),
+  deleted_at: z.string().nullable().optional(),
+});
+export type WebhookSubscriptionRecord = z.infer<typeof WebhookSubscriptionRecordSchema>;
+
+export const WebhookDeliveryRecordSchema = z.object({
+  id: z.string().min(1),
+  public_id: z.string().min(1),
+  subscription_id: z.string().min(1),
+  org_id: z.string().min(1),
+  event_type: z.string().min(1),
+  nonce: z.string().min(1),
+  response_status: z.number().int(),
+  execution_duration_ms: z.number().int().nonnegative(),
+  success: z.boolean(),
+  failure_reason: z.string().nullable().optional(),
+  delivered_at_ms: z.number().int().positive(),
+});
+export type WebhookDeliveryRecord = z.infer<typeof WebhookDeliveryRecordSchema>;

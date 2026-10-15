@@ -233,6 +233,15 @@ export const AUTH_QUERIES = {
     COUNT_RECENT_BY_EMAIL: `SELECT COUNT(*)::int AS count FROM auth_magic_links WHERE email = $1 AND created_at_ms >= $2 AND deleted_at IS NULL`,
     COUNT_RECENT_BY_IP: `SELECT COUNT(*)::int AS count FROM auth_magic_links WHERE request_ip = $1 AND created_at_ms >= $2 AND deleted_at IS NULL`,
   },
+  FLOW_WEBHOOKS: {
+    INSERT_SUBSCRIPTION: `INSERT INTO auth_webhook_subscriptions (id, public_id, org_id, target_url, secret_hash, secret_prefix, subscribed_events, active, version, created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    FIND_SUBSCRIPTION_BY_ID: `SELECT id, public_id, org_id, target_url, secret_hash, secret_prefix, subscribed_events, active, version, created_at_ms, updated_at_ms FROM auth_webhook_subscriptions WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL LIMIT 1`,
+    LIST_SUBSCRIPTIONS_BY_ORG: `SELECT id, public_id, org_id, target_url, secret_hash, secret_prefix, subscribed_events, active, version, created_at_ms, updated_at_ms FROM auth_webhook_subscriptions WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at_ms DESC`,
+    UPDATE_SUBSCRIPTION: `UPDATE auth_webhook_subscriptions SET target_url = COALESCE($3, target_url), subscribed_events = COALESCE($4, subscribed_events), active = COALESCE($5, active), version = version + 1, updated_at_ms = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+    DELETE_SUBSCRIPTION: `UPDATE auth_webhook_subscriptions SET deleted_at = CURRENT_TIMESTAMP, active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+    INSERT_DELIVERY: `INSERT INTO auth_webhook_deliveries (id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    LIST_DELIVERIES_BY_SUB: `SELECT id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms FROM auth_webhook_deliveries WHERE subscription_id = $1 AND org_id = $2 ORDER BY delivered_at_ms DESC LIMIT 100`,
+  },
 } as const;
 
 

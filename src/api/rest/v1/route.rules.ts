@@ -74,6 +74,14 @@ import {
   handleConsumeMagicLink,
 } from './handlers/magic-link.handler';
 import {
+  handleCreateWebhookSubscription,
+  handleListWebhookSubscriptions,
+  handleGetWebhookSubscription,
+  handleUpdateWebhookSubscription,
+  handleDeleteWebhookSubscription,
+  handleListWebhookDeliveries,
+} from './handlers/webhook.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -1016,6 +1024,54 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: false,
     successMessage: 'Magic link authentication successful',
     handler: (ctx) => handleConsumeMagicLink(ctx.service, ctx.body, ctx.headers),
+  },
+  {
+    name: 'webhook_create_subscription',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_SUBSCRIPTIONS,
+    requiresAuth: true,
+    successMessage: 'Webhook subscription created successfully',
+    handler: (ctx, session) => handleCreateWebhookSubscription(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'webhook_list_subscriptions',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_SUBSCRIPTIONS,
+    requiresAuth: true,
+    successMessage: 'Webhook subscriptions retrieved successfully',
+    handler: (ctx, session) => handleListWebhookSubscriptions(ctx.service, session),
+  },
+  {
+    name: 'webhook_get_subscription',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_SUBSCRIPTIONS_ITEM,
+    requiresAuth: true,
+    successMessage: 'Webhook subscription retrieved successfully',
+    handler: (ctx, session) => handleGetWebhookSubscription(ctx.service, ctx.params.id ?? '', session),
+  },
+  {
+    name: 'webhook_update_subscription',
+    method: HTTP_METHODS.PATCH,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_SUBSCRIPTIONS_ITEM,
+    requiresAuth: true,
+    successMessage: 'Webhook subscription updated successfully',
+    handler: (ctx, session) => handleUpdateWebhookSubscription(ctx.service, ctx.params.id ?? '', ctx.body, session),
+  },
+  {
+    name: 'webhook_delete_subscription',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_SUBSCRIPTIONS_ITEM,
+    requiresAuth: true,
+    successMessage: 'Webhook subscription deleted successfully',
+    handler: (ctx, session) => handleDeleteWebhookSubscription(ctx.service, ctx.params.id ?? '', session),
+  },
+  {
+    name: 'webhook_list_deliveries',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WEBHOOK_DELIVERIES,
+    requiresAuth: true,
+    successMessage: 'Webhook deliveries retrieved successfully',
+    handler: (ctx, session) => handleListWebhookDeliveries(ctx.service, ctx.params.id ?? '', session),
   },
 ];
 

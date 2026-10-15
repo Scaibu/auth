@@ -82,7 +82,8 @@ import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, Sa
 import { PasskeyService } from './services/passkey.service';
 import { CustomRoleService } from './services/custom-role.service';
 import { MagicLinkService } from './services/magic-link.service';
-import type { CustomRoleRecord, PermissionEvaluationResult, MagicLinkVerifyResult } from '../../shared/types/auth.types';
+import { WebhookService, type CreateWebhookSubscriptionInput, type WebhookSubscriptionCreationResult } from './services/webhook.service';
+import type { CustomRoleRecord, PermissionEvaluationResult, MagicLinkVerifyResult, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -104,6 +105,7 @@ export class AuthService {
   private readonly passkeyService: PasskeyService;
   private readonly customRoleService: CustomRoleService;
   private readonly magicLinkService: MagicLinkService;
+  private readonly webhookService: WebhookService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -126,6 +128,7 @@ export class AuthService {
     this.passkeyService = new PasskeyService(repo);
     this.customRoleService = new CustomRoleService(repo);
     this.magicLinkService = new MagicLinkService(repo);
+    this.webhookService = new WebhookService(repo);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
@@ -727,6 +730,36 @@ export class AuthService {
       user,
       redirectUrl: consumed.redirectUrl,
     };
+  }
+
+  async createWebhookSubscription(
+    input: CreateWebhookSubscriptionInput
+  ): Promise<WebhookSubscriptionCreationResult> {
+    return this.webhookService.createSubscription(input);
+  }
+
+  async listWebhookSubscriptions(orgId: string): Promise<WebhookSubscriptionRecord[]> {
+    return this.webhookService.listSubscriptions(orgId);
+  }
+
+  async getWebhookSubscription(id: string, orgId: string): Promise<WebhookSubscriptionRecord | null> {
+    return this.webhookService.getSubscription(id, orgId);
+  }
+
+  async updateWebhookSubscription(
+    id: string,
+    orgId: string,
+    patch: { target_url?: string; subscribed_events?: readonly string[]; active?: boolean }
+  ): Promise<WebhookSubscriptionRecord | null> {
+    return this.webhookService.updateSubscription(id, orgId, patch);
+  }
+
+  async deleteWebhookSubscription(id: string, orgId: string): Promise<boolean> {
+    return this.webhookService.deleteSubscription(id, orgId);
+  }
+
+  async listWebhookDeliveries(subscriptionId: string, orgId: string): Promise<WebhookDeliveryRecord[]> {
+    return this.webhookService.listDeliveries(subscriptionId, orgId);
   }
 }
 

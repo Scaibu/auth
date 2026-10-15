@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
 import type { SamlRepositoryPort } from './ports/saml-repository.port';
 
 export interface OrganizationRecord {
@@ -197,6 +197,13 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   consumeMagicLink(tokenHash: string, consumedAtMs: number, consumedIp?: string): Promise<boolean>;
   countRecentMagicLinksByEmail(email: string, sinceEpochMs: number): Promise<number>;
   countRecentMagicLinksByIp(ip: string, sinceEpochMs: number): Promise<number>;
+  saveWebhookSubscription(subscription: WebhookSubscriptionRecord): Promise<void>;
+  findWebhookSubscriptionById(id: string, orgId: string): Promise<WebhookSubscriptionRecord | null>;
+  listWebhookSubscriptionsByOrgId(orgId: string): Promise<WebhookSubscriptionRecord[]>;
+  updateWebhookSubscription(id: string, orgId: string, patch: { target_url?: string; subscribed_events?: readonly string[]; active?: boolean }): Promise<void>;
+  deleteWebhookSubscription(id: string, orgId: string): Promise<void>;
+  recordWebhookDelivery(delivery: WebhookDeliveryRecord): Promise<void>;
+  listWebhookDeliveriesBySubscriptionId(subscriptionId: string, orgId: string): Promise<WebhookDeliveryRecord[]>;
 }
 
 

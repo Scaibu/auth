@@ -73,6 +73,9 @@ export const AUTH_ENDPOINTS = {
   MAGIC_LINK_SEND: '/api/v1/auth/magic-link/send',
   MAGIC_LINK_VERIFY: '/api/v1/auth/magic-link/verify',
   MAGIC_LINK_CONSUME: '/api/v1/auth/magic-link/consume',
+  WEBHOOK_SUBSCRIPTIONS: '/api/v1/auth/webhooks/subscriptions',
+  WEBHOOK_SUBSCRIPTIONS_ITEM: '/api/v1/auth/webhooks/subscriptions/:id',
+  WEBHOOK_DELIVERIES: '/api/v1/auth/webhooks/subscriptions/:id/deliveries',
   HEALTH: '/health',
 } as const;
 
