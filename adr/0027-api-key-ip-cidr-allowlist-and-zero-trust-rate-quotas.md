@@ -33,7 +33,7 @@ This Architecture Decision Record (ADR 0027) establishes a **Zero-Trust Network 
    - Rate counters are maintained in Redis using atomic sliding 60-second epoch buckets (`auth:rate_quota:{key_id}:{epochMinute}`) with a 65-second auto-expiration TTL.
    - Breaching the quota immediately terminates execution with `HTTP 429 Too Many Requests` (`API_KEY_RATE_LIMIT_EXCEEDED`).
 4. **Automated Anomaly Tripping**:
-   - When requests within a single 60-second epoch window exceed $3\times$ the configured quota (`ANOMALY_MULTIPLIER = 3`), an asynchronous task updates the database record:
+   - When requests within a single 60-second epoch window exceed 3x the configured quota (`ANOMALY_MULTIPLIER = 3`), an asynchronous task updates the database record:
      - `anomaly_flag = TRUE`
      - `anomaly_flagged_at_ms = CURRENT_TIMESTAMP_MS`
    - Security Operations Center (SOC) tooling and SIEM pipelines monitor the database index `idx_auth_api_keys_anomaly` to quarantine anomalous workloads in real time.
@@ -196,16 +196,34 @@ The CIDR matching engine in `src/shared/utils/cidr.util.ts` operates determinist
 
 1. **IPv4 Evaluation**:
    - Dotted-decimal strings (`a.b.c.d`) are parsed into 32-bit unsigned integers:
-     $$\text{uint32} = (a \ll 24) \mid (b \ll 16) \mid (c \ll 8) \mid d$$
-   - A bitmask for prefix length $L \in [0, 32]$ is constructed:
-     $$\text{mask} = (\text{0xFFFFFFFF} \ll (32 - L)) \ggg 0$$
-   - Comparison: $(\text{ip} \ \& \ \text{mask}) === (\text{base} \ \& \ \text{mask})$
+     ```typescript
+     uint32 = ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+     ```
+   - A bitmask for prefix length `L` (where `0 <= L <= 32`) is constructed:
+     ```typescript
+     mask = L === 0 ? 0 : (0xffffffff << (32 - L)) >>> 0;
+     ```
+   - Subnet comparison:
+     ```typescript
+     isMatch = (clientIpUint32 & mask) === (cidrBaseUint32 & mask);
+     ```
 
 2. **IPv6 Evaluation**:
-   - Addresses (including compressed `::` notation and IPv4-mapped `::ffff:a.b.c.d`) are expanded into a 16-byte `Uint8Array`.
-   - Prefix length $L \in [0, 128]$ is divided into full bytes ($B = \lfloor L / 8 \rfloor$) and remaining bits ($R = L \pmod 8$).
-   - Compares the first $B$ bytes with byte-equality, and masks the $(B+1)$-th byte:
-     $$\text{mask} = (\text{0xFF} \ll (8 - R)) \ \& \ \text{0xFF}$$
+   - Addresses (including compressed `::` notation and IPv4-mapped `::ffff:a.b.c.d`) are expanded into a 16-byte buffer (`Uint8Array(16)`).
+   - Prefix length `L` (where `0 <= L <= 128`) is divided into:
+     - Full byte boundary: `fullBytes = Math.floor(L / 8)`
+     - Remaining bits: `remainingBits = L % 8`
+   - Byte-level prefix matching:
+     ```typescript
+     for (let i = 0; i < fullBytes; i++) {
+       if (clientIpBuf[i] !== baseBuf[i]) return false;
+     }
+     ```
+   - Boundary bitmask check (when `remainingBits > 0`):
+     ```typescript
+     const boundaryMask = (0xff << (8 - remainingBits)) & 0xff;
+     return (clientIpBuf[fullBytes] & boundaryMask) === (baseBuf[fullBytes] & boundaryMask);
+     ```
 
 ---
 
