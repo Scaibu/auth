@@ -84,7 +84,7 @@ What is the difference between a Fixed Window, a Sliding Log, and a Sliding Wind
 The interviewer is testing your algorithmic depth in rate-limiting data structures.
 - **Fixed Window**: Suffers from the boundary bursting problem: a user can send their full quota at the end of window 1 and another full quota at the start of window 2, doubling the allowed rate across the boundary.
 - **Sliding Log**: Stores every request timestamp in a sorted set; perfectly accurate, but memory consumption scales linearly with request volume.
-- **Sliding Window Counter**: Combines weighted counts from the current and previous fixed windows ($Count = Count_{current} + Count_{previous} \times (1 - \text{elapsed\_fraction})$). It prevents boundary bursting, requires only two integer keys per user, and executes in $O(1)$ memory.
+- **Sliding Window Counter**: Combines weighted counts from the current and previous fixed windows ($Count = Count_{\text{current}} + Count_{\text{previous}} \times (1 - \text{elapsedFraction})$). It prevents boundary bursting, requires only two integer keys per user, and executes in $O(1)$ memory.
 
 ---
 

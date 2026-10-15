@@ -73,7 +73,7 @@ How does PostgreSQL's `work_mem` setting interact with complex analytical querie
 
 **The Meta-Question:**  
 The interviewer is evaluating your database configuration math. They want to verify that you know `work_mem` is allocated *per sort or hash operation*, meaning a single complex query with multiple joins and sorts can allocate multiple `work_mem` blocks! The rule of thumb for safe `work_mem` is:
-$$\text{work\_mem} \approx \frac{\text{Total Available RAM} - \text{shared\_buffers} - \text{OS overhead}}{\text{max\_connections} \times \text{average\_sorts\_per\_query}}$$
+$$\text{workMem} \approx \frac{\text{Total Available RAM} - \text{sharedBuffers} - \text{OS overhead}}{\text{maxConnections} \times \text{averageSortsPerQuery}}$$
 In a 4GB container with `shared_buffers = 512MB` and 100 connections, setting `work_mem = 16MB` to `32MB` ensures fast in-memory sorts while preventing concurrent queries from driving the host into out-of-memory collapse.
 
 ---
