@@ -8,6 +8,20 @@ const __dirname = path.dirname(__filename);
 
 import { AUTH_CONFIG } from '../src/config/env.config';
 
+export const MIGRATE_QUERIES = {
+  CREATE_SCHEMA_MIGRATIONS_TABLE: `
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      name VARCHAR(255) PRIMARY KEY,
+      applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `,
+  SELECT_APPLIED_MIGRATIONS: 'SELECT name FROM schema_migrations',
+  RECORD_APPLIED_MIGRATION: 'INSERT INTO schema_migrations (name) VALUES ($1)',
+  BEGIN_TRANSACTION: 'BEGIN',
+  COMMIT_TRANSACTION: 'COMMIT',
+  ROLLBACK_TRANSACTION: 'ROLLBACK',
+} as const;
+
 const connectionString = AUTH_CONFIG.db.url;
 
 const pool = new pg.Pool({ connectionString });
@@ -37,14 +51,9 @@ export async function runMigrations() {
   let client: pg.PoolClient | null = null;
   try {
     client = await connectWithRetry();
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        name VARCHAR(255) PRIMARY KEY,
-        applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+    await client.query(MIGRATE_QUERIES.CREATE_SCHEMA_MIGRATIONS_TABLE);
 
-    const { rows } = await client.query<{ name: string }>('SELECT name FROM schema_migrations');
+    const { rows } = await client.query<{ name: string }>(MIGRATE_QUERIES.SELECT_APPLIED_MIGRATIONS);
     const appliedSet = new Set(rows.map((r) => r.name));
 
     const candidateDirs = [
@@ -78,15 +87,15 @@ export async function runMigrations() {
           if (!client) {
             client = await connectWithRetry();
           }
-          await client.query('BEGIN');
+          await client.query(MIGRATE_QUERIES.BEGIN_TRANSACTION);
           await client.query(sql);
-          await client.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file]);
-          await client.query('COMMIT');
+          await client.query(MIGRATE_QUERIES.RECORD_APPLIED_MIGRATION, [file]);
+          await client.query(MIGRATE_QUERIES.COMMIT_TRANSACTION);
           console.log(`  - [DONE] ${file}`);
           break;
         } catch (fileErr: any) {
           if (client) {
-            await client.query('ROLLBACK').catch(() => { });
+            await client.query(MIGRATE_QUERIES.ROLLBACK_TRANSACTION).catch(() => { });
             try { client.release(); } catch { }
             client = null;
           }
@@ -100,7 +109,7 @@ export async function runMigrations() {
     console.log('[db-migrate] ✓ All database migrations applied successfully.');
   } catch (error) {
     if (client) {
-      await client.query('ROLLBACK').catch(() => { });
+      await client.query(MIGRATE_QUERIES.ROLLBACK_TRANSACTION).catch(() => { });
     }
     console.error('[db-migrate] ✗ Migration failed:', error);
     throw error;
