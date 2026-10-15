@@ -174,6 +174,14 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null>;
   findApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null>;
   flagApiKeyAnomaly(keyId: string, flaggedAtMs: number): Promise<void>;
+  savePasskeyChallenge(record: { challenge_id: string; user_id?: string | null; challenge: string; origin: string; rp_id: string; challenge_type: 'registration' | 'authentication'; expires_at_ms: number; created_at_ms: number }): Promise<void>;
+  findPasskeyChallenge(challengeId: string): Promise<{ challenge_id: string; user_id?: string | null; challenge: string; origin: string; rp_id: string; challenge_type: 'registration' | 'authentication'; expires_at_ms: number; created_at_ms: number } | null>;
+  consumePasskeyChallenge(challengeId: string): Promise<void>;
+  savePasskeyCredential(record: { id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number }): Promise<void>;
+  findPasskeyCredentialById(credentialId: string): Promise<{ id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number; last_used_at_ms?: number | null } | null>;
+  listPasskeysByUserId(userId: string): Promise<Array<{ id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number; last_used_at_ms?: number | null }>>;
+  updatePasskeyCounter(credentialId: string, counter: number, lastUsedAtMs: number): Promise<void>;
+  deletePasskey(passkeyId: string, userId: string): Promise<void>;
 }
 
 

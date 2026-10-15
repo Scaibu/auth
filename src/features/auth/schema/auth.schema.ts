@@ -181,6 +181,45 @@ export const ResendVerificationInputSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
 });
 
+export const PasskeyRegisterStartInputSchema = z.object({
+  user_id: z.string().optional(),
+  friendly_name: z.string().max(128).optional(),
+});
+
+export const PasskeyRegisterFinishInputSchema = z.object({
+  challenge_id: z.string().min(1, 'Challenge ID is required'),
+  credential: z.object({
+    id: z.string().min(1, 'Credential ID is required'),
+    rawId: z.string().optional(),
+    response: z.object({
+      clientDataJSON: z.string().min(1, 'clientDataJSON is required'),
+      attestationObject: z.string().min(1, 'attestationObject is required'),
+      transports: z.array(z.string()).optional(),
+    }),
+    type: z.literal('public-key'),
+  }),
+  friendly_name: z.string().max(128).optional(),
+});
+
+export const PasskeyAuthStartInputSchema = z.object({
+  email: z.string().email('Please enter a valid email address').optional(),
+});
+
+export const PasskeyAuthFinishInputSchema = z.object({
+  challenge_id: z.string().min(1, 'Challenge ID is required'),
+  credential: z.object({
+    id: z.string().min(1, 'Credential ID is required'),
+    rawId: z.string().optional(),
+    response: z.object({
+      clientDataJSON: z.string().min(1, 'clientDataJSON is required'),
+      authenticatorData: z.string().min(1, 'authenticatorData is required'),
+      signature: z.string().min(1, 'signature is required'),
+      userHandle: z.string().nullable().optional(),
+    }),
+    type: z.literal('public-key'),
+  }),
+});
+
 export const AUTH_JSON_MAPPING = {
   fromApi: [
     { op: 'rename', from: 'emailAddress', to: 'email' },

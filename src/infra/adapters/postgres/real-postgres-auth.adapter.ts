@@ -1661,6 +1661,120 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }
     }, { kind: SpanKind.CLIENT });
   }
+
+  async savePasskeyChallenge(record: { challenge_id: string; user_id?: string | null; challenge: string; origin: string; rp_id: string; challenge_type: 'registration' | 'authentication'; expires_at_ms: number; created_at_ms: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.savePasskeyChallenge', async () => {
+      await this.pool.query(this.queries.FLOW_PASSKEYS.INSERT_CHALLENGE, [
+        record.challenge_id,
+        record.user_id ?? null,
+        record.challenge,
+        record.origin,
+        record.rp_id,
+        record.challenge_type,
+        record.expires_at_ms,
+        record.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findPasskeyChallenge(challengeId: string): Promise<{ challenge_id: string; user_id?: string | null; challenge: string; origin: string; rp_id: string; challenge_type: 'registration' | 'authentication'; expires_at_ms: number; created_at_ms: number } | null> {
+    return withSpan('RealPostgresAuthAdapter.findPasskeyChallenge', async () => {
+      const res = await this.pool.query(this.queries.FLOW_PASSKEYS.FIND_CHALLENGE, [challengeId, Date.now()]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        challenge_id: row.challenge_id,
+        user_id: row.user_id,
+        challenge: row.challenge,
+        origin: row.origin,
+        rp_id: row.rp_id,
+        challenge_type: row.challenge_type,
+        expires_at_ms: Number(row.expires_at_ms),
+        created_at_ms: Number(row.created_at_ms),
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async consumePasskeyChallenge(challengeId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.consumePasskeyChallenge', async () => {
+      await this.pool.query(this.queries.FLOW_PASSKEYS.CONSUME_CHALLENGE, [challengeId]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async savePasskeyCredential(record: { id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.savePasskeyCredential', async () => {
+      await this.pool.query(this.queries.FLOW_PASSKEYS.INSERT_CREDENTIAL, [
+        record.id,
+        record.credential_id,
+        record.user_id,
+        record.org_id,
+        record.public_key,
+        record.counter,
+        record.device_type,
+        record.backed_up,
+        JSON.stringify(record.transports ?? []),
+        record.aaguid ?? null,
+        record.friendly_name,
+        record.created_at_ms,
+      ]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findPasskeyCredentialById(credentialId: string): Promise<{ id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number; last_used_at_ms?: number | null } | null> {
+    return withSpan('RealPostgresAuthAdapter.findPasskeyCredentialById', async () => {
+      const res = await this.pool.query(this.queries.FLOW_PASSKEYS.FIND_CREDENTIAL_BY_ID, [credentialId]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        id: row.id,
+        credential_id: row.credential_id,
+        user_id: row.user_id,
+        org_id: row.org_id,
+        public_key: row.public_key,
+        counter: Number(row.counter),
+        device_type: row.device_type,
+        backed_up: Boolean(row.backed_up),
+        transports: Array.isArray(row.transports) ? row.transports : JSON.parse(row.transports || '[]'),
+        aaguid: row.aaguid,
+        friendly_name: row.friendly_name,
+        created_at_ms: Number(row.created_at_ms),
+        last_used_at_ms: row.last_used_at_ms ? Number(row.last_used_at_ms) : null,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listPasskeysByUserId(userId: string): Promise<Array<{ id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number; last_used_at_ms?: number | null }>> {
+    return withSpan('RealPostgresAuthAdapter.listPasskeysByUserId', async () => {
+      const res = await this.pool.query(this.queries.FLOW_PASSKEYS.LIST_BY_USER_ID, [userId]);
+      return res.rows.map((row: any) => ({
+        id: row.id,
+        credential_id: row.credential_id,
+        user_id: row.user_id,
+        org_id: row.org_id,
+        public_key: row.public_key,
+        counter: Number(row.counter),
+        device_type: row.device_type,
+        backed_up: Boolean(row.backed_up),
+        transports: Array.isArray(row.transports) ? row.transports : JSON.parse(row.transports || '[]'),
+        aaguid: row.aaguid,
+        friendly_name: row.friendly_name,
+        created_at_ms: Number(row.created_at_ms),
+        last_used_at_ms: row.last_used_at_ms ? Number(row.last_used_at_ms) : null,
+      }));
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async updatePasskeyCounter(credentialId: string, counter: number, lastUsedAtMs: number): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.updatePasskeyCounter', async () => {
+      await this.pool.query(this.queries.FLOW_PASSKEYS.UPDATE_COUNTER_AND_LAST_USED, [credentialId, counter, lastUsedAtMs]);
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async deletePasskey(passkeyId: string, userId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.deletePasskey', async () => {
+      await this.pool.query(this.queries.FLOW_PASSKEYS.SOFT_DELETE_CREDENTIAL, [passkeyId, userId]);
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

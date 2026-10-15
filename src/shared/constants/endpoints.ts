@@ -59,6 +59,12 @@ export const AUTH_ENDPOINTS = {
   SAML_ACS: '/api/v1/auth/saml/acs',
   SAML_SLO: '/api/v1/auth/saml/slo',
   SAML_PROVIDERS: '/api/v1/auth/saml/providers',
+  PASSKEYS_REGISTER_START: '/api/v1/auth/passkeys/register/start',
+  PASSKEYS_REGISTER_FINISH: '/api/v1/auth/passkeys/register/finish',
+  PASSKEYS_AUTHENTICATE_START: '/api/v1/auth/passkeys/authenticate/start',
+  PASSKEYS_AUTHENTICATE_FINISH: '/api/v1/auth/passkeys/authenticate/finish',
+  PASSKEYS_LIST: '/api/v1/auth/passkeys',
+  PASSKEYS_DELETE: '/api/v1/auth/passkeys/:id',
   HEALTH: '/health',
 } as const;
 

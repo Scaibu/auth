@@ -36,7 +36,8 @@ import type { ApiKeyRecord, AuthTokenPayload } from '../../shared/types/auth.typ
 import type { AuthEventProducer } from '../../shared/messaging/producers/auth-event.producer';
 import type { Rule } from '@chief-strategist-j/shared-infra/rules-engine';
 import type { MailerPort } from '../../shared/ports/mailer.port';
-
+import { UnauthorizedError } from '../../shared/errors/auth.errors';
+import { createToken } from '../../shared/utils/jwt.util';
 import { OrganizationDomainService } from './services/organization.service';
 import { UserManagementDomainService } from './services/user-management.service';
 import { UserAuthDomainService } from './services/user-auth.service';
@@ -78,6 +79,7 @@ import { OidcProviderService } from './services/oidc-provider.service';
 import type { JwksKey, OidcTokenResponse, OidcUserInfoResponse } from './ports/oidc-repository.port';
 import { SamlProviderService } from './services/saml-provider.service';
 import type { SamlProviderRecord, RegisterSamlProviderInput, SamlLoginResult, SamlAuthResult } from './ports/saml-repository.port';
+import { PasskeyService } from './services/passkey.service';
 
 export class AuthService {
   private readonly repo: AuthRepositoryPort;
@@ -96,6 +98,7 @@ export class AuthService {
   private readonly scimService: ScimProvisioningService;
   private readonly oidcService: OidcProviderService;
   private readonly samlService: SamlProviderService;
+  private readonly passkeyService: PasskeyService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -115,6 +118,7 @@ export class AuthService {
     this.scimService = new ScimProvisioningService(repo);
     this.oidcService = new OidcProviderService(repo, AUTH_CONFIG.oidc);
     this.samlService = new SamlProviderService(repo, AUTH_CONFIG.saml);
+    this.passkeyService = new PasskeyService(repo);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
@@ -593,6 +597,54 @@ export class AuthService {
 
   async consumeSamlAssertion(samlResponse: string, relayState: string): Promise<SamlAuthResult> {
     return this.samlService.consumeAssertion(samlResponse, relayState);
+  }
+
+  async startPasskeyRegistration(userId: string) {
+    const user = await this.repo.findUserById(userId);
+    if (!user) throw new UnauthorizedError('User not found');
+    return this.passkeyService.generateRegistrationOptions(user.id, user.email, user.name);
+  }
+
+  async finishPasskeyRegistration(userId: string, input: any) {
+    const user = await this.repo.findUserById(userId);
+    if (!user) throw new UnauthorizedError('User not found');
+    return this.passkeyService.verifyRegistrationResponse(user.id, user.org_id, input);
+  }
+
+  async startPasskeyAuthentication(email?: string) {
+    return this.passkeyService.generateAuthenticationOptions(email);
+  }
+
+  async finishPasskeyAuthentication(input: any) {
+    const result = await this.passkeyService.verifyAuthenticationResponse(input);
+    const user = await this.repo.findUserById(result.userId);
+    if (!user) throw new UnauthorizedError('User not found');
+    const token = createToken(user.id, user.email, {
+      org_id: user.org_id,
+      org_name: user.org_name,
+      role: user.role,
+    });
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        org_id: user.org_id,
+        org_name: user.org_name,
+        role: user.role,
+        user_permissions: user.user_permissions,
+      },
+      token,
+      credential_id: result.credentialId,
+    };
+  }
+
+  async listUserPasskeys(userId: string) {
+    return this.passkeyService.listUserPasskeys(userId);
+  }
+
+  async deleteUserPasskey(passkeyId: string, userId: string) {
+    return this.passkeyService.deletePasskey(passkeyId, userId);
   }
 }
 

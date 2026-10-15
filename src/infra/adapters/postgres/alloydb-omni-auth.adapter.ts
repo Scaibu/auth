@@ -1022,6 +1022,57 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     this.mockSamlAssertionReplay.set(assertionId, expiresAtMs);
     return true;
   }
+
+  private readonly mockPasskeyChallenges = new Map<string, any>();
+  private readonly mockPasskeyCredentials = new Map<string, any>();
+
+  async savePasskeyChallenge(record: { challenge_id: string; user_id?: string | null; challenge: string; origin: string; rp_id: string; challenge_type: 'registration' | 'authentication'; expires_at_ms: number; created_at_ms: number }): Promise<void> {
+    this.mockPasskeyChallenges.set(record.challenge_id, { ...record });
+  }
+
+  async findPasskeyChallenge(challengeId: string): Promise<any | null> {
+    const item = this.mockPasskeyChallenges.get(challengeId);
+    if (!item) return null;
+    if (item.expires_at_ms <= Date.now()) {
+      this.mockPasskeyChallenges.delete(challengeId);
+      return null;
+    }
+    return { ...item };
+  }
+
+  async consumePasskeyChallenge(challengeId: string): Promise<void> {
+    this.mockPasskeyChallenges.delete(challengeId);
+  }
+
+  async savePasskeyCredential(record: { id: string; credential_id: string; user_id: string; org_id: string; public_key: string; counter: number; device_type: string; backed_up: boolean; transports: string[]; aaguid?: string | null; friendly_name: string; created_at_ms: number }): Promise<void> {
+    this.mockPasskeyCredentials.set(record.credential_id, { ...record, last_used_at_ms: null, deleted_at: null });
+  }
+
+  async findPasskeyCredentialById(credentialId: string): Promise<any | null> {
+    const item = this.mockPasskeyCredentials.get(credentialId);
+    if (!item || item.deleted_at) return null;
+    return { ...item };
+  }
+
+  async listPasskeysByUserId(userId: string): Promise<Array<any>> {
+    return [...this.mockPasskeyCredentials.values()].filter(c => c.user_id === userId && !c.deleted_at);
+  }
+
+  async updatePasskeyCounter(credentialId: string, counter: number, lastUsedAtMs: number): Promise<void> {
+    const item = this.mockPasskeyCredentials.get(credentialId);
+    if (item) {
+      item.counter = counter;
+      item.last_used_at_ms = lastUsedAtMs;
+    }
+  }
+
+  async deletePasskey(passkeyId: string, userId: string): Promise<void> {
+    for (const item of this.mockPasskeyCredentials.values()) {
+      if ((item.id === passkeyId || item.credential_id === passkeyId) && item.user_id === userId) {
+        item.deleted_at = Date.now();
+      }
+    }
+  }
 }
 
 

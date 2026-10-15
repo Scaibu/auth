@@ -197,4 +197,33 @@ export const PolicyEvaluationResultSchema = z.object({
 });
 export type PolicyEvaluationResult = z.infer<typeof PolicyEvaluationResultSchema>;
 
+export const PasskeyCredentialRecordSchema = z.object({
+  id: z.string().min(1),
+  credential_id: z.string().min(1),
+  user_id: z.string().min(1),
+  org_id: z.string().min(1),
+  public_key: z.string().min(1),
+  counter: z.number().int().nonnegative(),
+  device_type: z.string().default('single_device'),
+  backed_up: z.boolean().default(false),
+  transports: z.array(z.string()).default([]),
+  aaguid: z.string().nullable().optional(),
+  friendly_name: z.string().default('Passkey'),
+  created_at_ms: z.number().int().positive(),
+  last_used_at_ms: z.number().int().positive().nullable().optional(),
+});
+export type PasskeyCredentialRecord = z.infer<typeof PasskeyCredentialRecordSchema>;
+
+export const PasskeyChallengeRecordSchema = z.object({
+  challenge_id: z.string().min(1),
+  user_id: z.string().nullable().optional(),
+  challenge: z.string().min(1),
+  origin: z.string().min(1),
+  rp_id: z.string().min(1),
+  challenge_type: z.enum(['registration', 'authentication']),
+  expires_at_ms: z.number().int().positive(),
+  created_at_ms: z.number().int().positive(),
+});
+export type PasskeyChallengeRecord = z.infer<typeof PasskeyChallengeRecordSchema>;
+
 

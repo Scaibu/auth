@@ -52,6 +52,14 @@ import {
   handleListRelations,
 } from './handlers/policy.handler';
 import {
+  handleStartPasskeyRegistration,
+  handleFinishPasskeyRegistration,
+  handleStartPasskeyAuthentication,
+  handleFinishPasskeyAuthentication,
+  handleListPasskeys,
+  handleDeletePasskey,
+} from './handlers/passkey.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -864,6 +872,55 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'SAML identity providers retrieved successfully',
     handler: (ctx, session) => handleListSamlProviders(ctx.service, session),
+  },
+  {
+    name: 'passkeys_register_start',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_REGISTER_START,
+    requiresAuth: true,
+    successMessage: 'Passkey registration options generated successfully',
+    handler: (ctx, session) => handleStartPasskeyRegistration(ctx.service, session!),
+  },
+  {
+    name: 'passkeys_register_finish',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_REGISTER_FINISH,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Passkey registered successfully',
+    handler: (ctx, session) => handleFinishPasskeyRegistration(ctx.service, ctx.body, session!),
+  },
+  {
+    name: 'passkeys_authenticate_start',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_START,
+    requiresAuth: false,
+    successMessage: 'Passkey authentication challenge generated successfully',
+    handler: (ctx) => handleStartPasskeyAuthentication(ctx.service, ctx.body),
+  },
+  {
+    name: 'passkeys_authenticate_finish',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_FINISH,
+    requiresAuth: false,
+    successMessage: 'Passkey authentication verified successfully',
+    handler: (ctx) => handleFinishPasskeyAuthentication(ctx.service, ctx.body),
+  },
+  {
+    name: 'passkeys_list',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_LIST,
+    requiresAuth: true,
+    successMessage: 'User passkeys retrieved successfully',
+    handler: (ctx, session) => handleListPasskeys(ctx.service, session!),
+  },
+  {
+    name: 'passkeys_delete',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.PASSKEYS_DELETE,
+    requiresAuth: true,
+    successMessage: 'Passkey deleted successfully',
+    handler: (ctx, session) => handleDeletePasskey(ctx.service, ctx.params.id!, session!),
   },
 ];
 

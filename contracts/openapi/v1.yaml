@@ -635,8 +635,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardApiResponse'
-        '404':
-          description: Domain not found
+  /api/v1/auth/passkeys/register/start:
+    post:
+      summary: Generate WebAuthn passkey registration options and challenge
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Registration options returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/passkeys/register/finish:
+    post:
+      summary: Verify WebAuthn registration attestation and persist passkey
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyRegisterFinishRequest'
+      responses:
+        '201':
+          description: Passkey registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/passkeys/authenticate/start:
+    post:
+      summary: Generate WebAuthn assertion challenge
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Authentication options returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/passkeys/authenticate/finish:
+    post:
+      summary: Validate WebAuthn signature and counter clone detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyAuthFinishRequest'
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/passkeys:
+    get:
+      summary: List user registered passkeys
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Registered passkeys list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/passkeys/{id}:
+    delete:
+      summary: Delete user passkey
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Passkey deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
 
   /api/v1/auth/organizations:
     get:
@@ -2323,5 +2421,67 @@ components:
             name:
               type: string
               example: displayName
+
+    PasskeyRegisterFinishRequest:
+      type: object
+      required: [challenge_id, credential]
+      properties:
+        challenge_id:
+          type: string
+        friendly_name:
+          type: string
+        credential:
+          type: object
+          required: [id, response, type]
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              example: public-key
+            response:
+              type: object
+              required: [clientDataJSON, attestationObject]
+              properties:
+                clientDataJSON:
+                  type: string
+                attestationObject:
+                  type: string
+                transports:
+                  type: array
+                  items:
+                    type: string
+
+    PasskeyAuthFinishRequest:
+      type: object
+      required: [challenge_id, credential]
+      properties:
+        challenge_id:
+          type: string
+        credential:
+          type: object
+          required: [id, response, type]
+          properties:
+            id:
+              type: string
+            rawId:
+              type: string
+            type:
+              type: string
+              example: public-key
+            response:
+              type: object
+              required: [clientDataJSON, authenticatorData, signature]
+              properties:
+                clientDataJSON:
+                  type: string
+                authenticatorData:
+                  type: string
+                signature:
+                  type: string
+                userHandle:
+                  type: string
 
 

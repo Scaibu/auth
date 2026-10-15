@@ -52,6 +52,10 @@ services:
       - AUTH_SAML_CLOCK_SKEW_MS=120000
       - AUTH_SAML_RELAY_STATE_TTL_MS=300000
       - AUTH_PASSWORD_HISTORY_LIMIT=10
+      - AUTH_WEBAUTHN_RP_ID=localhost
+      - AUTH_WEBAUTHN_RP_NAME="Observability Cloud"
+      - AUTH_WEBAUTHN_ORIGIN=http://localhost:3001
+      - AUTH_WEBAUTHN_CHALLENGE_TTL_MS=300000
 
     depends_on:
       auth-db:

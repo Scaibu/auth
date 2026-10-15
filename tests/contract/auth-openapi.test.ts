@@ -69,27 +69,37 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.OIDC_AUTHORIZE);
     expect(content).toContain(AUTH_ENDPOINTS.OIDC_TOKEN);
     expect(content).toContain(AUTH_ENDPOINTS.OIDC_USERINFO);
-    expect(content).toContain('OidcDiscoveryResponse');
-    expect(content).toContain('JwksResponse');
-    expect(content).toContain('OAuthTokenRequest');
-    expect(content).toContain('OAuthTokenResponse');
-    expect(content).toContain('OidcUserInfoResponse');
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OIDC_DISCOVERY_RESPONSE);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.JWKS_RESPONSE);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OAUTH_TOKEN_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OAUTH_TOKEN_RESPONSE);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OIDC_USERINFO_RESPONSE);
 
     // SAML 2.0 SP & Federation Endpoints (ADR 0026)
     expect(content).toContain(AUTH_ENDPOINTS.SAML_METADATA);
     expect(content).toContain(AUTH_ENDPOINTS.SAML_LOGIN);
     expect(content).toContain(AUTH_ENDPOINTS.SAML_ACS);
     expect(content).toContain(AUTH_ENDPOINTS.SAML_PROVIDERS);
-    expect(content).toContain('SamlProviderRegistrationRequest');
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SAML_PROVIDER_REGISTRATION_REQUEST);
 
     // Zero-Trust API Key Allowlists & Quotas (ADR 0027)
     expect(content).toContain(AUTH_ENDPOINTS.API_KEY_ALLOWLIST.replace(':id', '{id}'));
-    expect(content).toContain('UpdateApiKeyAllowlistRequest');
-    expect(content).toContain('API_KEY_IP_DENIED');
-    expect(content).toContain('API_KEY_RATE_LIMIT_EXCEEDED');
-    expect(content).toContain('ip_allowlist');
-    expect(content).toContain('rate_quota_rpm');
-    expect(content).toContain('client_ip');
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.UPDATE_API_KEY_ALLOWLIST_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.API_KEY_IP_DENIED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.API_KEY_RATE_LIMIT_EXCEEDED);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.IP_ALLOWLIST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.RATE_QUOTA_RPM);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CLIENT_IP);
+
+    // WebAuthn / FIDO2 Passkeys (ADR 0029)
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_REGISTER_START);
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_REGISTER_FINISH);
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_START);
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_FINISH);
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_LIST);
+    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_DELETE.replace(':id', '{id}'));
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_REGISTER_FINISH_REQUEST);
+    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_AUTH_FINISH_REQUEST);
   });
 });
 

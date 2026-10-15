@@ -197,6 +197,16 @@ export const AUTH_QUERIES = {
         )
     `,
   },
+  FLOW_PASSKEYS: {
+    INSERT_CHALLENGE: `INSERT INTO auth_passkey_challenges (challenge_id, user_id, challenge, origin, rp_id, challenge_type, expires_at_ms, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    FIND_CHALLENGE: `SELECT challenge_id, user_id, challenge, origin, rp_id, challenge_type, expires_at_ms, created_at_ms FROM auth_passkey_challenges WHERE challenge_id = $1 AND expires_at_ms > $2 LIMIT 1`,
+    CONSUME_CHALLENGE: `DELETE FROM auth_passkey_challenges WHERE challenge_id = $1`,
+    INSERT_CREDENTIAL: `INSERT INTO auth_passkey_credentials (id, credential_id, user_id, org_id, public_key, counter, device_type, backed_up, transports, aaguid, friendly_name, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    FIND_CREDENTIAL_BY_ID: `SELECT id, credential_id, user_id, org_id, public_key, counter, device_type, backed_up, transports, aaguid, friendly_name, created_at_ms, last_used_at_ms FROM auth_passkey_credentials WHERE credential_id = $1 AND deleted_at IS NULL LIMIT 1`,
+    LIST_BY_USER_ID: `SELECT id, credential_id, user_id, org_id, public_key, counter, device_type, backed_up, transports, aaguid, friendly_name, created_at_ms, last_used_at_ms FROM auth_passkey_credentials WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at_ms DESC`,
+    UPDATE_COUNTER_AND_LAST_USED: `UPDATE auth_passkey_credentials SET counter = $2, last_used_at_ms = $3, updated_at = CURRENT_TIMESTAMP WHERE credential_id = $1 AND deleted_at IS NULL`,
+    SOFT_DELETE_CREDENTIAL: `UPDATE auth_passkey_credentials SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+  },
 } as const;
 
 
