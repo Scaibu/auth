@@ -11,6 +11,7 @@ import { loadSamlConfig } from '../../../config/saml.config';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { ValidationError, NotFoundError, UnauthorizedError } from '../../../shared/errors/auth.errors';
 import { withSpan } from '../../../infra/tracing/tracer';
+import { buildSpMetadataXml, buildAuthNRequestXml } from '../../../shared/utils/saml-xml.builder';
 
 export class SamlProviderService {
   private readonly config: SamlConfig;
@@ -23,16 +24,10 @@ export class SamlProviderService {
   }
 
   async getSpMetadata(): Promise<string> {
-    const spEntityId = this.config.spEntityId;
-    const acsUrl = this.config.acsUrl;
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${spEntityId}">
-  <md:SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol" AuthnRequestsSigned="false" WantAssertionsSigned="true">
-    <md:NameIDFormat>${AUTH_CONSTANTS.SAML.NAMEID_FORMAT_EMAIL}</md:NameIDFormat>
-    <md:AssertionConsumerService Binding="${AUTH_CONSTANTS.SAML.BINDING_HTTP_POST}" Location="${acsUrl}" index="1" isDefault="true"/>
-  </md:SPSSODescriptor>
-</md:EntityDescriptor>`;
+    return buildSpMetadataXml({
+      spEntityId: this.config.spEntityId,
+      acsUrl: this.config.acsUrl,
+    });
   }
 
   async registerProvider(orgId: string, input: RegisterSamlProviderInput): Promise<SamlProviderRecord> {
@@ -72,18 +67,13 @@ export class SamlProviderService {
       const requestId = `_req_${now}_${Math.random().toString(36).substring(2, 12)}`;
       const relayState = `relay_${now}_${Math.random().toString(36).substring(2, 14)}`;
 
-      const authNRequestXml = `<?xml version="1.0" encoding="UTF-8"?>
-<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
-  ID="${requestId}"
-  Version="2.0"
-  IssueInstant="${new Date(now).toISOString()}"
-  Destination="${provider.idp_sso_url}"
-  AssertionConsumerServiceURL="${this.config.acsUrl}"
-  ProtocolBinding="${AUTH_CONSTANTS.SAML.BINDING_HTTP_POST}">
-  <saml:Issuer>${provider.sp_entity_id}</saml:Issuer>
-  <samlp:NameIDPolicy Format="${AUTH_CONSTANTS.SAML.NAMEID_FORMAT_EMAIL}" AllowCreate="true"/>
-</samlp:AuthnRequest>`;
+      const authNRequestXml = buildAuthNRequestXml({
+        requestId,
+        issueInstantIso: new Date(now).toISOString(),
+        destination: provider.idp_sso_url,
+        acsUrl: this.config.acsUrl,
+        issuer: provider.sp_entity_id,
+      });
 
       const samlRequestBase64 = Buffer.from(authNRequestXml, 'utf-8').toString('base64');
       const encodedSamlRequest = encodeURIComponent(samlRequestBase64);

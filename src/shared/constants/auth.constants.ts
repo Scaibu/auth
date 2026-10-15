@@ -441,6 +441,11 @@ export const AUTH_CONSTANTS = {
   AUDIT_EVENT_OIDC_TOKEN_ISSUED: 'OIDC_TOKEN_ISSUED',
 
   SAML: {
+    XML_PROLOG: '<?xml version="1.0" encoding="UTF-8"?>',
+    NS_METADATA: 'urn:oasis:names:tc:SAML:2.0:metadata',
+    NS_PROTOCOL: 'urn:oasis:names:tc:SAML:2.0:protocol',
+    NS_ASSERTION: 'urn:oasis:names:tc:SAML:2.0:assertion',
+    PROTOCOL_VERSION: '2.0',
     BINDING_HTTP_POST: 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
     BINDING_HTTP_REDIRECT: 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
     NAMEID_FORMAT_EMAIL: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
