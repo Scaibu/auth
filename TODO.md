@@ -59,54 +59,54 @@ flowchart LR
 ### Phase 0: Immediate Dead Code & Scaffolding Purge (Zero Risk)
 Clean up code that is currently 100% unused by `src/server.ts` or any active HTTP request path.
 
-- [ ] **Delete Unused Framework Stubs**:
-  - [ ] Delete `src/shared/workflow-engine/runner.ts` and `step-registry.ts`.
-  - [ ] Delete `src/features/auth/workflows/auth-provisioning.workflow.ts`.
-  - [ ] Delete `src/shared/rules-engine/evaluator.ts` and `async-checkers.ts`.
-  - [ ] Delete `src/shared/data-driven/` (`entity-schema.ts`, `json-map.ts`, `list-transform.ts`, `adapter-decorators.ts`).
-  - [ ] Delete `src/features/auth/machines/auth-session.machine.ts`.
-  - [ ] Delete `src/infra/adapters/proxy/` (`traefik.adapter.ts`, `envoy.adapter.ts`, `proxy.interface.ts`).
-- [ ] **Clean Index Exports**:
-  - [ ] Remove deleted file re-exports from `src/index.ts` and `src/features/auth/index.ts`.
-- [ ] **Run Typecheck & Tests**:
-  - [ ] Verify `npm run typecheck` and `npm test` continue passing.
+- [x] **Delete Unused Framework Stubs**:
+  - [x] Delete `src/shared/workflow-engine/runner.ts` and `step-registry.ts`.
+  - [x] Delete `src/features/auth/workflows/auth-provisioning.workflow.ts`.
+  - [x] Delete `src/shared/rules-engine/evaluator.ts` and `async-checkers.ts`.
+  - [x] Delete `src/shared/data-driven/` (`entity-schema.ts`, `json-map.ts`, `list-transform.ts`, `adapter-decorators.ts`).
+  - [x] Delete `src/features/auth/machines/auth-session.machine.ts`.
+  - [x] Delete `src/infra/adapters/proxy/` (`traefik.adapter.ts`, `envoy.adapter.ts`, `proxy.interface.ts`).
+- [x] **Clean Index Exports**:
+  - [x] Remove deleted file re-exports from `src/index.ts` and `src/features/auth/index.ts`.
+- [x] **Run Typecheck & Tests**:
+  - [x] Verify `npm run typecheck` and `npm test` continue passing.
 
 ---
 
 ### Phase 1: Keycloak Environment & Realm Architecture Setup
 Deploy and configure Keycloak as the centralized Identity Provider.
 
-- [ ] **Docker Compose & Deployment**:
-  - [ ] Add `keycloak` service (Quarkus distribution) to `docker-compose.yml` backed by PostgreSQL.
-  - [ ] Configure environment variables: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`, `KC_DB=postgres`, `KC_HTTP_ENABLED=true`.
-- [ ] **Realm Configuration**:
-  - [ ] Create realm `llm-observability`.
-  - [ ] Create clients:
-    - [ ] `frontend-web` (Public client, Authorization Code Flow with PKCE, Redirect URIs: `http://localhost:3000/*`).
-    - [ ] `auth-service-admin` (Confidential client with Service Accounts enabled for Keycloak Admin REST API operations).
-- [ ] **Identity Federation & Policies**:
-  - [ ] Configure Social Identity Providers in Keycloak (Google, GitHub, GitLab) under Realm Identity Providers.
-  - [ ] Set up Password Policy in Keycloak (Minimum length, character classes, expire password, hash algorithm).
-  - [ ] Enable MFA (TOTP, WebAuthn Passkeys) in Keycloak Authentication Flows.
-- [ ] **Custom Claims & Mappers**:
-  - [ ] Add Realm / Client Token Mappers to inject user attributes into access tokens:
-    - [ ] `org_id` / `tenant_id`
-    - [ ] `role` / `permissions`
-    - [ ] `email_verified`
+- [x] **Docker Compose & Deployment**:
+  - [x] Add `keycloak` service (Quarkus distribution) to `docker-compose.yml` backed by PostgreSQL.
+  - [x] Configure environment variables: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`, `KC_DB=postgres`, `KC_HTTP_ENABLED=true`.
+- [x] **Realm Configuration**:
+  - [x] Create realm `llm-observability`.
+  - [x] Create clients:
+    - [x] `frontend-web` (Public client, Authorization Code Flow with PKCE, Redirect URIs: `http://localhost:3000/*`).
+    - [x] `auth-service-admin` (Confidential client with Service Accounts enabled for Keycloak Admin REST API operations).
+- [x] **Identity Federation & Policies**:
+  - [x] Configure Social Identity Providers in Keycloak (Google, GitHub, GitLab) under Realm Identity Providers.
+  - [x] Set up Password Policy in Keycloak (Minimum length, character classes, expire password, hash algorithm).
+  - [x] Enable MFA (TOTP, WebAuthn Passkeys) in Keycloak Authentication Flows.
+- [x] **Custom Claims & Mappers**:
+  - [x] Add Realm / Client Token Mappers to inject user attributes into access tokens:
+    - [x] `org_id` / `tenant_id`
+    - [x] `role` / `permissions`
+    - [x] `email_verified`
 
 ---
 
 ### Phase 2: Keycloak JWT Verification Middleware Implementation
 Replace custom session verification with standard OpenID Connect JWT validation.
 
-- [ ] **Keycloak JWT Verifier Adapter**:
-  - [ ] Implement `KeycloakJwtVerifier` using standard JWKS caching library (`jose` or `@chief-strategist-j/shared-infra`).
-  - [ ] Configure JWKS URL: `${KEYCLOAK_ISSUER_URL}/protocol/openid-connect/certs`.
-  - [ ] Validate standard claims: `iss` (matches Keycloak realm URL), `aud`, `exp`, `nbf`.
-  - [ ] Extract user identity (`sub`, `email`, `preferred_username`, `tenant_id`).
-- [ ] **Integrate with `AuthRestV1Router`**:
-  - [ ] Update `handleVerifySession` in `session.handler.ts` (or convert directly to route middleware) to validate Keycloak tokens.
-  - [ ] Eliminate internal session denylist check in Redis for user sessions (rely on short-lived JWTs [5m TTL] + Keycloak token revocation).
+- [x] **Keycloak JWT Verifier Adapter**:
+  - [x] Implement `KeycloakJwtVerifier` using standard JWKS caching library (`jose` or `@chief-strategist-j/shared-infra`).
+  - [x] Configure JWKS URL: `${KEYCLOAK_ISSUER_URL}/protocol/openid-connect/certs`.
+  - [x] Validate standard claims: `iss` (matches Keycloak realm URL), `aud`, `exp`, `nbf`.
+  - [x] Extract user identity (`sub`, `email`, `preferred_username`, `tenant_id`).
+- [x] **Integrate with `AuthRestV1Router`**:
+  - [x] Update `handleVerifySession` in `session.handler.ts` (or convert directly to route middleware) to validate Keycloak tokens.
+  - [x] Eliminate internal session denylist check in Redis for user sessions (rely on short-lived JWTs [5m TTL] + Keycloak token revocation).
 
 ---
 

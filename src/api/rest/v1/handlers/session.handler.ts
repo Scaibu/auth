@@ -2,6 +2,9 @@ import type { AuthService } from '../../../../features/auth/service';
 import type { AuthTokenPayload } from '../../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../../shared/errors/auth.errors';
+import { KeycloakJwtVerifier } from '../../../../infra/adapters/keycloak/keycloak-jwt.verifier';
+
+const keycloakVerifier = new KeycloakJwtVerifier();
 
 export async function handleVerifySession(service: AuthService, authorizationHeader?: string): Promise<any> {
   if (!authorizationHeader || !authorizationHeader.startsWith(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX)) {
@@ -16,7 +19,11 @@ export async function handleVerifySession(service: AuthService, authorizationHea
       const verifiedJwt = await service.verifySignedJwt(token);
       return verifiedJwt.payload;
     } catch {
-      throw err;
+      try {
+        return keycloakVerifier.verifyToken(token);
+      } catch {
+        throw err;
+      }
     }
   }
 }
