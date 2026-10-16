@@ -40,7 +40,7 @@
 | **Access Control (RBAC/ABAC)** | Monitored Break-Glass Emergency Access Workflow | SOC 2 CC6.1 / CC6.2 | ✅ **Completed (ADR 0039)** | v1.3 | **P3** |
 | **Security & Defense** | Field-Level PII Envelope Encryption (AES-256-GCM / KMS) | NIST SP 800-38D | ✅ **Completed (ADR 0035)** | v1.3 | **P3** |
 | **Security & Defense** | Distributed Credential Stuffing & ASN Velocity Defense | Threat Intelligence | ✅ **Completed (ADR 0037)** | v1.3 | **P3** |
-| **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ⏳ **Pending** | v1.3 | **P3** |
+| **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
 | **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ⏳ **Pending** | v1.3 | **P3** |
 | **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ⏳ **Pending** | v1.3 | **P3** |
 | **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ⏳ **Pending** | v1.1 | **P1** |
@@ -49,20 +49,20 @@
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: WebAuthn / FIDO2 Passkeys (ADR 0029)
-- **Objective**: Phishing-resistant authentication (Touch ID, Face ID, YubiKey) bound to domain origin (`rpId`).
-- **Standard**: W3C WebAuthn Level 3 / FIDO2.
-- **Components**:
-  - `POST /api/v1/auth/passkeys/register/start`: Challenge generation and attestation options.
-  - `POST /api/v1/auth/passkeys/register/finish`: Cryptographic signature verification and credential persistence.
-  - `POST /api/v1/auth/passkeys/authenticate/start`: Assertion challenge emission.
-  - `POST /api/v1/auth/passkeys/authenticate/finish`: Public-key signature validation and counter clone detection.
+### 2.1 Next Recommended Feature: Database Seed Script (`database/seeds/seed.ts`) [P1]
+- **Objective**: Standardized, idempotent database seed fixtures for local development, Docker environments, and integration test setup.
+- **Specification**:
+  - `npm run db:seed`: Populates default root organization, super-admin, standard viewer roles, sample OAuth/OIDC clients, and pre-seeded test API keys.
+  - Safe against existing records (upsert / conflict avoidance without clobbering production tables).
 
 ### 2.2 Secondary Fast-Follows
-1. **Password History Enforcement (NIST SP 800-63B)**:
-   - Prevent recycling previous 10 Argon2id password hashes stored in `auth_password_history`.
-2. **Machine-to-Machine (M2M) Client Credentials Grant (RFC 6749 §4.4)**:
-   - Automated server-to-server token issuance for daemon microservices.
+1. **Honeytokens & Active Canary Secret Scanning (Deception Technology) [P3]**:
+   - Issue decoy API keys, bearer tokens, and credentials embedded into source code and documentation.
+   - Any invocation immediately dispatches critical SIEM alerts, blacklists caller IP, and initiates forensics.
+2. **Immutable WORM Audit Archive (S3 Object Lock / Glacier / SEC Rule 17a-4(f)) [P3]**:
+   - Cryptographically verifiable, write-once-read-many (WORM) audit retention offloaded to tamper-proof cold storage.
+3. **Prometheus Alert Rules for Authentication [P2]**:
+   - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
 
 ---
 
@@ -148,6 +148,16 @@
   - Outbound webhooks include headers `X-Auth-Signature: t={timestamp},v1={hmac_sha256_hex}` and `X-Auth-Nonce: {uuid_v4}`.
   - Signature calculated over `t.{timestamp}.payload.{body}` using tenant shared secret.
   - Tolerance window: receivers reject webhooks where `|current_time - timestamp| > 300` seconds.
+
+### 3.11 Mutual TLS (mTLS) Zero-Trust Microservice Authentication & Certificate-Bound Tokens (ADR 0040)
+- **Vulnerability Addressed**: Token theft and replay by untrusted network intermediaries in zero-trust service meshes.
+- **Specification**:
+  - Validates client X.509 certificate against trusted Certificate Authorities (CAs).
+  - Verifies Subject Alternative Names (SANs) with DNS/IP matching rules.
+  - Issues RFC 8705 certificate-bound access tokens embedding SHA-256 certificate thumbprint in `cnf.x5t#S256`.
+  - Enforces proof-of-possession verification on protected resources with dedicated endpoints:
+    - `POST /api/v1/auth/mtls/tokens`: Issues mTLS certificate-bound access tokens.
+    - `POST /api/v1/auth/mtls/verify`: Validates certificate thumbprint binding and token proof-of-possession.
 
 ---
 
