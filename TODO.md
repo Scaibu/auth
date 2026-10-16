@@ -42,22 +42,18 @@
 | **Security & Defense** | Distributed Credential Stuffing & ASN Velocity Defense | Threat Intelligence | ✅ **Completed (ADR 0037)** | v1.3 | **P3** |
 | **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
 | **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ✅ **Completed (ADR 0041)** | v1.3 | **P3** |
-| **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ⏳ **Pending** | v1.3 | **P3** |
+| **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ✅ **Completed (ADR 0042)** | v1.3 | **P3** |
 | **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ✅ **Completed** | v1.1 | **P1** |
 
 ---
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: Immutable WORM Audit Archive (SEC Rule 17a-4(f) / S3 Object Lock) [P3]
-- **Objective**: Cryptographically verifiable, write-once-read-many (WORM) audit retention offloaded to tamper-proof cold storage.
+### 2.1 Next Recommended Feature: Prometheus Alert Rules for Authentication [P2]
+- **Objective**: Production-grade Prometheus alert rules and recording metrics for the authentication subsystem.
 - **Specification**:
-  - Offloads immutable audit log segments to Amazon S3 Object Lock (Compliance Mode) / Glacier Vault Lock.
-  - Generates Merkle tree proofs of append-only audit log integrity to fulfill regulatory compliance.
-
-### 2.2 Secondary Fast-Follows
-1. **Prometheus Alert Rules for Authentication [P2]**:
-   - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
+  - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
+  - Recording rules for login success/failure ratios, token refresh velocity, and MFA challenge abandon rates.
 
 ---
 

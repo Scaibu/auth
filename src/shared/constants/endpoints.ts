@@ -83,6 +83,9 @@ export const AUTH_ENDPOINTS = {
   BREAK_GLASS_ACTIVE: '/api/v1/auth/break-glass/active',
   HONEYTOKENS: '/api/v1/auth/honeytokens',
   HONEYTOKEN_REVOKE: '/api/v1/auth/honeytokens/:id',
+  WORM_AUDIT_SEAL: '/api/v1/auth/audit/worm/seal',
+  WORM_AUDIT_ARCHIVES: '/api/v1/auth/audit/worm/archives',
+  WORM_AUDIT_VERIFY: '/api/v1/auth/audit/worm/archives/:id/verify',
   HEALTH: '/health',
 } as const;
 

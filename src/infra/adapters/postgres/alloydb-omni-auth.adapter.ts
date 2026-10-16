@@ -1430,6 +1430,69 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       ht.deleted_at = new Date().toISOString();
     }
   }
+
+  private mockWormArchives: Map<string, any> = new Map();
+
+  async fetchAuditLogsForWormSealing(fromMs: number, toMs: number): Promise<AuditLogRecord[]> {
+    const matching: AuditLogRecord[] = [];
+    for (const log of this.mockAuditLogs.values()) {
+      if (log.timestamp_ms >= fromMs && log.timestamp_ms <= toMs) {
+        matching.push({ ...log });
+      }
+    }
+    return matching.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+  }
+
+  async saveWormAuditArchive(archive: {
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }): Promise<void> {
+    this.mockWormArchives.set(archive.id, { ...archive });
+  }
+
+  async findWormAuditArchiveById(id: string): Promise<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  } | null> {
+    const record = this.mockWormArchives.get(id);
+    return record ? { ...record } : null;
+  }
+
+  async listWormAuditArchives(): Promise<Array<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }>> {
+    return Array.from(this.mockWormArchives.values()).sort(
+      (a, b) => b.segment_start_ms - a.segment_start_ms
+    );
+  }
 }
 
 

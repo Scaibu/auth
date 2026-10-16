@@ -261,6 +261,46 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
     created_at_ms: number;
   }>>;
   revokeHoneytoken(id: string, orgId: string): Promise<void>;
+  fetchAuditLogsForWormSealing(fromMs: number, toMs: number): Promise<AuditLogRecord[]>;
+  saveWormAuditArchive(archive: {
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }): Promise<void>;
+  findWormAuditArchiveById(id: string): Promise<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  } | null>;
+  listWormAuditArchives(): Promise<Array<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }>>;
 }
 
 

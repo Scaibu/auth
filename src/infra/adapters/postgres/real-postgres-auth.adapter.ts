@@ -2569,6 +2569,135 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }
     }, { kind: SpanKind.CLIENT });
   }
+
+  async fetchAuditLogsForWormSealing(fromMs: number, toMs: number): Promise<AuditLogRecord[]> {
+    return await withSpan('RealPostgresAuthAdapter.fetchAuditLogsForWormSealing', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.WORM_AUDIT.FETCH_LOGS_FOR_SEALING, [fromMs, toMs]);
+        return res.rows.map((row) => ({
+          id: row.id,
+          user_id: row.user_id,
+          org_id: row.org_id,
+          event_type: row.event_type,
+          ip_address: row.ip_address,
+          user_agent: row.user_agent,
+          timestamp_ms: Number(row.timestamp_ms),
+        }));
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveWormAuditArchive(archive: {
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveWormAuditArchive', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.WORM_AUDIT.INSERT_ARCHIVE, [
+          archive.id,
+          archive.segment_start_ms,
+          archive.segment_end_ms,
+          archive.record_count,
+          archive.merkle_root,
+          archive.storage_location,
+          archive.storage_version_id ?? null,
+          archive.retention_until_ms,
+          archive.status,
+          archive.sealed_by_user_id,
+          archive.created_at_ms,
+        ]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findWormAuditArchiveById(id: string): Promise<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  } | null> {
+    return await withSpan('RealPostgresAuthAdapter.findWormAuditArchiveById', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.WORM_AUDIT.FIND_ARCHIVE_BY_ID, [id]);
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          segment_start_ms: Number(row.segment_start_ms),
+          segment_end_ms: Number(row.segment_end_ms),
+          record_count: Number(row.record_count),
+          merkle_root: row.merkle_root,
+          storage_location: row.storage_location,
+          storage_version_id: row.storage_version_id,
+          retention_until_ms: Number(row.retention_until_ms),
+          status: row.status,
+          sealed_by_user_id: row.sealed_by_user_id,
+          created_at_ms: Number(row.created_at_ms),
+        };
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listWormAuditArchives(): Promise<Array<{
+    id: string;
+    segment_start_ms: number;
+    segment_end_ms: number;
+    record_count: number;
+    merkle_root: string;
+    storage_location: string;
+    storage_version_id?: string | null;
+    retention_until_ms: number;
+    status: 'PENDING' | 'SEALED' | 'FAILED';
+    sealed_by_user_id: string;
+    created_at_ms: number;
+  }>> {
+    return await withSpan('RealPostgresAuthAdapter.listWormAuditArchives', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.WORM_AUDIT.LIST_ARCHIVES);
+        return res.rows.map((row) => ({
+          id: row.id,
+          segment_start_ms: Number(row.segment_start_ms),
+          segment_end_ms: Number(row.segment_end_ms),
+          record_count: Number(row.record_count),
+          merkle_root: row.merkle_root,
+          storage_location: row.storage_location,
+          storage_version_id: row.storage_version_id,
+          retention_until_ms: Number(row.retention_until_ms),
+          status: row.status,
+          sealed_by_user_id: row.sealed_by_user_id,
+          created_at_ms: Number(row.created_at_ms),
+        }));
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

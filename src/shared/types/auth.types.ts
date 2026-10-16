@@ -380,3 +380,19 @@ export const HoneytokenRecordSchema = z.object({
 });
 export type HoneytokenRecord = z.infer<typeof HoneytokenRecordSchema>;
 
+export const WormAuditArchiveRecordSchema = z.object({
+  id: z.string().min(1),
+  segment_start_ms: z.number().int().positive(),
+  segment_end_ms: z.number().int().positive(),
+  record_count: z.number().int().positive(),
+  merkle_root: z.string().length(64),
+  storage_location: z.string().min(1),
+  storage_version_id: z.string().nullable().optional(),
+  retention_until_ms: z.number().int().positive(),
+  status: z.enum(['PENDING', 'SEALED', 'FAILED']),
+  sealed_by_user_id: z.string().min(1),
+  created_at_ms: z.number().int().positive(),
+});
+export type WormAuditArchiveRecord = z.infer<typeof WormAuditArchiveRecordSchema>;
+
+

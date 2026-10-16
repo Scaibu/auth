@@ -92,6 +92,11 @@ import {
   handleRevokeHoneytoken,
 } from './handlers/honeytoken.handler';
 import {
+  handleSealWormAudit,
+  handleListWormAuditArchives,
+  handleVerifyWormAuditArchive,
+} from './handlers/worm-audit.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -1156,6 +1161,31 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'Honeytoken revoked successfully',
     handler: (ctx, session) => handleRevokeHoneytoken(ctx.service, ctx.params.id ?? '', session),
+  },
+  {
+    name: 'worm_audit_seal',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.WORM_AUDIT_SEAL,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Audit log segment sealed in immutable WORM archive',
+    handler: (ctx, session) => handleSealWormAudit(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'worm_audit_list',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WORM_AUDIT_ARCHIVES,
+    requiresAuth: true,
+    successMessage: 'WORM audit archives retrieved successfully',
+    handler: (ctx, session) => handleListWormAuditArchives(ctx.service, session),
+  },
+  {
+    name: 'worm_audit_verify',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WORM_AUDIT_VERIFY,
+    requiresAuth: true,
+    successMessage: 'WORM audit archive Merkle integrity verified',
+    handler: (ctx, session) => handleVerifyWormAuditArchive(ctx.service, ctx.params.id ?? '', session),
   },
 ];
 

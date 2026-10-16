@@ -306,6 +306,17 @@ export const CreateHoneytokenInputSchema = z.object({
 });
 export type CreateHoneytokenSchemaInput = z.infer<typeof CreateHoneytokenInputSchema>;
 
+export const SealWormAuditInputSchema = z.object({
+  segment_start_ms: z.number().int().positive('segment_start_ms must be positive epoch ms'),
+  segment_end_ms: z.number().int().positive('segment_end_ms must be positive epoch ms'),
+  retention_years: z.number().int().min(1).max(50).optional().default(7),
+}).refine((data) => data.segment_end_ms >= data.segment_start_ms, {
+  message: 'segment_end_ms must be greater than or equal to segment_start_ms',
+  path: ['segment_end_ms'],
+});
+export type SealWormAuditInput = z.infer<typeof SealWormAuditInputSchema>;
+
+
 export const AUTH_JSON_MAPPING = {
   fromApi: [
     { op: 'rename', from: 'emailAddress', to: 'email' },

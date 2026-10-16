@@ -88,7 +88,39 @@ export const REAL_POSTGRES_QUERIES = {
       WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL
     `,
   },
+  WORM_AUDIT: {
+    FETCH_LOGS_FOR_SEALING: `
+      SELECT id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms
+      FROM auth_audit_logs
+      WHERE timestamp_ms >= $1 AND timestamp_ms <= $2 AND deleted_at IS NULL
+      ORDER BY timestamp_ms ASC, id ASC
+    `,
+    INSERT_ARCHIVE: `
+      INSERT INTO auth_audit_worm_archives (
+        id, segment_start_ms, segment_end_ms, record_count, merkle_root,
+        storage_location, storage_version_id, retention_until_ms, status,
+        sealed_by_user_id, created_at_ms
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `,
+    FIND_ARCHIVE_BY_ID: `
+      SELECT id, segment_start_ms, segment_end_ms, record_count, merkle_root,
+             storage_location, storage_version_id, retention_until_ms, status,
+             sealed_by_user_id, created_at_ms
+      FROM auth_audit_worm_archives
+      WHERE id = $1
+      LIMIT 1
+    `,
+    LIST_ARCHIVES: `
+      SELECT id, segment_start_ms, segment_end_ms, record_count, merkle_root,
+             storage_location, storage_version_id, retention_until_ms, status,
+             sealed_by_user_id, created_at_ms
+      FROM auth_audit_worm_archives
+      ORDER BY segment_start_ms DESC
+      LIMIT 100
+    `,
+  },
 } as const;
 
 export { AUTH_QUERIES };
+
 

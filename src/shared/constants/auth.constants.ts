@@ -601,6 +601,17 @@ export const AUTH_CONSTANTS = {
     DEFAULT_BLOCK_TTL_SECONDS: 86400,
     KAFKA_TOPIC_TRIPPED: 'auth.security.honeytoken_tripped',
   },
+
+  WORM_AUDIT: {
+    ID_PREFIX: 'worm_arc_',
+    STATUS_PENDING: 'PENDING',
+    STATUS_SEALED: 'SEALED',
+    STATUS_FAILED: 'FAILED',
+    DEFAULT_RETENTION_YEARS: 7,
+    MERKLE_LEAF_PREFIX: '0x00',
+    MERKLE_NODE_PREFIX: '0x01',
+    DEFAULT_S3_BUCKET: 'compliance-worm-audit-logs',
+  },
 } as const;
 
 
