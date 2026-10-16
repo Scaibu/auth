@@ -66,7 +66,6 @@ import type { CustomRoleRecord, PermissionEvaluationResult, WebhookSubscriptionR
 import { KeycloakApiAdapter, KeycloakJwtVerifier } from '../../infra/adapters/keycloak';
 
 export class AuthService {
-  private readonly repo: AuthRepositoryPort;
   private readonly orgService: OrganizationDomainService;
   private readonly userService: UserManagementDomainService;
   private readonly authService: UserAuthDomainService;
@@ -83,6 +82,9 @@ export class AuthService {
   public readonly keycloakApi: KeycloakApiAdapter;
   public readonly keycloakVerifier: KeycloakJwtVerifier;
 
+  public readonly repo: AuthRepositoryPort;
+  public readonly cache?: ICachePort;
+
   constructor(
     repo: AuthRepositoryPort,
     eventProducer?: AuthEventProducer,
@@ -96,6 +98,7 @@ export class AuthService {
     policyEnginePort?: PolicyEnginePort,
   ) {
     this.repo = repo;
+    this.cache = cache;
     this.customRoleService = new CustomRoleService(repo);
     this.webhookService = new WebhookService(repo, AUTH_CONFIG.webhook);
     this.breakGlassService = new BreakGlassService(repo);
@@ -496,6 +499,58 @@ export class AuthService {
 
   async listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]> {
     return this.breakGlassService.listActive(orgId);
+  }
+
+  async handleKeycloakEvent(event: {
+    type?: string;
+    userId?: string;
+    realmId?: string;
+    details?: Record<string, unknown>;
+  }): Promise<{ processed: boolean; action: string }> {
+    const eventType = (event.type || '').toUpperCase();
+    const targetUserId = event.userId || (event.details?.userId as string);
+
+    if (!targetUserId) {
+      return { processed: false, action: 'ignored_missing_user_id' };
+    }
+
+    if (this.cache) {
+      await this.cache.set(`auth:revoked_user:${targetUserId}`, '1', 86400 * 1000);
+    }
+
+    if (eventType === 'USER_DELETE' || eventType === 'DELETE' || eventType.includes('DELETE')) {
+      await this.repo.deleteUser(targetUserId).catch(() => {});
+      return { processed: true, action: 'user_deleted' };
+    }
+
+    if (
+      eventType === 'USER_UPDATE' ||
+      eventType === 'USER_DISABLE' ||
+      eventType.includes('DISABLE') ||
+      eventType === 'LOGOUT'
+    ) {
+      await this.repo.blockUser(targetUserId).catch(() => {});
+      return { processed: true, action: 'user_blocked' };
+    }
+
+    return { processed: true, action: 'token_denylisted' };
+  }
+
+  async reconcileUserStatus(userId: string): Promise<{ synced: boolean; active: boolean }> {
+    const user = await this.repo.findUserById(userId);
+    if (!user) {
+      return { synced: false, active: false };
+    }
+
+    if (this.cache) {
+      const revoked = await this.cache.get(`auth:revoked_user:${userId}`);
+      if (revoked && !user.blocked) {
+        await this.repo.blockUser(userId);
+        return { synced: true, active: false };
+      }
+    }
+
+    return { synced: true, active: !user.blocked };
   }
 }
 

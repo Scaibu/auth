@@ -50,6 +50,23 @@ class MockAuthRepository implements Partial<AuthRepositoryPort> {
     }
   }
 
+  private organizations: Map<string, any> = new Map([
+    ['org_enterprise_1', { id: 'org_enterprise_1', name: 'Enterprise Inc', slug: 'enterprise' }]
+  ]);
+  private users: Map<string, any> = new Map([
+    ['usr_sec_ops_1', { id: 'usr_sec_ops_1', email: 'secops@enterprise.com', blocked: false }]
+  ]);
+
+  async getOrganizationById(orgId: string): Promise<any | null> {
+    const org = this.organizations.get(orgId);
+    return org ? { ...org } : null;
+  }
+
+  async findUserById(userId: string): Promise<any | null> {
+    const user = this.users.get(userId);
+    return user ? { ...user } : null;
+  }
+
   async recordAuditLog(logRecord: any): Promise<void> {
     this.auditLogs.push(logRecord);
   }

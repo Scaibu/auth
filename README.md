@@ -1,17 +1,17 @@
 <div align="center">
 
-# 🔒 Multi-Tenant Auth Service & 13-Pillar Security Engine
+# 🔒 Multi-Tenant Auth Service & Keycloak OIDC Gateway
 
-### Traefik-Integrated · AlloyDB Omni RLS · Redis Token Denylist · Hexagonal Ports & Adapters
+### Traefik Proxy · Keycloak OIDC/Admin · PostgreSQL / AlloyDB Omni RLS · ReBAC & Honeytoken Engine
 
-*A production-grade multi-tenant authentication, RBAC authorization, organization management, context switching, audit logging, 3-tier API key permissions management, user blocking/unblocking/deletion, 30-day backup retention, and 13-pillar security engine — fronted by Traefik Proxy, backed by AlloyDB Omni / PostgreSQL Row Level Security (RLS) and Redis.*
+*A production-grade, multi-tenant authentication and authorization microservice fronted by Traefik, utilizing Keycloak OpenID Connect (OIDC) identity brokering, PostgreSQL Row-Level Security (RLS) tenant isolation, Zanzibar-style ReBAC policy evaluation, 3-tier API key management, honeytoken tripwires, and OpenTelemetry distributed tracing.*
 
-![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
 ![Architecture](https://img.shields.io/badge/architecture-Hexagonal%20Ports%20%26%20Adapters-blueviolet)
+![Identity](https://img.shields.io/badge/identity-Keycloak%20OIDC%2026.0-blue)
 ![Gateway](https://img.shields.io/badge/gateway-Traefik%20v2.10-24A1C1)
-![Database](https://img.shields.io/badge/database-AlloyDB%20Omni%20%2F%20PostgreSQL-336791)
-![Cache](https://img.shields.io/badge/cache-Redis%207-DC382D)
+![Database](https://img.shields.io/badge/database-PostgreSQL%20%2F%20AlloyDB%20Omni-336791)
 ![Tracing](https://img.shields.io/badge/tracing-OpenTelemetry-425CC7)
+![Documentation](https://img.shields.io/badge/docs-OpenAPI%203.0%20%2F%20Swagger-green)
 
 </div>
 
@@ -21,111 +21,126 @@
 
 1. [Executive Summary](#-executive-summary)
 2. [High-Level Architecture (HLD)](#-high-level-architecture-hld)
-3. [Low-Level Design & Security Flow (LLD)](#-low-level-design--security-flow-lld)
+3. [Authentication & Verification Flow (LLD)](#-authentication--verification-flow-lld)
 4. [Standardized API Response Envelope](#-standardized-api-response-envelope)
 5. [Hexagonal Ports & Adapters Architecture](#-hexagonal-ports--adapters-architecture)
-6. [Organization & User Lifecycle Workflow](#-organization--user-lifecycle-workflow)
-7. [Database Migrations & N-to-N Multi-Tenancy](#-database-migrations--n-to-n-multi-tenancy)
-8. [Architecture Decision Records (ADRs) & Master API Catalog](#-architecture-decision-records-adrs--master-api-catalog)
-9. [Automated Live API Curl Test Suite](#-automated-live-api-curl-test-suite)
-10. [Production Docker Image Run Commands (`chiefj/llm-obs-auth`)](#-production-docker-image-run-commands)
-11. [Verified Vitest Test Suite Execution Results](#-verified-vitest-test-suite-execution-results)
-12. [Engineering Feature Roadmap & Pending TODOs](./TODO.md)
+6. [OpenAPI 3.0 Contract & Interactive Swagger UI](#-openapi-30-contract--interactive-swagger-ui)
+7. [Database Schema & Migrations](#-database-schema--migrations)
+8. [Architecture Decision Records (ADRs)](#-architecture-decision-records-adrs)
+9. [Running with Docker Compose](#-running-with-docker-compose)
+10. [Automated Test Suite & Verification](#-automated-test-suite--verification)
+11. [Security & Engineering Roadmap](./TODO.md)
 
 ---
 
 ## 🧭 Executive Summary
 
-The `@observability/auth` platform provides enterprise multi-tenant user sign-up, organization isolation, multi-org context switching, role-based access control (RBAC), user blocking/unblocking, soft deletion with 30-day backup retention lifecycle, server-side JWT session invalidation via Redis denylist, 3-tier API key management with permission table binding, and comprehensive audit logging with parameter filtering.
+The `@observability/auth` service serves as the core authentication, tenant context, and granular authorization layer across the LLM Observability suite.
+
+Key capabilities include:
+- **Centralized Identity via Keycloak**: Native OpenID Connect (OIDC) identity provider, social identity brokering, MFA, credential management, and admin user provisioning delegated to hardened Keycloak.
+- **Local JWKS Token Verification**: High-throughput Bearer JWT verification using cached JWKS public keys without latency-inducing network hops per request.
+- **Multi-Tenant Isolation**: N-to-N organization membership model, tenant context switching, and PostgreSQL Row-Level Security (RLS) enforcement.
+- **Zanzibar Fine-Grained Authorization (ReBAC)**: Relationship tuple engine supporting granular resource-level permissions and transitive relationship evaluation.
+- **3-Tier API Key Management**: Hash-protected API keys with IP/CIDR restrictions, rate quotas, and instant revocation for M2M communication and CLI tools.
+- **Deception & Active Defense**: Honeytoken canaries with automated IP blocking and WORM audit archive sealing for regulatory compliance.
+- **Full Observability**: OpenTelemetry W3C trace propagation, Prometheus metrics, and structured audit logs.
 
 ---
 
 ## 🏛 High-Level Architecture (HLD)
 
-The Auth service follows **Hexagonal Architecture (Ports & Adapters)**, completely separating HTTP REST delivery and database persistence from core auth & security logic.
+The Auth service follows **Hexagonal Architecture (Ports & Adapters)**, cleanly isolating HTTP routing and database infrastructure from core authorization domain logic.
 
 ```mermaid
 flowchart TD
     subgraph Clients["Client Layer"]
-        WebApp["Next.js Web App (:31400)"]
-        ExternalAPI["External API Consumer"]
+        WebApp["Web Applications"]
+        ExternalAPI["External API / CLI Consumer"]
+        Microservices["Downstream Services (100+ Apps)"]
     end
 
-    subgraph Gateway["Gateway & Proxy Layer"]
-        Traefik["Traefik API Gateway (:31410 / :31411)"]
+    subgraph Gateway["Edge & Proxy Layer"]
+        Traefik["Traefik Proxy & Ingress (:80 / :443)"]
+    end
+
+    subgraph Identity["Identity Provider"]
+        Keycloak["Keycloak OIDC & Admin API (:8080)"]
     end
 
     subgraph AuthModule["@observability/auth Service (:3001)"]
-        Router["AuthRestV1Router"]
-        Handlers["Request Handlers"]
-        AuthCore["AuthService (Domain Core Engine)"]
-        SecurityEngine["13-Pillar Security Engine"]
-        Tracer["OpenTelemetry Tracer Middleware"]
+        Router["AuthRestV1Router & Handlers"]
+        JWTVerifier["Keycloak JWKS Verifier"]
+        AuthCore["AuthService Core"]
+        ReBAC["ReBAC Policy Engine"]
+        APIKeyEngine["API Key & Honeytoken Engine"]
+        Tracer["OpenTelemetry Middleware"]
 
-        Router --> Handlers
-        Handlers --> AuthCore
-        AuthCore --> SecurityEngine
+        Router --> JWTVerifier
+        Router --> AuthCore
+        AuthCore --> ReBAC
+        AuthCore --> APIKeyEngine
         AuthCore --> Tracer
     end
 
-    subgraph InfrastructureLayer["Infrastructure Adapters & Storage"]
-        AuthDB[("AlloyDB Omni / PostgreSQL (:31412)")]
-        RedisStore[("Redis Token Denylist (:31413)")]
-        KafkaBroker["Kafka Messaging Broker (:31414)"]
-        OTelCollector["OTel Collector (:31417 / :31418)"]
+    subgraph DataLayer["Persistence & Infrastructure"]
+        AuthDB[("PostgreSQL / AlloyDB Omni (:5432)")]
+        RedisStore[("Redis Cache (:6379)")]
+        KafkaBroker["Kafka Event Broker (:9092)"]
+        OTelCollector["OTel Collector (:4317 / :4318)"]
     end
 
-    %% Flow connections
-    WebApp -->|HTTP / REST| Traefik
-    ExternalAPI -->|API Key Auth| Traefik
-    Traefik -->|Route /api/v1/auth| Router
+    %% Flows
+    WebApp -->|Sign-in / OIDC / MFA| Traefik
+    ExternalAPI -->|API Key Request| Traefik
+    Microservices -->|Bearer JWT| Traefik
 
-    AuthCore -->|SQL via Postgres Adapter| AuthDB
-    AuthCore -->|Revocation Check| RedisStore
-    AuthCore -->|Publish Auth Events| KafkaBroker
-    Tracer -->|Send Spans| OTelCollector
+    Traefik -->|OAuth & OIDC Auth| Keycloak
+    Traefik -->|API Requests /api/v1/auth| Router
+
+    Router -->|Admin REST Sync| Keycloak
+    AuthCore -->|Tenant-Scoped Queries / RLS| AuthDB
+    AuthCore -->|Honeytoken / Rate Limits| RedisStore
+    AuthCore -->|Publish Audit Events| KafkaBroker
+    Tracer -->|Trace Spans| OTelCollector
 ```
 
 ---
 
-## 🔬 Low-Level Design & Security Flow (LLD)
+## 🔬 Authentication & Verification Flow (LLD)
 
-### 1. Dual-Phase Authentication & Session Validation Pipeline
+### 1. User Sign-in & OIDC Token Issuance
+User credentials, MFA, and SSO identity brokering are handled directly by Keycloak:
+1. Client logs in via Keycloak OIDC flow (`/protocol/openid-connect/token` or browser login).
+2. Keycloak issues standard signed OIDC JWT access tokens containing user claims (`sub`, `email`, roles).
+3. The auth service syncs and provisions tenant organizations and membership in the local application DB via Keycloak Admin API integration.
+
+### 2. Request Verification Pipeline
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Client as Client Application
-    participant Router as REST Router
-    participant Service as AuthService Engine
-    participant Redis as Redis Denylist (:31413)
-    participant DB as AlloyDB / Postgres (:31412)
-    participant OTel as OpenTelemetry Collector
+    participant Router as AuthRestV1Router
+    participant Verifier as KeycloakJwtVerifier (JWKS)
+    participant Service as AuthService & ReBAC
+    participant DB as PostgreSQL (RLS)
+    participant OTel as OpenTelemetry
 
-    Note over Client, DB: Phase 1: Authentication & Token Generation
-    Client->>Router: POST /api/v1/auth/sign-in
-    Router->>Service: handleSignIn(email, password)
-    Service->>DB: Fetch user & verify Argon2id hash
-    DB-->>Service: User record & org metadata
-    Service->>Service: Issue Scoped JWT (sub, org_id, role)
-    Service-->>Router: JWT Token & Session Payload
-    Router-->>Client: HTTP 200 { status: "success", token: "..." }
-
-    Note over Client, DB: Phase 2: Protected Request & Token Revocation Verification
     Client->>Router: GET /api/v1/auth/organizations (Bearer JWT)
-    Router->>Service: handleVerifySession(authHeader)
-    Service->>Redis: GET denylist:{token_id}
-    alt Token is revoked (Found in Redis)
-        Redis-->>Service: Token Revoked Flag
-        Service-->>Router: Throw AuthError (UNAUTHORIZED)
-        Router-->>Client: HTTP 401 { error: "TOKEN_REVOKED" }
-    else Token is active
-        Redis-->>Service: Null
-        Service->>DB: Query orgs with Tenant Context
+    Router->>Verifier: verifyToken(token)
+    Verifier->>Verifier: Validate signature, exp, nbf against cached JWKS
+    alt Token Invalid / Expired
+        Verifier-->>Router: Throw UnauthorizedError
+        Router-->>Client: HTTP 401 Unauthorized
+    else Token Valid
+        Verifier-->>Router: Decoded Token Payload (sub, email, roles)
+        Router->>Service: handleListOrganizations(userId)
+        Service->>DB: Execute query with tenant context (SET LOCAL)
         DB-->>Service: Organization Records
-        Service->>OTel: Emit Audit Span
-        Service-->>Router: Success Response
-        Router-->>Client: HTTP 200 { data: [...] }
+        Service->>OTel: Record telemetry span
+        Service-->>Router: Organization payload
+        Router-->>Client: HTTP 200 { status: "success", data: [...] }
     end
 ```
 
@@ -133,81 +148,9 @@ sequenceDiagram
 
 ## 📦 Standardized API Response Envelope
 
+Every endpoint consistently returns the unified API response envelope:
+
 ### Success Envelope (`HTTP 200 / 201`)
-```json
-{
-  "status": "success",
-  "message": "Operation completed successfully",
-  "data": { ... },
-  "error": null
-}
-```
-
-### Failure Envelope (`HTTP 400 / 401 / 403 / 404 / 409 / 429 / 500`)
-```json
-{
-  "status": "error",
-  "message": "Error description message",
-  "data": null,
-  "error": {
-    "code": "ERROR_CODE_NAME",
-    "details": "Detailed error context"
-  }
-}
-```
-
----
-
-## 🗄️ Database Migrations & N-to-N Multi-Tenancy
-
-All database interactions are 100% data-driven and powered by centralized SQL queries defined in [`auth.queries.ts`](./src/features/auth/queries/auth.queries.ts).
-
-| Migration | Description | Table(s) Affected |
-|---|---|---|
-| `0001_create_auth_tables.sql` | Initial schema setup for multi-tenant auth module with RLS | `auth_organizations`, `auth_users`, `auth_api_keys`, `auth_audit_logs`, `auth_password_resets` |
-| `0002_add_indexes_on_all_ids_and_keys.sql` | High-performance B-tree indexes on lookup columns | Index additions across all tables |
-| `0003_add_audit_and_soft_delete_columns.sql` | Soft-delete columns (`deleted_at`, `updated_at`) | Column alterations across all tables |
-| `0004_add_organization_user_block_soft_delete_cascade.sql` | User blocking, custom permissions array, cascade soft-delete | `auth_users`, `auth_organizations` |
-| `0005_create_token_denylist.sql` | Server-side JWT session revocation table | `auth_token_denylist` |
-| `0006_create_user_organizations_mapping.sql` | Multi-tenant user-organization N-to-N mapping for org switching | `auth_user_organizations` |
-
----
-
-## 📐 Architecture Decision Records (ADRs) & Master API Catalog
-
-All architecture specifications, production tuning parameters, data models, and API contracts are formally governed by our **Architecture Decision Records (ADRs)** located in [`auth/adr/`](./adr/README.md).
-
-The complete reference for all **34 API endpoints** — including request parameters, validation schemas, HTTP success/error envelopes, and executable cURL commands — is documented in [**ADR 0008: Master API Catalog**](./adr/0008-master-api-catalog-parameter-contracts-and-response-envelopes.md).
-
-### Architecture Decision Records Index
-
-| Document | Title | Scope / Key Focus | Status |
-|---|---|---|---|
-| [**ADR 0001**](./adr/0001-hexagonal-architecture-and-rule-engine-router.md) | Hexagonal Architecture & Declarative Rule Engine Router | Ports & Adapters separation, Rule Engine route matching, OpenTelemetry span wrapping | Accepted |
-| [**ADR 0002**](./adr/0002-authentication-user-registration-and-signin-flow.md) | Sign-Up, Sign-In, Argon2id Hashing & Audit Logging | Dual-phase authentication flow, Argon2id hash validation, Audit trail capture, Full Call Stack | Accepted |
-| [**ADR 0003**](./adr/0003-multi-tenant-organization-switching-and-rls.md) | N-to-N Multi-Tenancy & Org Context Switching | Row-Level Security (RLS), multi-tenant org switching, JWT claim re-issuance | Accepted |
-| [**ADR 0004**](./adr/0004-session-revocation-redis-token-denylist.md) | Redis Token Denylist & Session Lifetime Management | Server-side JWT session invalidation, Redis O(1) denylist lookup, 401 auto-logout | Accepted |
-| [**ADR 0005**](./adr/0005-opentelemetry-end-to-end-auth-tracing-and-middleware.md) | OpenTelemetry End-to-End Authentication Tracing & Middleware | NodeTracerProvider OTLP exporter, traceHttpMiddleware, W3C trace propagation, Tempo integration | Accepted |
-| [**ADR 0006**](./adr/0006-kafka-messaging-pipeline-and-distributed-tracing.md) | Kafka Messaging Pipeline & Distributed Tracing Architecture | Centralized Kafka client, Producer/Consumer middleware pipelines, W3C message header propagation | Accepted |
-| [**ADR 0007**](./adr/0007-alloydb-omni-resource-constraints-and-oltp-tuning.md) | AlloyDB Omni Resource Constraints, Memory Optimization & OLTP Tuning | Memory limits, disabling columnar engine, shared_buffers sizing, and preventing g_term_it OOM kills | Accepted |
-| [**ADR 0008**](./adr/0008-master-api-catalog-parameter-contracts-and-response-envelopes.md) | Master API Catalog, Parameter Contracts & Response Envelopes | Complete reference for all 34 endpoints, schemas, parameters, success/error envelopes, and live curl verification | Accepted |
-| [**ADR 0009**](./adr/0009-docker-production-image-optimization-tree-shaking-and-v8-memory-tuning.md) | Docker Production Image Optimization, Tree-Shaking & V8 Memory Tuning | Multi-stage build, esbuild tree-shaking, node:26-alpine preservation, -99% app layer, 32MB RAM, and Docker Hub deployment | Accepted |
-| [**Troubleshooting Guide**](./docs/troubleshooting-and-grafana-guide.md) | Troubleshooting & Grafana Tempo Debugging Guide | TraceQL queries, Grafana setup, time-range filtering, error debugging & fixes | Active Guide |
-
-👉 **For the complete catalog of all 34 endpoints and sample curl requests, see [ADR 0008: Master API Catalog](./adr/0008-master-api-catalog-parameter-contracts-and-response-envelopes.md).**
-
----
-
-## 📄 OpenAPI 3.0 Contract & Swagger Documentation
-
-The full declarative API contract specifying every request body, query parameter, HTTP success envelope, and typed error code is published under OpenAPI 3.0.3:
-
-- **Local OpenAPI File**: [`contracts/openapi/v1.yaml`](./contracts/openapi/v1.yaml)
-- **Live OpenAPI Spec Endpoint**: [http://localhost:3001/openapi.yaml](http://localhost:3001/openapi.yaml)
-- **Live Documentation Metadata**: [http://localhost:3001/docs](http://localhost:3001/docs)
-- **Interactive Swagger Viewer**: [https://editor.swagger.io/?url=http://localhost:3001/openapi.yaml](https://editor.swagger.io/?url=http://localhost:3001/openapi.yaml)
-
-All endpoints strictly adhere to the unified envelope structure:
 ```json
 {
   "success": true,
@@ -220,7 +163,29 @@ All endpoints strictly adhere to the unified envelope structure:
     "requestId": "req_1792150314097",
     "correlationId": "req_1792150314097",
     "timestamp": "2026-10-16T11:31:54.109Z",
-    "executionTimeMs": 13,
+    "executionTimeMs": 12,
+    "apiVersion": "1.0.0"
+  }
+}
+```
+
+### Error Envelope (`HTTP 400 / 401 / 403 / 404 / 429 / 500`)
+```json
+{
+  "success": false,
+  "status": "error",
+  "statusCode": 401,
+  "message": "Missing or invalid Authorization header",
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "details": "Bearer token is expired or signature cannot be verified"
+  },
+  "meta": {
+    "requestId": "req_1792150314098",
+    "correlationId": "req_1792150314098",
+    "timestamp": "2026-10-16T11:31:54.120Z",
+    "executionTimeMs": 3,
     "apiVersion": "1.0.0"
   }
 }
@@ -228,96 +193,123 @@ All endpoints strictly adhere to the unified envelope structure:
 
 ---
 
-## ⚡ Automated Live API Curl Test Suite
+## 📄 OpenAPI 3.0 Contract & Interactive Swagger UI
 
-To run and verify all live `curl` API endpoints against the running server:
+The service publishes and self-hosts full OpenAPI 3.0.3 documentation:
 
+- **Local Contract File**: [`contracts/openapi/v1.yaml`](./contracts/openapi/v1.yaml)
+- **Live OpenAPI Spec**: `GET http://localhost:3001/openapi.yaml` (served as `text/yaml`)
+- **Embedded Swagger UI**: `GET http://localhost:3001/docs` (interactive API documentation viewer)
+
+---
+
+## 🗄️ Database Schema & Migrations
+
+All database tables are version-controlled via SQL migrations in [`database/migrations/`](./database/migrations) executed automatically at service startup.
+
+Key tables:
+- `auth_organizations`: Multi-tenant organization definitions, settings, and quotas.
+- `auth_users`: Local application user records and profile metadata linked to Keycloak identity (`keycloak_user_id`).
+- `auth_user_organizations`: N-to-N mapping for organization memberships, roles, and tenant context.
+- `auth_api_keys`: Hashed API credentials with CIDR restrictions, usage quotas, and expiry.
+- `auth_relations`: Zanzibar 6-ary relationship tuples for ReBAC policy graph checks.
+- `auth_audit_logs`: Append-only audit events capturing user actions, IP addresses, and user-agents.
+- `auth_honeytokens`: Canary decoy credentials for intrusion detection.
+- `auth_break_glass_sessions`: Ephemeral emergency administrative access logs.
+
+---
+
+## 📐 Architecture Decision Records (ADRs)
+
+Key architectural decisions are documented in [`adr/`](./adr/README.md):
+
+| ADR | Title | Key Architectural Focus | Status |
+|---|---|---|---|
+| [**ADR 0001**](./adr/0001-hexagonal-architecture-and-rule-engine-router.md) | Hexagonal Architecture & Declarative Router | Ports & Adapters separation, OTel tracing middleware | Accepted |
+| [**ADR 0003**](./adr/0003-multi-tenant-organization-switching-and-rls.md) | N-to-N Multi-Tenancy & Org Context Switching | Row-Level Security (RLS) tenant isolation | Accepted |
+| [**ADR 0005**](./adr/0005-opentelemetry-end-to-end-auth-tracing-and-middleware.md) | OpenTelemetry Tracing & Middleware | W3C traceparent context propagation | Accepted |
+| [**ADR 0008**](./adr/0008-master-api-catalog-parameter-contracts-and-response-envelopes.md) | Master API Catalog & Contracts | Endpoint request/response contracts and curl verification | Accepted |
+| [**ADR 0023**](./adr/0023-fine-grained-policy-engine-abac-rebac.md) | Fine-Grained Policy Engine (ReBAC) | Zanzibar-style relationship tuples & graph evaluation | Accepted |
+| [**ADR 0027**](./adr/0027-api-key-ip-cidr-allowlist-and-zero-trust-rate-quotas.md) | API Key IP CIDR Allowlisting & Quotas | Zero-trust subnet matching, constant-time compare | Accepted |
+| [**ADR 0039**](./adr/0039-monitored-break-glass-emergency-access-workflow.md) | Break-Glass Emergency Access Workflow | Ephemeral administrative emergency elevation | Accepted |
+| [**ADR 0041**](./adr/0041-honeytokens-and-active-canary-secret-scanning.md) | Honeytokens & Active Canary Tripwires | Decoy credentials, automated IP blocking | Accepted |
+| [**ADR 0042**](./adr/0042-immutable-worm-audit-archive-s3-object-lock.md) | Immutable WORM Audit Archive | Merkle tree verification, compliance retention | Accepted |
+| [**ADR 0044**](./adr/0044-non-superuser-rls-bounded-revocation-audience-scoping.md) | Non-Superuser DB Role, RLS Isolation & Audience Scoping | Dedicated `auth_app` role, forced RLS, `aud` validation, Keycloak hardening | Accepted |
+
+*(Note: ADRs 0002 and 0004 covering deprecated custom argon2id login and Redis denylist have been superseded by Keycloak OIDC integration).*
+
+---
+
+## 🐳 Running with Docker Compose
+
+The environment can be launched locally with all dependencies (Auth Service, Keycloak 26, PostgreSQL 17, Redis, Kafka, and OpenTelemetry) configured:
+
+```bash
+# Start all services
+docker compose -f docker-compose.yml up -d
+```
+
+### Environment Configuration
+
+Configure runtime settings via `.env` (refer to [`.env.example`](./.env.example)):
+
+```bash
+# Application Port & Database
+PORT=3001
+DATABASE_URL=postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@${AUTH_DB_HOST}:5432/${AUTH_DB_NAME}
+
+# Keycloak OIDC Configuration
+KEYCLOAK_BASE_URL=http://localhost:8080
+KEYCLOAK_ISSUER_URL=http://localhost:8080/realms/llm-observability
+KEYCLOAK_REALM=llm-observability
+KEYCLOAK_CLIENT_ID=auth-service-admin
+KEYCLOAK_CLIENT_SECRET=auth-service-admin-secret
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+
+# Infrastructure & Observability
+REDIS_URL=redis://localhost:6379/0
+KAFKA_BROKERS=localhost:9092
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+```
+
+---
+
+## 🧪 Automated Test Suite & Verification
+
+The codebase includes comprehensive unit, contract, and live integration tests:
+
+### 1. TypeScript Verification
+```bash
+npm run typecheck
+```
+
+### 2. Unit & Contract Vitest Suite
+```bash
+npm test
+```
+
+### 3. Live API End-to-End Curl Test Suite
+Executes all live endpoints against a running service instance:
 ```bash
 npm run test:curl
 ```
 
-## 🐳 Production Docker Image Run Commands (`chiefj/llm-obs-auth`)
-
-The `@observability/auth` service is packaged as an optimized, tree-shaken, standalone production Docker image based on `node:26-alpine` consuming only **~32 MiB RAM** in steady-state operation.
-
-### 1. Pull Latest Image from Docker Hub
-
+### 4. Service Health Check
 ```bash
-docker pull chiefj/llm-obs-auth:latest
+curl -s http://localhost:3001/api/v1/auth/health | jq .
 ```
-
-### 2. Standalone Container Run Command
-
-Run as a single container connected to the internal bridge network (`llmobs-network`):
-
-```bash
-docker run -d \
-  --name observability-auth-service \
-  --network llmobs-network \
-  -p 3001:3001 \
-  -e NODE_ENV=production \
-  -e PORT=3001 \
-  -e USE_REAL_DB=true \
-  -e DATABASE_URL="postgresql://postgres:postgres@auth-service-db:5432/observability_auth" \
-  -e REDIS_URL="redis://:llmobs_redis_s3cret_2024@llmobs-redis-ledger:6379" \
-  -e KAFKA_BROKERS="llmobs-kafka-broker:9092" \
-  -e JWT_SECRET="super-secure-production-auth-jwt-secret-key-replace-in-env-file-minimum-32-chars!" \
-  -e SERVICE_REGISTRY_URL="http://llmobs-service-registry:31426" \
-  -e OTEL_EXPORTER_OTLP_ENDPOINT="http://llmobs-otel-collector:4318" \
-  --restart unless-stopped \
-  chiefj/llm-obs-auth:latest
-```
-
-### 3. Run with Docker Compose
-
-To launch the Auth service along with AlloyDB Omni using [`auth/docker-compose.yml`](./docker-compose.yml):
-
-```bash
-# From repository root
-docker compose -f auth/docker-compose.yml up -d
-```
-
-### 4. Verify Service Health via cURL
-
-```bash
-curl -s http://localhost:3001/api/v1/auth/permissions | jq .
-```
-
-Expected output:
+Expected response:
 ```json
 {
-  "status": "success",
-  "message": "System permissions retrieved",
-  "data": {
-    "permissions": [
-      "traces:read",
-      "traces:write",
-      "metrics:read",
-      "metrics:write",
-      "logs:read",
-      "logs:write",
-      "alerts:read",
-      "alerts:write",
-      "admin:all"
-    ]
-  },
-  "error": null
+  "status": "healthy",
+  "service": "auth-service",
+  "timestamp": "2026-10-16T13:30:00.000Z"
 }
 ```
 
-### 5. Production Image Specifications & Resource Footprint
-
-| Metric | Measured Value | Architecture Detail |
-|---|---|---|
-| **Docker Hub Repository** | `chiefj/llm-obs-auth` | Published tags: `latest`, `1.0.0` |
-| **Base Operating System** | `node:26-alpine` | Preserved standard Alpine runtime |
-| **Total Disk Image Size** | **172.27 MB** | Reduced by **-54.7%** (from 380.58 MB) |
-| **Application Layer Size** | **2.01 MB** | Reduced by **-99.04%** via `esbuild` bundling |
-| **Compressed Download Size** | **~55 MB** | Rapid cluster pull / scaling transfer |
-| **Runtime Memory (RSS)** | **30.2 - 32.2 MiB** | Compacted via V8 `--optimize-for-size --max-old-space-size=128` |
-
 ---
 
-## 🧪 Verified Vitest Test Suite Execution Results
+## 📋 Security & Engineering Roadmap
 
-All test suites passing cleanly across domain, ports, adapters, database, and OpenAPI contracts.
+For active and future initiatives, architectural hardening priorities (RLS non-superuser enforcement, CAEP revocation sync, per-app token audience constraints, post-quantum cryptography, and AI agent authorization), refer to [**TODO.md**](./TODO.md).

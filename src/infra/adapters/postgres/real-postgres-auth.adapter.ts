@@ -53,6 +53,7 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
 
   private async setTenantRlsContext(client: any, orgId: string): Promise<void> {
     await client.query(AUTH_QUERIES.TENANT_RLS.SET_LOCAL_TENANT_CONTEXT, [orgId]);
+    await client.query(AUTH_QUERIES.TENANT_RLS.SET_LOCAL_CURRENT_TENANT_ID, [orgId]);
   }
 
   async createOrganization(org: OrganizationRecord, creatorUserId?: string): Promise<void> {

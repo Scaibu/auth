@@ -86,6 +86,7 @@ export const AUTH_ENDPOINTS = {
   WORM_AUDIT_SEAL: '/api/v1/auth/audit/worm/seal',
   WORM_AUDIT_ARCHIVES: '/api/v1/auth/audit/worm/archives',
   WORM_AUDIT_VERIFY: '/api/v1/auth/audit/worm/archives/:id/verify',
+  KEYCLOAK_EVENTS: '/api/v1/auth/events/keycloak',
   HEALTH: '/health',
 } as const;
 

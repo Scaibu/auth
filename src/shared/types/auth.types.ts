@@ -29,6 +29,7 @@ export const AuthTokenPayloadSchema = z.object({
   exp: z.number().positive(),
   iat: z.number().positive(),
   jti: z.string().optional(),
+  aud: z.union([z.string(), z.array(z.string())]).optional(),
 });
 export type AuthTokenPayload = z.infer<typeof AuthTokenPayloadSchema>;
 

@@ -9,7 +9,8 @@
  *    - exp (Expiration timestamp must be in the future).
  *    - nbf (Not Before timestamp must be in the past, with clock skew tolerance).
  *    - iss (Issuer must match configured Keycloak realm URL when enforced).
- * 4. Extracts standardized user identity (sub, email, preferred_username, tenant context, roles).
+ *    - aud (Audience must contain expected audience when configured).
+ * 4. Extracts standardized user identity (sub, email, preferred_username, tenant context, roles, aud).
  * 5. Caches validated public JWKS keys in-memory to prevent remote HTTP storm.
  *
  * STRICT INVARIANT: ZERO inline comments inside function bodies. File header docblock only.
@@ -17,6 +18,7 @@
 
 import { AuthTokenPayloadSchema, type AuthTokenPayload, type TenantContext } from '../../../shared/types/auth.types';
 import { TokenExpiredError, UnauthorizedError } from '../../../shared/errors/auth.errors';
+import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 
 export interface KeycloakTokenPayload {
   sub: string;
@@ -41,14 +43,17 @@ export interface KeycloakTokenPayload {
 export class KeycloakJwtVerifier {
   private readonly issuerUrl: string;
   private readonly allowedClockSkewSeconds: number;
+  private readonly expectedAudience?: string;
 
   constructor(options?: {
     issuerUrl?: string;
     jwksUrl?: string;
     allowedClockSkewSeconds?: number;
+    expectedAudience?: string;
   }) {
     this.issuerUrl = options?.issuerUrl || process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/llm-observability';
     this.allowedClockSkewSeconds = options?.allowedClockSkewSeconds ?? 60;
+    this.expectedAudience = options?.expectedAudience || process.env.KEYCLOAK_AUDIENCE || undefined;
   }
 
   public verifyToken(token: string): AuthTokenPayload {
@@ -93,6 +98,18 @@ export class KeycloakJwtVerifier {
       throw new UnauthorizedError(`Token issuer mismatch: expected ${this.issuerUrl}`);
     }
 
+    if (this.expectedAudience) {
+      const tokenAudience = rawPayload.aud;
+      const audiences = Array.isArray(tokenAudience)
+        ? tokenAudience
+        : typeof tokenAudience === 'string'
+          ? [tokenAudience]
+          : [];
+      if (!audiences.includes(this.expectedAudience)) {
+        throw new UnauthorizedError(AUTH_CONSTANTS.ERROR_MESSAGES.TOKEN_AUDIENCE_MISMATCH);
+      }
+    }
+
     const sub = rawPayload.sub || rawPayload.user_id || 'anonymous';
     const email = rawPayload.email || `${sub}@observability.internal`;
 
@@ -110,6 +127,7 @@ export class KeycloakJwtVerifier {
       iat: rawPayload.iat || now,
       exp: rawPayload.exp || now + 300,
       jti: rawPayload.jti || `kc_jti_${sub}_${now}`,
+      aud: rawPayload.aud,
     };
 
     return AuthTokenPayloadSchema.parse(normalized);

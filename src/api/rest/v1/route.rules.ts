@@ -813,6 +813,17 @@ export const ROUTE_RULES: RouteRule[] = [
     successMessage: 'WORM audit archive Merkle integrity verified',
     handler: (ctx, session) => handleVerifyWormAuditArchive(ctx.service, ctx.params.id ?? '', session),
   },
+  {
+    name: 'keycloak_event_consumer',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.KEYCLOAK_EVENTS,
+    requiresAuth: false,
+    successMessage: 'Keycloak lifecycle event processed successfully',
+    handler: async (ctx) => {
+      const body = (ctx.body && typeof ctx.body === 'object' ? ctx.body : {}) as Record<string, unknown>;
+      return ctx.service.handleKeycloakEvent(body);
+    },
+  },
 ];
 
 

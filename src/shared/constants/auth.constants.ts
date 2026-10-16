@@ -224,6 +224,9 @@ export const AUTH_CONSTANTS = {
     DOMAIN_NOT_FOUND: 'Claimed domain record not found',
     DOMAIN_VERIFICATION_FAILED: 'DNS TXT verification challenge record not found or does not match expected token',
     DOMAIN_ALREADY_VERIFIED: 'Domain is already verified',
+    ORGANIZATION_INACTIVE: 'Organization is inactive or has been suspended/deleted',
+    USER_INACTIVE_OR_BLOCKED: 'User is inactive, blocked, or suspended',
+    TOKEN_AUDIENCE_MISMATCH: 'Token audience mismatch: token was not issued for this application',
   },
 
   DOMAIN_CLAIM: {

@@ -1,222 +1,345 @@
-# 📋 Keycloak Migration & Technical Debt Reduction Roadmap (TODO-KEYCLOAK.md)
+# 📋 Security, Hardening & Engineering Roadmap (TODO.md)
 
-*An in-depth, phased architectural roadmap to migrate `@observability/auth` from a hand-rolled IAM engine to Keycloak, and purge dead, duplicated, and redundant code.*
-
----
-
-## 📊 1. Master Migration & Deletion Matrix
-
-> **Action Types**:
-> - 🔴 **DELETE**: Completely remove code/tables rendered obsolete by Keycloak.
-> - 🟡 **REFACTOR**: Simplify to integrate with Keycloak (e.g., replace custom logic with Keycloak JWT/JWKS verification).
-> - 🟢 **RETAIN**: Keep as core application-level domain capabilities (API Keys, Tenant Org hierarchy, App ReBAC, Honeytokens).
-
-| Subsystem / Area | Component File(s) | Keycloak Replacement | Action | Impact / Savings |
-|---|---|---|---|---|
-| **Social / OAuth Identity** | `oauth.service.ts`, `oauth.handler.ts`, Google/GitHub adapters | Keycloak Identity Brokering & Social Logins | 🔴 **DELETE** | ~600 LOC removed |
-| **OIDC Identity Provider** | `oidc-provider.service.ts`, `oidc.handler.ts`, `oidc.config.ts` | Keycloak Native OpenID Connect Provider | 🔴 **DELETE** | ~600 LOC removed |
-| **SAML 2.0 SP Federation** | `saml-provider.service.ts`, `saml.handler.ts`, `saml.config.ts`, `saml-xml.builder.ts` | Keycloak SAML 2.0 Identity Provider | 🔴 **DELETE** | ~600 LOC removed |
-| **SCIM 2.0 Directory Sync** | `scim-provisioning.service.ts`, `scim.handler.ts`, SCIM ports | Keycloak User Federation / LDAP / SCIM plugins | 🔴 **DELETE** | ~400 LOC removed |
-| **Password & Credential Lifecycle** | `password.service.ts`, `password.handler.ts`, `argon2.util.ts`, `pwned-passwords.adapter.ts` | Keycloak Credential Policy & Brute Force | 🔴 **DELETE** | ~450 LOC removed |
-| **MFA & Recovery Codes** | `mfa.service.ts`, `mfa.handler.ts`, `totp-mfa.adapter.ts` | Keycloak TOTP & WebAuthn / OTP Flows | 🔴 **DELETE** | ~350 LOC removed |
-| **Passkeys / WebAuthn** | `passkey.service.ts`, `passkey.handler.ts` | Keycloak WebAuthn Passkeys Authenticator | 🔴 **DELETE** | ~400 LOC removed |
-| **Magic Link Passwordless** | `magic-link.service.ts`, `magic-link.handler.ts` | Keycloak Magic Link / OTP Action Tokens | 🔴 **DELETE** | ~300 LOC removed |
-| **Session Invalidation & Denylist** | `session-denylist.service.ts`, `session.handler.ts`, Redis token denylist | Keycloak Backchannel Logout & Token Introspection | 🔴 **DELETE** | ~200 LOC removed |
-| **Refresh Token Family Rotation** | `refresh-token.service.ts`, `auth_refresh_tokens` table | Keycloak Session & Token Refresh Engine | 🔴 **DELETE** | ~350 LOC removed |
-| **Asymmetric Key Rotation** | `key-rotation.service.ts`, EdDSA key table | Keycloak Realm Keys (`/protocol/openid-connect/certs`) | 🔴 **DELETE** | ~300 LOC removed |
-| **Login Rate Limiter & Shield** | `login-rate-limiter.service.ts`, `login-rate-limit.rules.ts` | Keycloak Brute Force & Rate Limiting | 🔴 **DELETE** | ~350 LOC removed |
-| **Unused Workflow Engine** | `src/shared/workflow-engine/*`, `auth-provisioning.workflow.ts` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~200 LOC removed |
-| **Unused Declarative Rules Engine** | `src/shared/rules-engine/*` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~200 LOC removed |
-| **Unused Data-Driven Decorators** | `src/shared/data-driven/*` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~250 LOC removed |
-| **Unused Session State Machine** | `auth-session.machine.ts` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~100 LOC removed |
-| **Unused Proxy Stubs** | `src/infra/adapters/proxy/*` (`traefik.adapter.ts`, `envoy.adapter.ts`) | Dead code (0 runtime usages) | 🔴 **DELETE** | ~150 LOC removed |
-| **Duplicate In-Memory DB Mock** | `alloydb-omni-auth.adapter.ts` | In-memory 1,438-line mock duplicating real adapter | 🔴 **DELETE / CONSOLIDATE** | ~1,438 LOC removed |
-| **Session Verification Middleware** | `handleVerifySession` | Verifies JWT locally against Keycloak JWKS | 🟡 **REFACTOR** | Replace custom JWT decode with standard JWKS cache |
-| **User Sign-up & Organization Binding** | `user-auth.service.ts`, `organization.service.ts` | Sync Keycloak `sub` ID to Org Tenant tables | 🟡 **REFACTOR** | Slim down to tenant context provider |
-| **User Management API** | `user-management.service.ts` | Delegate user CRUD to Keycloak Admin REST API | 🟡 **REFACTOR** | Thin facade over Keycloak Admin Client |
-| **Internal API Key Engine** | `api-key.service.ts`, `api-key.handler.ts`, CIDR / Quotas | None (App-specific M2M & CLI tokens) | 🟢 **RETAIN** | Keep core capability |
-| **ReBAC Policy Engine** | `policy-engine.service.ts`, `policy.handler.ts` | None (Zanzibar granular graph authorization) | 🟢 **RETAIN** | Keep core capability |
-| **Organization Tenant Management** | `organization.service.ts` (tenant switching & quotas) | None (Tenant isolation & metadata) | 🟢 **RETAIN** | Keep core capability |
-| **Audit Log Subsystem** | `audit-log.service.ts` | None (Business-event audit compliance) | 🟢 **RETAIN** | Keep core capability |
-| **Break-Glass Emergency Access** | `break-glass.service.ts`, `break-glass.handler.ts` | None (Specialized high-assurance SOC2 workflow) | 🟢 **RETAIN** | Keep core capability |
-| **Honeytokens & Secret Scanning** | `honeytoken.service.ts`, `honeytoken.handler.ts` | None (Active defense canary token system) | 🟢 **RETAIN** | Keep core capability |
+*Prioritized, actionable checklist for tenant isolation, token lifecycle, infrastructure hardening, and quantum/AI-resilient identity.*
 
 ---
 
-## 🎯 2. Migration Execution Phases
+## 🚦 Summary Status Dashboard
 
-```mermaid
-flowchart LR
-    Phase0["Phase 0<br/>Dead Code Purge"] --> Phase1["Phase 1<br/>Keycloak Setup & Realm Config"]
-    Phase1 --> Phase2["Phase 2<br/>JWKS Verifier Middleware"]
-    Phase2 --> Phase3["Phase 3<br/>Service & Handler Deletion"]
-    Phase3 --> Phase4["Phase 4<br/>DB Schema & Adapter Consolidation"]
-    Phase4 --> Phase5["Phase 5<br/>E2E & Integration Verification"]
-```
+- **P0 / Tier 0 (Immediate Security & Blast Radius)**: 5/10 completed
+- **P1 / Tier 1 (100+ App Reliability & Scaling)**: 0/12 completed
+- **P2 / Tier 2 (Compliance, Supply Chain & Governance)**: 0/8 completed
+- **Post-Quantum Cryptography Readiness**: 0/11 completed
+- **AI Agent Identity & Authorization**: 0/10 completed
+- **Assurance & Verification**: 0/5 completed
 
 ---
 
-### Phase 0: Immediate Dead Code & Scaffolding Purge (Zero Risk)
-Clean up code that is currently 100% unused by `src/server.ts` or any active HTTP request path.
+## 🔴 Priority 0 / Tier 0: Critical Isolation & Blast Radius (Fix First)
 
-- [x] **Delete Unused Framework Stubs**:
-  - [x] Delete `src/shared/workflow-engine/runner.ts` and `step-registry.ts`.
-  - [x] Delete `src/features/auth/workflows/auth-provisioning.workflow.ts`.
-  - [x] Delete `src/shared/rules-engine/evaluator.ts` and `async-checkers.ts`.
-  - [x] Delete `src/shared/data-driven/` (`entity-schema.ts`, `json-map.ts`, `list-transform.ts`, `adapter-decorators.ts`).
-  - [x] Delete `src/features/auth/machines/auth-session.machine.ts`.
-  - [x] Delete `src/infra/adapters/proxy/` (`traefik.adapter.ts`, `envoy.adapter.ts`, `proxy.interface.ts`).
-- [x] **Clean Index Exports**:
-  - [x] Remove deleted file re-exports from `src/index.ts` and `src/features/auth/index.ts`.
-- [x] **Run Typecheck & Tests**:
-  - [x] Verify `npm run typecheck` and `npm test` continue passing.
+- [x] **1. Prove RLS Actually Enforces Isolation (Non-Superuser App Role)**
+  - **Context**: Documented run connects as `postgres`. Superusers and `BYPASSRLS` roles skip RLS entirely (`FORCE ROW LEVEL SECURITY` does not override this).
+  - [x] Configure database role: Run application as non-owner, non-superuser role (e.g. `auth_app`).
+  - [x] Enforce per-transaction tenant isolation using `SET LOCAL app.current_tenant_id = ...` inside transactions.
+  - [x] Prevent tenant leakage across pooled connections (PgBouncer transaction-pooling compliance).
+  - [x] Add CI check to assert app DB role lacks `SUPERUSER` and `BYPASSRLS`.
+  - [x] **Acceptance Test**: Automated test authenticated as Tenant A queries all tables and reads 0 rows belonging to Tenant B.
 
----
+- [x] **2. Bounded Token Revocation & Active Lifecycle Sync**
+  - **Context**: JWTs are verified locally via JWKS; Keycloak-side disablement (`setUserEnabled(false)`) is invisible until token TTL expires. API keys bypass Keycloak entirely.
+  - [x] Re-check DB active status of user/organization on every API key and break-glass invocation.
+  - [x] Implement Keycloak event consumer (`USER_DELETE`, `USER_UPDATE`, logout) or OpenID Shared Signals (CAEP).
+  - [x] Add periodic full user status reconciliation between Keycloak and local DB.
+  - [x] Enforce token introspection for high-risk / sensitive operations.
+  - [x] **Acceptance Test**: Disabling or deleting a user invalidates their JWT and API keys across all endpoints within 30 seconds.
 
-### Phase 1: Keycloak Environment & Realm Architecture Setup
-Deploy and configure Keycloak as the centralized Identity Provider.
+- [x] **3. Per-App Token Audience & Scope Binding**
+  - **Context**: A single shared token valid across 100+ apps allows lateral privilege escalation if any downstream app is compromised.
+  - [x] Require explicit `aud` (audience) claim validation per service/application.
+  - [x] Implement RFC 8693 OAuth Token Exchange or client-scoped token issuance for service boundaries.
+  - [x] Document versioned token claim schema (`sub`, `tenant_id`, `roles`, `aud`).
+  - [x] **Acceptance Test**: A token issued for App X is strictly rejected (401/403) when presented to App Y.
 
-- [x] **Docker Compose & Deployment**:
-  - [x] Add `keycloak` service (Quarkus distribution) to `docker-compose.yml` backed by PostgreSQL.
-  - [x] Configure environment variables: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`, `KC_DB=postgres`, `KC_HTTP_ENABLED=true`.
-- [x] **Realm Configuration**:
-  - [x] Create realm `llm-observability`.
-  - [x] Create clients:
-    - [x] `frontend-web` (Public client, Authorization Code Flow with PKCE, Redirect URIs: `http://localhost:3000/*`).
-    - [x] `auth-service-admin` (Confidential client with Service Accounts enabled for Keycloak Admin REST API operations).
-- [x] **Identity Federation & Policies**:
-  - [x] Configure Social Identity Providers in Keycloak (Google, GitHub, GitLab) under Realm Identity Providers.
-  - [x] Set up Password Policy in Keycloak (Minimum length, character classes, expire password, hash algorithm).
-  - [x] Enable MFA (TOTP, WebAuthn Passkeys) in Keycloak Authentication Flows.
-- [x] **Custom Claims & Mappers**:
-  - [x] Add Realm / Client Token Mappers to inject user attributes into access tokens:
-    - [x] `org_id` / `tenant_id`
-    - [x] `role` / `permissions`
-    - [x] `email_verified`
+- [x] **4. Clear Source of Truth for Tenant & Role Authorization**
+  - **Context**: Tenant/role claims exist in JWTs and the application DB; token claims go stale on permission changes.
+  - [x] Formalize model: Token proves identity (`sub`) only; authorization/roles/org membership resolved from application DB / policy store.
+  - [x] Update ADRs and documentation to define authority hierarchy.
+  - [x] **Acceptance Test**: Demoting a user in the application DB immediately drops their privileges on the next request without waiting for token expiry.
 
----
+- [x] **5. Keycloak Realm Hardening as Code**
+  - **Context**: Default Keycloak setup allows brute-force attacks and wildcard redirect URIs (`localhost:3000/*`).
+  - [x] Enable Keycloak brute-force protection and lockout policies.
+  - [x] Enforce PKCE (`S256`) on all OIDC clients.
+  - [x] Restrict redirect URIs to strict exact-match in staging and production.
+  - [x] Disable unused flows (Implicit flow, Direct Grant / ROPC).
+  - [x] Enable refresh token reuse detection and revoking on exchange.
+  - [x] Isolate Keycloak Admin Console to private/internal network.
+  - [x] Export realm configuration to versioned JSON/Terraform with automated drift detection.
+  - [x] **Acceptance Test**: CI fails if exported realm configuration drifts from hardened baseline.
 
-### Phase 2: Keycloak JWT Verification Middleware Implementation
-Replace custom session verification with standard OpenID Connect JWT validation.
+- [ ] **6. Secrets Management & Public Repo Sanitization**
+  - **Context**: Default configurations and README contain static credentials and obsolete `JWT_SECRET`.
+  - [ ] Rotate all previously exposed credentials (database, Redis, Keycloak admin passwords).
+  - [ ] Remove hardcoded credentials from `README.md`, environment files, and documentation.
+  - [ ] Migrate secret storage to KMS / Vault / Cloud Secrets Manager.
+  - [ ] Add automated pre-commit and CI secret scanning (e.g. Gitleaks / GitHub Secret Protection).
+  - [ ] Document emergency secret rotation runbook.
+  - [ ] **Acceptance Test**: Zero plaintext secrets in repository or git commit history; rotation runbook rehearsed.
 
-- [x] **Keycloak JWT Verifier Adapter**:
-  - [x] Implement `KeycloakJwtVerifier` using standard JWKS caching library (`jose` or `@chief-strategist-j/shared-infra`).
-  - [x] Configure JWKS URL: `${KEYCLOAK_ISSUER_URL}/protocol/openid-connect/certs`.
-  - [x] Validate standard claims: `iss` (matches Keycloak realm URL), `aud`, `exp`, `nbf`.
-  - [x] Extract user identity (`sub`, `email`, `preferred_username`, `tenant_id`).
-- [x] **Integrate with `AuthRestV1Router`**:
-  - [x] Update `handleVerifySession` in `session.handler.ts` (or convert directly to route middleware) to validate Keycloak tokens.
-  - [x] Eliminate internal session denylist check in Redis for user sessions (rely on short-lived JWTs [5m TTL] + Keycloak token revocation).
+- [ ] **7. API Key Subsystem Hardening**
+  - **Context**: Longest-lived bearer credentials in the system; primary M2M authentication path.
+  - [ ] Store only salted hashes (HMAC-SHA256 with KMS pepper or high-workfactor hash).
+  - [ ] Use high-entropy lookup prefixes (e.g., `llmobs_live_...`) with constant-time comparison (`crypto.timingSafeEqual`).
+  - [ ] Register secret scanning signature with GitHub / secret scanners.
+  - [ ] Implement key expiration, scoped permissions, and overlapping rotation support.
+  - [ ] Track `last_used_at` timestamp and calling IP / CIDR.
+  - [ ] **Acceptance Test**: A database dump yields 0 usable API keys; a leaked key is identified and revocable within minutes.
 
----
+- [ ] **8. Comprehensive Cross-Tenant & Negative Security Test Suite**
+  - **Context**: Core attack surface (API keys, ReBAC, quotas, honeytokens) needs automated negative testing.
+  - [ ] Add negative tests for IDOR across all tenant-scoped routes.
+  - [ ] Add privilege escalation test cases (e.g. non-admin attempting policy edits).
+  - [ ] Add negative tests for cross-tenant reads and writes.
+  - [ ] Add tests for expired, manipulated, and revoked credentials.
+  - [ ] Integrate mutation testing on authorization middleware.
+  - [ ] **Acceptance Test**: Every authenticated route has at least one test asserting 403 or 404 for foreign tenant credentials.
 
-### Phase 3: Purge Redundant IAM Services & REST Handlers
-Remove custom IAM handlers and services that are now fully delegated to Keycloak.
+- [ ] **9. ReBAC Policy Engine Correctness & DoS Resistance**
+  - **Context**: Graph-based policy engines can suffer from cycles, unbounded depth, and high evaluation latency.
+  - [ ] Enforce strict depth and fan-out recursion limits in Zanzibar graph evaluation.
+  - [ ] Implement cycle detection during graph traversal.
+  - [ ] Add check latency timeouts that fail closed (deny access).
+  - [ ] Define and document consistency guarantees (Zanzibar zookies or read-after-write consistency).
+  - [ ] **Acceptance Test**: Adversarial recursive policy graphs cannot push p99 check latency above defined SLO threshold (e.g. 50ms).
 
-- [x] **Delete Obsolete Domain Services (`src/features/auth/services/`)**:
-  - [x] `oidc-provider.service.ts`
-  - [x] `saml-provider.service.ts`
-  - [x] `oauth.service.ts`
-  - [x] `scim-provisioning.service.ts`
-  - [x] `password.service.ts`
-  - [x] `mfa.service.ts`
-  - [x] `passkey.service.ts`
-  - [x] `magic-link.service.ts`
-  - [x] `key-rotation.service.ts`
-  - [x] `refresh-token.service.ts`
-  - [x] `login-rate-limiter.service.ts`
-  - [x] `session-denylist.service.ts`
-- [x] **Delete Obsolete REST Handlers (`src/api/rest/v1/handlers/`)**:
-  - [x] `oidc.handler.ts`
-  - [x] `saml.handler.ts`
-  - [x] `oauth.handler.ts`
-  - [x] `scim.handler.ts`
-  - [x] `password.handler.ts`
-  - [x] `mfa.handler.ts`
-  - [x] `passkey.handler.ts`
-  - [x] `magic-link.handler.ts`
-  - [x] `email-verification.handler.ts`
-- [x] **Delete Obsolete Infrastructure Adapters (`src/infra/adapters/`)**:
-  - [x] `src/infra/adapters/mfa/totp-mfa.adapter.ts`
-  - [x] `src/infra/adapters/security/pwned-passwords.adapter.ts`
-  - [x] `src/infra/adapters/oauth/google-oauth.adapter.ts`
-  - [x] `src/infra/adapters/oauth/github-oauth.adapter.ts`
-- [x] **Prune `route.rules.ts` & `router.ts`**:
-  - [x] Remove routes for: `/api/v1/auth/sign-in`, `/sign-up`, `/password/*`, `/mfa/*`, `/passkeys/*`, `/magic-link/*`, `/oauth/*`, `/saml/*`, `/scim/v2/*`, `/.well-known/jwks.json`.
-  - [x] Retain routes for: `/api/v1/auth/organizations/*`, `/api/v1/auth/api-keys/*`, `/api/v1/auth/policy/*`, `/api/v1/auth/audit-logs/*`, `/api/v1/auth/break-glass/*`, `/api/v1/auth/honeytokens/*`.
+- [ ] **10. CIDR Allowlist & Trusted Proxy Verification**
+  - **Context**: IP-based access control and CIDR matching can be spoofed if `X-Forwarded-For` is trusted unconditionally.
+  - [ ] Audit Traefik / reverse-proxy header forwarding.
+  - [ ] Pin trusted proxy CIDRs in Express / Fastify / Node HTTP stack.
+  - [ ] Verify that client-supplied `X-Forwarded-For` headers from untrusted hops are stripped/ignored.
+  - [ ] **Acceptance Test**: Automated test through proxy verifies that spoofed client IP headers fail CIDR authorization.
 
 ---
 
-### Phase 4: Database Schema Pruning & Adapter Consolidation
-Clean up database tables and remove the duplicate in-memory mock repository adapter.
+## 🟡 Priority 1 / Tier 1: Reliability & Operations at 100+ App Scale
 
-- [x] **Consolidate Repository Adapters**:
-  - [x] Standardize strictly on `RealPostgresAuthAdapter` for both test and production.
-  - [x] Prune obsolete method interfaces from `AuthRepositoryPort` (`saveSaml*`, `saveScim*`, `savePasskey*`, `saveRefreshToken*`, `savePasswordHistory*`).
-- [x] **Create Database Rollback / Pruning Migration**:
-  - [x] Drop obsolete tables via `database/migrations/0036_keycloak_schema_pruning.sql`:
-    - `auth_refresh_tokens`, `auth_refresh_token_families` (Migration 0010, 0012)
-    - `auth_password_history` (Migration 0022)
-    - `auth_passkeys` (Migration 0023)
-    - `auth_magic_links` (Migration 0025)
-    - `auth_saml_*` (Migration 0020)
-    - `auth_scim_*` (Migration 0018)
-    - `auth_oidc_*` (Migration 0019)
-    - `auth_recovery_codes`, `auth_mfa` (Migration 0009)
-    - `auth_email_verifications` (Migration 0008)
-    - `auth_token_denylist` (Migration 0005)
-  - [x] Retain essential application tables:
-    - `organizations`, `organization_users` (Tenant mapping)
-    - `auth_users` (Application user profile metadata linked by Keycloak `sub`)
-    - `api_keys` (Internal API Key Subsystem)
-    - `auth_policies`, `auth_relations` (ReBAC Engine)
-    - `auth_audit_logs` (Audit logging)
-    - `auth_break_glass_sessions` (Break-glass emergency)
-    - `auth_honeytokens` (Canary detection)
+- [ ] **11. Keycloak High Availability & Clustering**
+  - [ ] Run Keycloak in production mode (`start` instead of `start-dev`) with dedicated PostgreSQL database/schema.
+  - [ ] Configure Infinispan distributed cache clustering across Keycloak instances.
+  - [ ] Define capacity model based on aggregate login and token refresh rates across all 100+ services.
+  - [ ] Set up automated database and configuration backups.
+  - [ ] **Acceptance Test**: Killing a Keycloak node during simulated load test results in zero login failures.
+
+- [ ] **12. Graceful Degradation on Keycloak / JWKS Outages**
+  - [ ] Implement bounded stale JWKS caching (continue serving cached keys if Keycloak is temporarily down).
+  - [ ] Fail closed on unknown key IDs (`kid`).
+  - [ ] Implement circuit breaker around Keycloak Admin API calls.
+  - [ ] Support seamless overlapping key rotations.
+  - [ ] **Acceptance Test**: Chaos tests verify the service rejects untrusted tokens and degrades gracefully during Keycloak downtime.
+
+- [ ] **13. Declarative Realm-as-Code & Startup Seed Automation**
+  - [ ] Implement idempotent realm seed script (`scripts/seed-keycloak-realm.ts`) or Terraform provider.
+  - [ ] Programmatically bootstrap realm, clients, scopes, mappers, and identity providers.
+  - [ ] **Acceptance Test**: Blank Keycloak instance is completely configured and ready for production in a single pipeline run.
+
+- [ ] **14. Automated Client Onboarding & Offboarding Lifecycle**
+  - [ ] Create self-service client application registration workflow with validation.
+  - [ ] Automatically generate strong client credentials and register least-privilege scopes.
+  - [ ] Automated client de-provisioning and credential revocation.
+  - [ ] **Acceptance Test**: New client application onboarded and verified in < 15 minutes with zero manual Keycloak GUI edits.
+
+- [ ] **15. Standardized Gateway Verification & Shared Verification Library**
+  - [ ] Enforce edge token verification using Traefik `forwardAuth`.
+  - [ ] Provide unified, tested TypeScript / Go middleware library with automated CVE patching.
+  - [ ] Disallow ad-hoc JWT validation logic across individual consumer microservices.
+  - [ ] **Acceptance Test**: All downstream services rely strictly on edge gateway or unified library for session validation.
+
+- [ ] **16. Per-Tenant and Per-App Rate Limiting & Quotas**
+  - [ ] Implement rate limiting partitioned by `tenant_id` and `client_id`.
+  - [ ] Add load-shedding and bulkheads around compute-heavy ReBAC graph checks.
+  - [ ] **Acceptance Test**: A rogue or noisy tenant exceeding limits is throttled without degrading p99 latency for other tenants.
+
+- [ ] **17. Connection Pool & RLS Isolation Verification**
+  - [ ] Ensure all tenant-scoped database queries execute inside transactions using `SET LOCAL`.
+  - [ ] Size PgBouncer / database connection pools for high-concurrency 100+ app scale.
+  - [ ] Implement alerts on connection pool exhaustion.
+  - [ ] **Acceptance Test**: Concurrent queries from interleaved tenants never see cross-tenant rows.
+
+- [ ] **18. Performance SLOs & Authorization Latency Baselines**
+  - [ ] Define formal SLOs (e.g. Auth check p99 < 30ms, availability > 99.99%).
+  - [ ] Instrument Prometheus metrics for auth latency, cache hits/misses, and decision throughput.
+  - [ ] Conduct load testing at 3x expected peak load.
+  - [ ] **Acceptance Test**: Load testing proves compliance with p99 latency SLOs under peak load.
+
+- [ ] **19. Zero-Downtime Database Migration Discipline**
+  - [ ] Mandate expand/contract pattern for all future schema migrations.
+  - [ ] Add lock-timeout guards and non-blocking index creation (`CONCURRENTLY`).
+  - [ ] Index foreign keys and `tenant_id` on all tenant-isolated tables.
+  - [ ] **Acceptance Test**: Schema migrations execute with verified zero downtime and documented rollback steps.
+
+- [ ] **20. Unified Tamper-Evident Audit Pipeline**
+  - [ ] Ingest Keycloak authentication events (logins, MFA, failures) into `auth_audit_logs`.
+  - [ ] Publish audit records to append-only Kafka topic (`auth.events.v1`).
+  - [ ] Implement idempotent consumers with Dead Letter Queues (DLQ).
+  - [ ] Implement cryptographic tamper evidence (SHA-256 hash chaining or Merkle tree).
+  - [ ] Time-partition database audit tables with retention policies.
+  - [ ] **Acceptance Test**: Unified query can reconstruct a tamper-evident timeline of all actions by any user/tenant across 90 days.
+
+- [ ] **21. Disaster Recovery & Backup Drills**
+  - [ ] Define Recovery Point Objective (RPO) and Recovery Time Objective (RTO).
+  - [ ] Establish atomic backup procedures covering Keycloak DB, App DB, and realm configs.
+  - [ ] **Acceptance Test**: Semi-annual disaster recovery drill recovers the full auth cluster from cold backup within documented RTO.
+
+- [ ] **22. Proactive Security Alerting & Observability**
+  - [ ] Set up alerts on failed login anomalies and brute-force spikes.
+  - [ ] Alert on JWKS fetch failures and token validation error spikes.
+  - [ ] Alert on sudden increases in 401/403 responses per client application.
+  - [ ] Provide Grafana dashboards visualizing Traefik $\to$ Auth Service $\to$ Keycloak $\to$ PostgreSQL trace paths.
+  - [ ] **Acceptance Test**: Simulated brute-force or credential stuffing triggers alerts within 60 seconds.
 
 ---
 
-### Phase 5: Keycloak Admin Integration & Verification
-Connect the auth service to Keycloak's Admin API for organization provisioning and user syncing.
+## 🟢 Priority 2 / Tier 2: Governance, Compliance & Supply Chain
 
-- [x] **Keycloak Admin Client Integration**:
-  - [x] Implement `KeycloakApiAdapter` with full typed Admin REST endpoints.
-  - [x] Implement user invite & disable flows:
-    - `inviteUser`: Creates user in Keycloak with `sendEmail: true` and temporary credential.
-    - `blockUser` / `unblockUser`: Toggles `enabled: false / true` in Keycloak via `setUserEnabled`.
-    - `deleteUser`: Soft-deletes in application DB and deletes in Keycloak.
-- [x] **Tenant / Organization Provisioning Workflow**:
-  - [x] Keycloak OIDC Token exchange and verification wired to runtime routes (`sign-up`, `sign-in`, `sign-out`, `refresh`).
-- [x] **Contract and Type Verification**:
-  - [x] `npm run typecheck` clean (0 errors).
-  - [x] Sync `contracts/openapi/v1.yaml` with live routes and prune obsolete endpoints.
-  - [x] Purge 47 broken pre-Keycloak Vitest test files (`tests/e2e/*.test.ts`, `tests/integration/*.test.ts`, `tests/unit/*.test.ts`).
-  - [x] Expose raw `/openapi.yaml` (text/yaml) and embedded interactive Swagger UI (`/docs`).
-  - [x] Execute complete live `curl` test suite (`tests/e2e/test-curl-endpoints.sh`) with 100% pass (exit code 0).
-  - [x] Run `npm test` verifying 21 test files and 112 unit/contract tests passing with 0 failures.
+- [ ] **23. Data Retention & Right to Erasure (GDPR / Privacy)**
+  - [ ] Harmonize Keycloak deletion and local DB soft-deletion (30-day retention).
+  - [ ] Establish documented data erasure pipeline for PII across tables, audit logs, and backups.
+  - [ ] Pseudonymize user identifiers in long-term audit logs.
+  - [ ] **Acceptance Test**: User erasure request successfully purges PII across all data stores.
+
+- [ ] **24. Tenant Offboarding & Data Portability**
+  - [ ] Implement cascade archiving/deletion for organizations (API keys, ReBAC policies, memberships).
+  - [ ] Provide tenant data export mechanism.
+  - [ ] **Acceptance Test**: Offboarding a test organization leaves zero orphan rows in the database.
+
+- [ ] **25. Documentation Accuracy & ADR Maintenance**
+  - [ ] Update README to reflect current Keycloak OIDC architecture and remove legacy references.
+  - [ ] Mark obsolete ADRs (ADR 0002 - ADR 0004) as `SUPERSEDED`.
+  - [ ] Clarify Redis operational responsibilities in current architecture.
+  - [ ] Write operational runbooks (Keycloak outage, compromised secret, tenant isolation breach).
+  - [ ] **Acceptance Test**: A new engineer can deploy, configure, and troubleshoot the auth service using docs alone.
+
+- [ ] **26. Emergency Break-Glass Governance**
+  - [ ] Require dual-authorization (two-person rule) for emergency break-glass activation.
+  - [ ] Enforce short hard session expiration (maximum 1-4 hours).
+  - [ ] Dispatch high-priority alert to security team upon break-glass session initiation.
+  - [ ] Mandate post-incident review record linked to break-glass session ID.
+  - [ ] **Acceptance Test**: Every break-glass activation sends immediate alert and records an unalterable audit log.
+
+- [ ] **27. Software Supply Chain & Build Integrity**
+  - [ ] Pin all base Docker images by cryptographic digest (`sha256:...`).
+  - [ ] Generate Software Bill of Materials (SBOM) in CI (CycloneDX / SPDX).
+  - [ ] Integrate dependency vulnerability scanning with build-blocking thresholds.
+  - [ ] Sign container images using Sigstore (Cosign).
+  - [ ] Internalize and version `@chief-strategist-j/shared-infra` dependency under organizational ownership.
+  - [ ] **Acceptance Test**: CI pipeline blocks builds on unsigned images or critical unresolved vulnerabilities.
+
+- [ ] **28. API Contract Governance & Breaking Change Prevention**
+  - [ ] Automate OpenAPI linting and contract validation against `contracts/openapi/v1.yaml`.
+  - [ ] Add breaking-change detection in CI (e.g. `oasdiff`).
+  - [ ] Establish documented versioning and deprecation policy with required notice window.
+  - [ ] **Acceptance Test**: CI fails if a pull request introduces an unversioned breaking change to public API contracts.
+
+- [ ] **29. Service-to-Service Workload Identity**
+  - [ ] Transition internal microservice M2M communications from static API keys to OAuth2 Client Credentials / mTLS.
+  - [ ] Reserve API keys for external developer access and CLI tooling.
+  - [ ] **Acceptance Test**: Internal service calls operate without long-lived bearer credentials.
+
+- [ ] **30. Phishing-Resistant Authentication Policy**
+  - [ ] Enforce FIDO2 / WebAuthn passkeys or hardware security keys for administrator accounts.
+  - [ ] Remove SMS and email OTP fallbacks for privileged roles.
+  - [ ] Harden account recovery flows against social engineering.
+  - [ ] **Acceptance Test**: Privileged administrator accounts cannot authenticate with phishable factors.
 
 ---
 
-## 🚀 4. Post-Migration Engineering Roadmap & Future Initiatives
+## 🔬 Tier B: Cryptography & Quantum Readiness
 
-- [ ] **Shared Infra HTTP Client Form-Urlencoded Serialization**:
-  - [ ] Patch `StepNetworkExecution` in `@chief-strategist-j/shared-infra/src/http/pipeline/step-network-execution.ts` to preserve raw string bodies (preventing automatic `JSON.stringify` on form-urlencoded payloads).
-  - [ ] Migrate `KeycloakApiAdapter` from native `fetch()` to `httpClient` from `@chief-strategist-j/shared-infra/http`.
-- [ ] **Automated Keycloak Realm Auto-Provisioning Script**:
-  - [ ] Create an idempotent startup seed script (`scripts/seed-keycloak-realm.ts`) to programmatically ensure realm `llm-observability`, client scopes, and social identity brokering are created on blank Keycloak instances.
-- [ ] **Event-Driven User Synchronization**:
-  - [ ] Implement Keycloak Event Listener SPI or Webhook consumer to listen for external Keycloak events (`USER_UPDATE`, `USER_DELETE`, `IDENTITY_PROVIDER_LINK`) and emit corresponding Kafka audit events to `auth.events.v1`.
-- [ ] **Grafana Tempo & OpenTelemetry Tracing Dashboard**:
-  - [ ] Provide pre-built Grafana JSON dashboards visualizing end-to-end trace latencies from Traefik $\to$ Node.js Auth Service $\to$ Keycloak $\to$ PostgreSQL.
+- [ ] **31. Cryptographic Bill of Materials (CBOM)**
+  - [ ] Catalog all cryptographic algorithms, key lengths, certificates, and libraries in use.
+  - [ ] Map data-secrecy horizons against post-quantum risk timelines.
+  - [ ] Automate CBOM generation in CI.
+  - [ ] **Acceptance Test**: Verified CBOM artifact generated on every release.
+
+- [ ] **32. Cryptographic Agility & Algorithm Versioning**
+  - [ ] Decouple cryptographic algorithms from application code into configuration.
+  - [ ] Support multi-algorithm verification in JWKS keyed by `kid`.
+  - [ ] Version stored ciphertext envelopes and hashes (`v1`, `v2`, etc.).
+  - [ ] **Acceptance Test**: Signing algorithm can be rotated in staging without verifier code changes.
+
+- [ ] **33. Hybrid Post-Quantum Key Exchange in Transit**
+  - [ ] Enable hybrid X25519 + ML-KEM-768 (FIPS 203) on ingress and inter-service TLS where supported.
+  - [ ] Audit TLS configurations across Traefik, Node.js, and database connections.
+  - [ ] **Acceptance Test**: Network capture confirms hybrid key exchange negotiation on ingress connections.
+
+- [ ] **34. Per-Tenant Envelope Encryption with Quantum Safety**
+  - [ ] Implement AES-256-GCM tenant data encryption keys (DEK) wrapped by KMS Key Encryption Keys (KEK).
+  - [ ] Enable crypto-shredding (instant tenant data obliteration by deleting tenant KEK).
+  - [ ] Plan wrapping layer transition to ML-KEM when cloud KMS supports post-quantum algorithms.
+  - [ ] **Acceptance Test**: Deleting a tenant's key renders their database and backup data irrecoverable.
+
+- [ ] **35. Post-Quantum Long-Term Audit & Signature Tracking**
+  - [ ] Enforce SHA-384 or SHA-512 hash chains for long-term audit trail durability.
+  - [ ] Track IETF standardization of ML-DSA (FIPS 204) for JOSE / JWT tokens.
+  - [ ] Maintain vendor post-quantum questionnaires for Keycloak, Postgres, Kafka, and Redis.
+  - [ ] **Acceptance Test**: Verification tool confirms audit trail integrity against simulated historical tampering.
 
 ---
 
-## 📈 5. Architecture Comparison & Achieved Impact
+## 🤖 Tier C: AI-Era Threats & Agent Identity
 
-| Metric | Before (Hand-Rolled IAM) | After (Keycloak OIDC + Admin Architecture) | Result |
-|---|---|---|---|
-| **Source Code Size** | ~192 files / ~25,000 LOC | ~42 files / ~5,200 LOC | **-79.2% LOC Reduction** |
-| **Security Surface Area** | Custom crypto, argon2 hashing, SAML XML, WebAuthn | Delegated to CNCF/RedHat hardened Keycloak container | **Enterprise Grade** |
-| **Database Migrations** | 35 migrations across 25+ IAM tables | Pruned 10 obsolete tables via migration `0036` | **Zero Orphan Tables** |
-| **Test Suite Health** | 47 broken/crashing test suites | 112 passing unit & contract tests, 100% live curl suite | **Zero CI Failures** |
-| **API Documentation** | Static out-of-sync markdown | Live `/openapi.yaml` & self-hosted Swagger UI on `/docs` | **Instant Interactive Testing** |
+- [ ] **36. Three-Tier Agent Identity Model (Class, Instance, Session)**
+  - [ ] Define explicit data models for AI Agents:
+    - **Class**: Manifest, model configuration, and code hash.
+    - **Instance**: Ephemeral runtime process execution.
+    - **Session**: Specific task execution context.
+  - [ ] Enforce invariant: An instance or session cannot outlive its parent class revocation.
+  - [ ] Bind every agent session to an accountable human principal.
+  - [ ] **Acceptance Test**: Deactivating an agent class or human principal immediately revokes all descendant running instances.
+
+- [ ] **37. Monotonic Attenuation & Delegation Chains**
+  - [ ] Implement capability-based tokens for agent delegation where permissions can only narrow, never expand:
+    $$\text{authority}(\text{child}) \subseteq \text{authority}(\text{parent})$$
+  - [ ] Implement delegation depth limits, fan-out limits, and loop detection.
+  - [ ] Track delegation chains using RFC 8693 `act` (actor) claims.
+  - [ ] **Acceptance Test**: Property tests verify child agents cannot gain privileges outside parent bounds.
+
+- [ ] **38. Deterministic Policy Enforcement (Model Output Is Untrusted)**
+  - [ ] Enforce all authorization decisions in deterministic policy layer (ReBAC / PDP); never allow LLM outputs to decide permissions.
+  - [ ] Pass tools and capabilities by reference rather than raw prompt text.
+  - [ ] Implement spend, rate, and time budgets enforced externally on agent execution.
+  - [ ] **Acceptance Test**: Red-team tests with prompt injection attempts fail to execute out-of-scope tools.
+
+- [ ] **39. Agent Speed Revocation & Shared Signals**
+  - [ ] Implement sub-second agent session revocation using ephemeral token TTLs and epoch-based subtree invalidation.
+  - [ ] Propagate revocation via CAEP / Shared Signals across agent workers.
+  - [ ] **Acceptance Test**: Revoking an agent session terminates sub-agent execution within < 5 seconds.
+
+- [ ] **40. Action-Bound Receipts & SCITT Audit Logging**
+  - [ ] Generate signed receipts for high-impact agent actions linked to the delegation chain.
+  - [ ] Log action receipts to append-only transparency ledger.
+  - [ ] Support redaction of sensitive prompts/PII without breaking hash verification.
+  - [ ] **Acceptance Test**: Auditor can trace any agent API action back to the authorising human principal and intermediate delegates.
+
+---
+
+## 🛡️ Tier D: Formal Assurance & Verification
+
+- [ ] **41. Formal Specification of Isolation & Revocation**
+  - [ ] Model multi-tenant RLS isolation and revocation invariants in TLA+ or Alloy.
+  - [ ] Formally verify that under all concurrent execution schedules, no tenant can read foreign records.
+  - [ ] **Acceptance Test**: Model checker completes state exploration with 0 invariant violations.
+
+- [ ] **42. Threat Modeling & Attack Trees**
+  - [ ] Conduct STRIDE and attack tree analysis for trust boundaries:
+    - Compromised Keycloak instance
+    - Rogue database administrator
+    - Compromised downstream application among the 100+
+    - Stolen backup artifact
+  - [ ] **Acceptance Test**: Every identified threat links directly to an automated test, architectural control, or accepted risk entry.
+
+- [ ] **43. Hardware-Rooted Signing & Key Isolation**
+  - [ ] Isolate signing keys to non-exportable KMS / HSM hardware.
+  - [ ] Mandate M-of-N quorum ceremonies for root key generation and rollover.
+  - [ ] **Acceptance Test**: Application memory dumps contain zero private asymmetric signing keys.
+
+- [ ] **44. Regular Red Team Drills & Mass Re-Key Exercises**
+  - [ ] Conduct semi-annual drills testing complete credential and key rotation across all 100+ services.
+  - [ ] Implement and publish `security.txt` and vulnerability disclosure program.
+  - [ ] **Acceptance Test**: Timed drill rotates all signing keys and service credentials across the fleet within target window.
+
+- [ ] **45. Continuous Adversarial Fuzzing**
+  - [ ] Implement coverage-guided fuzzing for JWT, JWKS, HTTP header, and policy parsers.
+  - [ ] Run fuzzing continuously in staging / nightly pipelines.
+  - [ ] Maintain regression corpora for all past vulnerabilities.
+  - [ ] **Acceptance Test**: Fuzzers run 10M+ iterations without unhandled panics or assertion failures.
+
+---
+
+## 📌 Implementation Hygiene Tasks (Deprioritized)
+
+- [ ] **46. Shared-Infra HTTP Client Serialization Patch**
+  - [ ] Patch `StepNetworkExecution` in `@chief-strategist-j/shared-infra` to avoid auto-`JSON.stringify` on form-urlencoded payloads.
+  - [ ] Migrate `KeycloakApiAdapter` from `fetch` to shared `httpClient`.
+- [ ] **47. Grafana Dashboard Visualizations**
+  - [ ] Build visual telemetry dashboards for Traefik and Keycloak trace flows.

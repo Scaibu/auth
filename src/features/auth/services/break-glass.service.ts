@@ -62,6 +62,16 @@ export class BreakGlassService {
         throw new ValidationError(`Duration exceeds maximum allowable break-glass window of ${AUTH_CONSTANTS.BREAK_GLASS.MAX_DURATION_MINUTES} minutes`);
       }
 
+      const org = await this.repo.getOrganizationById(orgId);
+      if (!org || (org.deleted_at !== undefined && org.deleted_at !== null && org.deleted_at > 0)) {
+        throw new ValidationError('Target organization does not exist or has been deleted');
+      }
+
+      const operator = await this.repo.findUserById(userId);
+      if (operator && operator.blocked) {
+        throw new UnauthorizedError('Operator account is blocked or inactive');
+      }
+
       const activeExisting = await this.repo.listActiveBreakGlassSessions(orgId);
       const userActiveSession = activeExisting.find((s) => s.user_id === userId);
       if (userActiveSession !== undefined) {
@@ -140,6 +150,16 @@ export class BreakGlassService {
 
       if (evalTimeMs >= expiryMs) {
         throw new UnauthorizedError('Break-glass session has expired');
+      }
+
+      const org = await this.repo.getOrganizationById(session.org_id);
+      if (!org || (org.deleted_at !== undefined && org.deleted_at !== null && org.deleted_at > 0)) {
+        throw new UnauthorizedError('Organization is deleted or inactive');
+      }
+
+      const operator = await this.repo.findUserById(session.user_id);
+      if (operator && operator.blocked) {
+        throw new UnauthorizedError('Operator user account is blocked or inactive');
       }
 
       return session;

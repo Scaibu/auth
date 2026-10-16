@@ -1,6 +1,7 @@
 export const AUTH_QUERIES = {
   TENANT_RLS: {
     SET_LOCAL_TENANT_CONTEXT: `SELECT set_config('app.current_org_id', $1, true)`,
+    SET_LOCAL_CURRENT_TENANT_ID: `SELECT set_config('app.current_tenant_id', $1, true)`,
   },
   FLOW_CREATE_ORGANIZATION: {
     CHECK_ORG_NAME: `SELECT id FROM auth_organizations WHERE name = $1 AND deleted_at IS NULL LIMIT 1`,

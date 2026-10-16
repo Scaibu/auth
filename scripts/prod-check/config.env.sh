@@ -60,3 +60,42 @@ export AUDIT_FROM="${AUDIT_FROM:-2026-01-01T00:00:00Z}"
 export AUDIT_TO="${AUDIT_TO:-2026-12-31T23:59:59Z}"
 export AUDIT_LIMIT="${AUDIT_LIMIT:-50}"
 export AUDIT_PAGE="${AUDIT_PAGE:-1}"
+
+# Break-Glass Emergency
+export INCIDENT_TICKET_ID="${INCIDENT_TICKET_ID:-INC-8899}"
+export BREAK_GLASS_JUSTIFICATION="${BREAK_GLASS_JUSTIFICATION:-Emergency database dead-lock mitigation requiring elevated root privileges}"
+export BREAK_GLASS_DURATION="${BREAK_GLASS_DURATION:-60}"
+export BREAK_GLASS_SESSION_ID="${BREAK_GLASS_SESSION_ID:-sample-break-glass-session-id}"
+export BREAK_GLASS_TERMINATE_REASON="${BREAK_GLASS_TERMINATE_REASON:-Emergency mitigation completed and incident closed}"
+
+# MFA & Step-Up
+export MFA_CODE="${MFA_CODE:-123456}"
+export MFA_TOKEN="${MFA_TOKEN:-sample-mfa-token}"
+export REAUTH_TOKEN="${REAUTH_TOKEN:-sample-reauth-token}"
+
+# Honeytokens
+export HONEYTOKEN_NAME="${HONEYTOKEN_NAME:-Canary API Key Prod}"
+export HONEYTOKEN_ID="${HONEYTOKEN_ID:-sample-honeytoken-id}"
+
+# WORM Immutable Audit
+export WORM_SEGMENT_ID="${WORM_SEGMENT_ID:-seg-$(date +%s)}"
+export WORM_ARCHIVE_ID="${WORM_ARCHIVE_ID:-sample-worm-archive-id}"
+
+# Custom Roles & Permissions
+export ROLE_NAME="${ROLE_NAME:-IncidentResponder}"
+export ROLE_DESCRIPTION="${ROLE_DESCRIPTION:-Custom role for handling emergency ops and telemetry}"
+export ROLE_ID="${ROLE_ID:-sample-role-id}"
+
+# Webhooks
+export WEBHOOK_URL="${WEBHOOK_URL:-https://webhook.site/sample-auth-receiver}"
+export WEBHOOK_SUBSCRIPTION_ID="${WEBHOOK_SUBSCRIPTION_ID:-sample-webhook-sub-id}"
+
+# Domains
+export CLAIM_DOMAIN="${CLAIM_DOMAIN:-acme-corp.com}"
+export DOMAIN_ID="${DOMAIN_ID:-sample-domain-id}"
+export BLOCKED_DOMAIN="${BLOCKED_DOMAIN:-malicious-temp-mail.com}"
+
+# Policies (ReBAC)
+export POLICY_OBJECT="${POLICY_OBJECT:-org:org_enterprise_1}"
+export POLICY_RELATION="${POLICY_RELATION:-member}"
+export POLICY_SUBJECT="${POLICY_SUBJECT:-user:usr_sec_1}"

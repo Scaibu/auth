@@ -7,6 +7,7 @@ describe('RealPostgresAuthAdapter Unit & Connection Tests', () => {
     const status = await adapter.getPoolStatus();
     expect(status.totalCount).toBe(0);
     expect(adapter.queries.TENANT_RLS.SET_LOCAL_TENANT_CONTEXT).toBe("SELECT set_config('app.current_org_id', $1, true)");
+    expect(adapter.queries.TENANT_RLS.SET_LOCAL_CURRENT_TENANT_ID).toBe("SELECT set_config('app.current_tenant_id', $1, true)");
     await adapter.close();
   });
 });

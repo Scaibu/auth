@@ -133,6 +133,18 @@ export class ApiKeyDomainService {
       throw new ApiKeyExpiredError();
     }
 
+    const org = await this.repo.getOrganizationById(record.org_id);
+    if (!org || (org.deleted_at !== undefined && org.deleted_at !== null && org.deleted_at > 0)) {
+      throw new ApiKeyRevokedError();
+    }
+
+    if ((record as any).user_id) {
+      const user = await this.repo.findUserById((record as any).user_id);
+      if (!user || user.blocked) {
+        throw new ApiKeyRevokedError();
+      }
+    }
+
     const allowlist = record.ip_allowlist ?? [];
     if (allowlist.length > 0 && validated.client_ip) {
       const allowed = checkCidrAllowlist(validated.client_ip, allowlist);

@@ -11,7 +11,7 @@ WORKDIR /app/packages/node/shared-infra
 RUN npm install --no-audit --no-fund
 
 WORKDIR /app/packages/node/auth
-RUN npm install --no-audit --no-fund
+RUN rm -f package-lock.json && npm install --no-audit --no-fund
 
 RUN npx esbuild src/server.ts \
   --bundle \
@@ -26,30 +26,16 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV AUTH_BREACHED_PASSWORD_ENABLED=true
-ENV AUTH_BREACHED_PASSWORD_BASE_URL=https://api.pwnedpasswords.com/range
-ENV AUTH_BREACHED_PASSWORD_TIMEOUT_MS=1500
-ENV AUTH_BREACHED_PASSWORD_USER_AGENT=llm-observability-auth/1.0.0
+ENV KEYCLOAK_BASE_URL=http://auth-service-keycloak:8080
+ENV KEYCLOAK_ISSUER_URL=http://auth-service-keycloak:8080/realms/llm-observability
+ENV KEYCLOAK_REALM=llm-observability
+ENV KEYCLOAK_CLIENT_ID=auth-service-admin
+ENV MAILER_PROVIDER=mock
 ENV AUTH_GEOIP_PROVIDER=http
 ENV AUTH_GEOIP_TIMEOUT_MS=1500
-ENV MAILER_PROVIDER=mock
 ENV AUTH_SECURITY_HEADERS_ENABLED=true
-ENV AUTH_MFA_ISSUER=LLMObservability
-ENV AUTH_OIDC_ISSUER=http://localhost:3001
-ENV AUTH_OIDC_CODE_TTL_MS=300000
-ENV AUTH_OIDC_TOKEN_TTL_SECONDS=3600
-ENV AUTH_SAML_SP_ENTITY_ID=http://localhost:3001/api/v1/auth/saml/metadata
-ENV AUTH_SAML_ACS_URL=http://localhost:3001/api/v1/auth/saml/acs
-ENV AUTH_SAML_CLOCK_SKEW_MS=120000
-ENV AUTH_SAML_RELAY_STATE_TTL_MS=300000
-ENV AUTH_PASSWORD_HISTORY_LIMIT=10
-ENV AUTH_WEBAUTHN_RP_ID=localhost
-ENV AUTH_WEBAUTHN_RP_NAME="Observability Cloud"
-ENV AUTH_WEBAUTHN_ORIGIN=http://localhost:3001
-ENV AUTH_WEBAUTHN_CHALLENGE_TTL_MS=300000
 ENV AUTH_WEBHOOK_TOLERANCE_MS=300000
 ENV AUTH_WEBHOOK_DEFAULT_RETRIES=5
-ENV AUTH_MTLS_ENABLED=true
 ENV AUTH_HONEYTOKEN_ENABLED=true
 ENV AUTH_HONEYTOKEN_PREFIX=ht_canary_
 ENV AUTH_HONEYTOKEN_AUTO_BLOCK_IP=true

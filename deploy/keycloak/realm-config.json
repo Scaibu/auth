@@ -29,20 +29,22 @@
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:3000/*",
-        "http://localhost:3001/*"
+        "http://localhost:3000/auth/callback",
+        "http://localhost:3001/auth/callback"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "http://localhost:3001",
-        "+"
+        "http://localhost:3001"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3000/*"
+        "post.logout.redirect.uris": "http://localhost:3000/login",
+        "use.refresh.tokens": "true",
+        "revoke.refresh.token": "true",
+        "refresh.token.max.reuse": "0"
       }
     },
     {
