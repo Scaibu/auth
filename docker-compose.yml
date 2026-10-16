@@ -105,7 +105,7 @@ services:
       - default
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0.5
+    image: quay.io/keycloak/keycloak:26.0.0
     container_name: auth-service-keycloak
     command: start-dev --import-realm --features=opentelemetry
     ports:
@@ -114,19 +114,18 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://auth-service-db:5432/llm_observability
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
       - KC_DB_USERNAME=admin
       - KC_DB_PASSWORD=llmobs_s3cret_2026
-      - KC_DB_SCHEMA=keycloak
+      - KC_DB_SCHEMA=public
       - KC_HTTP_ENABLED=true
       - KC_HEALTH_ENABLED=true
       - KC_METRICS_ENABLED=true
-      - KC_FEATURES=opentelemetry
       - KC_TRACING_ENABLED=true
-      - KC_TRACING_ENDPOINT=http://llmobs-otel-collector:4318/v1/traces
+      - KC_TRACING_ENDPOINT=http://llmobs-otel-collector:4317
+      - KC_TRACING_PROTOCOL=grpc
       - KC_TRACING_SERVICE_NAME=auth-service-keycloak
       - KC_TRACING_SAMPLER_TYPE=always_on
-      - KC_PROXY=edge
       - KC_PROXY_HEADERS=xforwarded
       - KC_HOSTNAME_STRICT=false
     labels:
@@ -134,6 +133,8 @@ services:
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.llmobs.local`) || PathPrefix(`/auth`)"
       - "traefik.http.routers.keycloak.entrypoints=web"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    extra_hosts:
+      - "llmobs-otel-collector:host-gateway"
     volumes:
       - ./deploy/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
     depends_on:
