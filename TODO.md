@@ -43,25 +43,22 @@
 | **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
 | **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ⏳ **Pending** | v1.3 | **P3** |
 | **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ⏳ **Pending** | v1.3 | **P3** |
-| **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ⏳ **Pending** | v1.1 | **P1** |
+| **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ✅ **Completed** | v1.1 | **P1** |
 
 ---
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: Database Seed Script (`database/seeds/seed.ts`) [P1]
-- **Objective**: Standardized, idempotent database seed fixtures for local development, Docker environments, and integration test setup.
+### 2.1 Next Recommended Feature: Honeytokens & Active Canary Secret Scanning [P3]
+- **Objective**: Deception technology issuing decoy API keys, bearer tokens, and credentials embedded into source code and documentation.
 - **Specification**:
-  - `npm run db:seed`: Populates default root organization, super-admin, standard viewer roles, sample OAuth/OIDC clients, and pre-seeded test API keys.
-  - Safe against existing records (upsert / conflict avoidance without clobbering production tables).
+  - `POST /api/v1/auth/honeytokens`: Provisions monitored canary secrets with embedded tripwires.
+  - Any invocation immediately dispatches critical SIEM alerts, blacklists caller IP via Redis/network rules, and captures forensic request payload metadata.
 
 ### 2.2 Secondary Fast-Follows
-1. **Honeytokens & Active Canary Secret Scanning (Deception Technology) [P3]**:
-   - Issue decoy API keys, bearer tokens, and credentials embedded into source code and documentation.
-   - Any invocation immediately dispatches critical SIEM alerts, blacklists caller IP, and initiates forensics.
-2. **Immutable WORM Audit Archive (S3 Object Lock / Glacier / SEC Rule 17a-4(f)) [P3]**:
+1. **Immutable WORM Audit Archive (S3 Object Lock / Glacier / SEC Rule 17a-4(f)) [P3]**:
    - Cryptographically verifiable, write-once-read-many (WORM) audit retention offloaded to tamper-proof cold storage.
-3. **Prometheus Alert Rules for Authentication [P2]**:
+2. **Prometheus Alert Rules for Authentication [P2]**:
    - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
 
 ---
@@ -225,7 +222,7 @@
   - Nightly worker hard-purging records where `deleted_at_ms < (now - 30 days)`.
 - [x] **GDPR DSAR JSON Export Endpoint (ADR 0017)**:
   - Endpoint `GET /api/v1/auth/users/me/export` returning machine-readable JSON archive.
-- [ ] **Automated Database Seeder (`database/seeds/seed.ts`)**:
+- [x] **Automated Database Seeder (`database/seeds/seed.ts`)**:
   - `npm run db:seed`: Populates development fixtures (Default Organization, Admin, Viewer, pre-seeded API keys).
 - [ ] **Prometheus Alert Rules for Authentication**:
   - High Failure Rate: Alert if sign-in failure rate exceeds 5% over 5 minutes.
