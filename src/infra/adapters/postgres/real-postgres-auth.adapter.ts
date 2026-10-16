@@ -1467,6 +1467,9 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         client.secret_prefix ?? null,
         JSON.stringify(client.allowed_scopes ?? []),
         client.token_ttl_seconds ?? 3600,
+        client.token_endpoint_auth_method ?? 'client_secret_post',
+        client.tls_client_auth_subject_dn ?? null,
+        client.certificate_thumbprint ?? null,
       ]);
     }, { kind: SpanKind.CLIENT });
   }
@@ -1490,6 +1493,9 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         client_type: row.client_type,
         status: row.status,
         created_at_ms: Number(row.created_at_ms),
+        token_endpoint_auth_method: row.token_endpoint_auth_method ?? undefined,
+        tls_client_auth_subject_dn: row.tls_client_auth_subject_dn ?? undefined,
+        certificate_thumbprint: row.certificate_thumbprint ?? undefined,
       };
     }, { kind: SpanKind.CLIENT });
   }

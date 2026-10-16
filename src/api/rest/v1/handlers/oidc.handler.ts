@@ -77,11 +77,23 @@ export async function handleOAuthToken(
       }
     }
 
+    const clientCertHeader = headers?.['x-client-cert'] ||
+      headers?.['X-Client-Cert'] ||
+      headers?.['x-ssl-client-cert'] ||
+      headers?.['X-SSL-Client-Cert'] ||
+      headers?.['ssl-client-cert'];
+
+    const clientCert = typeof clientCertHeader === 'string' && clientCertHeader.trim().length > 0
+      ? clientCertHeader.trim()
+      : (typeof payload.client_certificate === 'string' && payload.client_certificate.trim().length > 0
+          ? payload.client_certificate.trim()
+          : undefined);
+
     if (!clientId) {
       throw new ValidationError('Missing mandatory parameter: client_id');
     }
-    if (!clientSecret) {
-      throw new ValidationError('Missing mandatory parameter: client_secret');
+    if (!clientSecret && !clientCert) {
+      throw new ValidationError('Missing mandatory parameter: client_secret or client_certificate');
     }
 
     const scope = typeof payload.scope === 'string' ? payload.scope.trim() : undefined;
@@ -89,7 +101,8 @@ export async function handleOAuthToken(
 
     return service.issueClientCredentialsToken({
       client_id: clientId,
-      client_secret: clientSecret,
+      client_secret: clientSecret || undefined,
+      client_certificate: clientCert,
       scope,
       audience,
     });

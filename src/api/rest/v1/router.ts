@@ -124,6 +124,29 @@ export class AuthRestV1Router {
             const orgId = session?.org?.org_id ?? session?.payload?.org?.org_id;
             if (sub) span.setAttribute('user.id', sub);
             if (orgId) span.setAttribute('org.id', orgId);
+
+            const cnf = session?.cnf ?? session?.payload?.cnf;
+            const expectedThumbprint = cnf?.[AUTH_CONSTANTS.MTLS.CNF_X5T_S256_KEY];
+            if (expectedThumbprint) {
+              const presentedCert = headers?.['x-client-cert'] ||
+                headers?.['X-Client-Cert'] ||
+                headers?.['x-ssl-client-cert'] ||
+                headers?.['X-SSL-Client-Cert'] ||
+                headers?.['ssl-client-cert'];
+
+              if (!presentedCert) {
+                throw new UnauthorizedError('Certificate-bound access token requires presented client certificate');
+              }
+
+              const isBound = this.service.oidcService.mtlsValidatorService.verifyCertificateBinding(
+                expectedThumbprint,
+                presentedCert
+              );
+
+              if (!isBound) {
+                throw new UnauthorizedError('Client certificate thumbprint mismatch with token certificate binding');
+              }
+            }
           } catch (sessionErr) {
             if (rule.requiresAuth) throw sessionErr;
           }

@@ -3,13 +3,22 @@ import type { AuthTokenPayload } from '../../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../../shared/errors/auth.errors';
 
-export async function handleVerifySession(service: AuthService, authorizationHeader?: string): Promise<AuthTokenPayload> {
+export async function handleVerifySession(service: AuthService, authorizationHeader?: string): Promise<any> {
   if (!authorizationHeader || !authorizationHeader.startsWith(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX)) {
     throw new UnauthorizedError('Missing or invalid Authorization header');
   }
 
-  const token = authorizationHeader.substring(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX.length);
-  return service.validateSession(token);
+  const token = authorizationHeader.substring(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX.length).trim();
+  try {
+    return await service.validateSession(token);
+  } catch (err: unknown) {
+    try {
+      const verifiedJwt = await service.verifySignedJwt(token);
+      return verifiedJwt.payload;
+    } catch {
+      throw err;
+    }
+  }
 }
 
 export async function handleListSessions(service: AuthService, userId: string, currentFamilyId?: string): Promise<unknown> {

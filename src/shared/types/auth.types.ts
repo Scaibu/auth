@@ -352,3 +352,14 @@ export const BreakGlassSessionRecordSchema = z.object({
 });
 export type BreakGlassSessionRecord = z.infer<typeof BreakGlassSessionRecordSchema>;
 
+export const ClientCertificateInfoSchema = z.object({
+  thumbprint: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  subject_dn: z.string().min(1),
+  issuer_dn: z.string().min(1),
+  valid_from: z.string(),
+  valid_to: z.string(),
+  serial_number: z.string().min(1),
+  raw_pem: z.string().min(1),
+});
+export type ClientCertificateInfo = z.infer<typeof ClientCertificateInfoSchema>;
+

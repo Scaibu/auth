@@ -12,6 +12,9 @@ export interface OAuthClientRecord {
   readonly client_type: 'public' | 'confidential';
   readonly status: 'ACTIVE' | 'SUSPENDED';
   readonly created_at_ms: number;
+  readonly token_endpoint_auth_method?: 'client_secret_basic' | 'client_secret_post' | 'tls_client_auth' | 'self_signed_tls_client_auth' | 'none' | string;
+  readonly tls_client_auth_subject_dn?: string | null;
+  readonly certificate_thumbprint?: string | null;
 }
 
 export interface OAuthAuthorizationCodeRecord {

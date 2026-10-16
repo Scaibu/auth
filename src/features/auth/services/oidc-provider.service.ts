@@ -13,10 +13,12 @@ import { withSpan } from '../../../infra/tracing/tracer';
 import type { OidcConfig } from '../../../config/oidc.config';
 import { loadOidcConfig } from '../../../config/oidc.config';
 import { KeyRotationService } from './key-rotation.service';
+import { MtlsValidatorService } from './mtls-validator.service';
 
 export class OidcProviderService {
   private readonly config: OidcConfig;
   readonly keyRotationService: KeyRotationService;
+  readonly mtlsValidatorService: MtlsValidatorService;
 
   constructor(
     private readonly repo: AuthRepositoryPort,
@@ -24,6 +26,7 @@ export class OidcProviderService {
   ) {
     this.config = config ?? loadOidcConfig();
     this.keyRotationService = new KeyRotationService(this.repo);
+    this.mtlsValidatorService = new MtlsValidatorService();
   }
 
   async getOpenIdConfiguration(): Promise<Record<string, unknown>> {
@@ -49,21 +52,29 @@ export class OidcProviderService {
         AUTH_CONSTANTS.OIDC.SCOPE_PROFILE,
         AUTH_CONSTANTS.OIDC.SCOPE_EMAIL,
       ],
-      token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
+      token_endpoint_auth_methods_supported: [
+        'none',
+        'client_secret_post',
+        'client_secret_basic',
+        AUTH_CONSTANTS.MTLS.AUTH_METHOD_TLS_CLIENT_AUTH,
+        AUTH_CONSTANTS.MTLS.AUTH_METHOD_SELF_SIGNED_TLS_CLIENT_AUTH,
+      ],
+      tls_client_certificate_bound_access_tokens: true,
       code_challenge_methods_supported: [AUTH_CONSTANTS.OIDC.PKCE_METHOD_S256],
     };
   }
 
   async issueClientCredentialsToken(params: {
     client_id: string;
-    client_secret: string;
+    client_secret?: string;
+    client_certificate?: string;
     scope?: string;
     audience?: string;
   }): Promise<M2mTokenResponse> {
     return withSpan('OidcProviderService.issueClientCredentialsToken', async (span) => {
       span?.setAttribute('oauth.client_id', params.client_id);
-      if (!params.client_id || !params.client_secret) {
-        throw new UnauthorizedError('Missing client credentials (client_id and client_secret required)');
+      if (!params.client_id) {
+        throw new UnauthorizedError('Missing client_id');
       }
 
       const client = await this.repo.findOAuthClientById(params.client_id);
@@ -75,16 +86,36 @@ export class OidcProviderService {
         throw new UnauthorizedError('Unauthorized grant_type for client');
       }
 
-      if (!client.client_secret_hash) {
-        throw new UnauthorizedError('Client secret not configured for client credentials grant');
-      }
+      const authMethod = client.token_endpoint_auth_method ?? 'client_secret_post';
+      let certificateThumbprint: string | undefined;
 
-      const computedHash = createHash('sha256').update(params.client_secret).digest('hex');
-      const expectedBuf = Buffer.from(client.client_secret_hash, 'utf-8');
-      const actualBuf = Buffer.from(computedHash, 'utf-8');
+      if (authMethod === 'tls_client_auth' || authMethod === 'self_signed_tls_client_auth') {
+        const { thumbprintSha256 } = this.mtlsValidatorService.verifyClientMtlsAuthentication(
+          client,
+          params.client_certificate
+        );
+        certificateThumbprint = thumbprintSha256;
+      } else {
+        if (!params.client_secret) {
+          throw new UnauthorizedError('Missing client credentials (client_secret required)');
+        }
 
-      if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
-        throw new UnauthorizedError('Invalid client_secret for client credentials grant');
+        if (!client.client_secret_hash) {
+          throw new UnauthorizedError('Client secret not configured for client credentials grant');
+        }
+
+        const computedHash = createHash('sha256').update(params.client_secret).digest('hex');
+        const expectedBuf = Buffer.from(client.client_secret_hash, 'utf-8');
+        const actualBuf = Buffer.from(computedHash, 'utf-8');
+
+        if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
+          throw new UnauthorizedError('Invalid client_secret for client credentials grant');
+        }
+
+        if (params.client_certificate) {
+          const parsed = this.mtlsValidatorService.parseCertificate(params.client_certificate);
+          certificateThumbprint = parsed.thumbprintSha256;
+        }
       }
 
       let grantedScope = '';
@@ -107,18 +138,26 @@ export class OidcProviderService {
       const expiresIn = client.token_ttl_seconds ?? this.config.tokenTtlSeconds;
       const audience = params.audience || this.config.issuer;
 
+      const tokenPayload: Record<string, unknown> = {
+        iss: this.config.issuer,
+        sub: client.id,
+        aud: audience,
+        org_id: client.org_id,
+        client_id: client.id,
+        scope: grantedScope,
+        token_use: 'access_token',
+        exp: nowSeconds + expiresIn,
+        iat: nowSeconds,
+      };
+
+      if (certificateThumbprint) {
+        tokenPayload.cnf = {
+          [AUTH_CONSTANTS.MTLS.CNF_X5T_S256_KEY]: certificateThumbprint,
+        };
+      }
+
       const accessToken = this.keyRotationService.signJwt(
-        {
-          iss: this.config.issuer,
-          sub: client.id,
-          aud: audience,
-          org_id: client.org_id,
-          client_id: client.id,
-          scope: grantedScope,
-          token_use: 'access_token',
-          exp: nowSeconds + expiresIn,
-          iat: nowSeconds,
-        },
+        tokenPayload,
         activeKey
       );
 

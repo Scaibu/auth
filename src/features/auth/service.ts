@@ -607,7 +607,8 @@ export class AuthService {
 
   async issueClientCredentialsToken(params: {
     client_id: string;
-    client_secret: string;
+    client_secret?: string;
+    client_certificate?: string;
     scope?: string;
     audience?: string;
   }): Promise<M2mTokenResponse> {
