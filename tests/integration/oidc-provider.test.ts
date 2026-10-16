@@ -62,8 +62,8 @@ describe('OpenID Connect (OIDC) Identity Provider Core (ADR 0025 / RFC 8414 / RF
     const data = res.payload.data as any;
     expect(Array.isArray(data.keys)).toBe(true);
     expect(data.keys.length).toBeGreaterThan(0);
-    expect(data.keys[0].kty).toBe('RSA');
-    expect(data.keys[0].alg).toBe('RS256');
+    expect(['OKP', 'RSA']).toContain(data.keys[0].kty);
+    expect(['EdDSA', 'RS256']).toContain(data.keys[0].alg);
     expect(data.keys[0].use).toBe('sig');
   });
 

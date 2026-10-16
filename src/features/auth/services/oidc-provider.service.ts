@@ -1,4 +1,4 @@
-import { createHash, generateKeyPairSync, createSign, timingSafeEqual } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import type { AuthRepositoryPort } from '../repository';
 import type {
   SigningKeyRecord,
@@ -12,15 +12,18 @@ import { ValidationError, NotFoundError, UnauthorizedError } from '../../../shar
 import { withSpan } from '../../../infra/tracing/tracer';
 import type { OidcConfig } from '../../../config/oidc.config';
 import { loadOidcConfig } from '../../../config/oidc.config';
+import { KeyRotationService } from './key-rotation.service';
 
 export class OidcProviderService {
   private readonly config: OidcConfig;
+  readonly keyRotationService: KeyRotationService;
 
   constructor(
     private readonly repo: AuthRepositoryPort,
     config?: OidcConfig,
   ) {
     this.config = config ?? loadOidcConfig();
+    this.keyRotationService = new KeyRotationService(this.repo);
   }
 
   async getOpenIdConfiguration(): Promise<Record<string, unknown>> {
@@ -37,7 +40,10 @@ export class OidcProviderService {
         AUTH_CONSTANTS.OIDC.GRANT_TYPE_CLIENT_CREDENTIALS,
       ],
       subject_types_supported: ['public'],
-      id_token_signing_alg_values_supported: [AUTH_CONSTANTS.OIDC.KEY_ALG_RS256],
+      id_token_signing_alg_values_supported: [
+        AUTH_CONSTANTS.OIDC.KEY_ALG_EDDSA,
+        AUTH_CONSTANTS.OIDC.KEY_ALG_RS256,
+      ],
       scopes_supported: [
         AUTH_CONSTANTS.OIDC.SCOPE_OPENID,
         AUTH_CONSTANTS.OIDC.SCOPE_PROFILE,
@@ -96,12 +102,12 @@ export class OidcProviderService {
         grantedScope = (client.allowed_scopes ?? []).join(' ');
       }
 
-      const activeKey = await this.ensureSigningKey();
+      const activeKey = await this.keyRotationService.ensureActiveEdDsaKey();
       const nowSeconds = Math.floor(Date.now() / 1000);
       const expiresIn = client.token_ttl_seconds ?? this.config.tokenTtlSeconds;
       const audience = params.audience || this.config.issuer;
 
-      const accessToken = this.signAsymmetricJwt(
+      const accessToken = this.keyRotationService.signJwt(
         {
           iss: this.config.issuer,
           sub: client.id,
@@ -113,8 +119,7 @@ export class OidcProviderService {
           exp: nowSeconds + expiresIn,
           iat: nowSeconds,
         },
-        activeKey.kid,
-        activeKey.private_key_pem
+        activeKey
       );
 
       return {
@@ -127,11 +132,7 @@ export class OidcProviderService {
   }
 
   async getJwks(): Promise<{ keys: ReadonlyArray<JwksKey> }> {
-    return withSpan('OidcProviderService.getJwks', async () => {
-      const activeKey = await this.ensureSigningKey();
-      const jwk = this.pemToJwks(activeKey.kid, activeKey.public_key_pem);
-      return { keys: [jwk] };
-    });
+    return this.keyRotationService.getPublicJwks();
   }
 
   async createAuthorizationCode(params: {
@@ -229,7 +230,7 @@ export class OidcProviderService {
         throw new NotFoundError('User subject associated with authorization code not found');
       }
 
-      const activeKey = await this.ensureSigningKey();
+      const activeKey = await this.keyRotationService.ensureActiveEdDsaKey();
       const nowSeconds = Math.floor(Date.now() / 1000);
       const expiresIn = this.config.tokenTtlSeconds;
 
@@ -244,8 +245,8 @@ export class OidcProviderService {
         name: user.name,
       };
 
-      const idToken = this.signAsymmetricJwt(idTokenPayload, activeKey.kid, activeKey.private_key_pem);
-      const accessToken = this.signAsymmetricJwt({
+      const idToken = this.keyRotationService.signJwt(idTokenPayload, activeKey);
+      const accessToken = this.keyRotationService.signJwt({
         iss: this.config.issuer,
         sub: user.id,
         aud: this.config.issuer,
@@ -253,8 +254,7 @@ export class OidcProviderService {
         scope: codeRecord.scope,
         exp: nowSeconds + expiresIn,
         iat: nowSeconds,
-      }, activeKey.kid, activeKey.private_key_pem);
-
+      }, activeKey);
 
       return {
         access_token: accessToken,
@@ -280,60 +280,5 @@ export class OidcProviderService {
         org_id: user.org_id,
       };
     });
-  }
-
-  private async ensureSigningKey(): Promise<SigningKeyRecord> {
-    let key = await this.repo.getActiveSigningKey();
-    if (!key) {
-      const pair = generateKeyPairSync('rsa', {
-        modulusLength: 2048,
-        publicKeyEncoding: { type: 'spki', format: 'pem' },
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-      });
-      const now = Date.now();
-      key = {
-        kid: `key_rsa_${now}`,
-        kty: 'RSA',
-        alg: AUTH_CONSTANTS.OIDC.KEY_ALG_RS256,
-        use: AUTH_CONSTANTS.OIDC.KEY_USE_SIG,
-        public_key_pem: pair.publicKey,
-        private_key_pem: pair.privateKey,
-        status: 'ACTIVE',
-        created_at_ms: now,
-      };
-      await this.repo.saveSigningKey(key);
-    }
-    return key;
-  }
-
-  private signAsymmetricJwt(payload: Record<string, unknown>, kid: string, privateKeyPem: string): string {
-    const header = {
-      alg: AUTH_CONSTANTS.OIDC.KEY_ALG_RS256,
-      typ: 'JWT',
-      kid,
-    };
-    const b64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
-    const b64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const data = `${b64Header}.${b64Payload}`;
-
-    const signer = createSign('RSA-SHA256');
-    signer.update(data);
-    signer.end();
-    const signature = signer.sign(privateKeyPem).toString('base64url');
-    return `${data}.${signature}`;
-  }
-
-  private pemToJwks(kid: string, pem: string): JwksKey {
-    const cleanPem = pem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
-    const der = Buffer.from(cleanPem, 'base64');
-    const hash = createHash('sha256').update(der).digest('base64url');
-    return {
-      kty: 'RSA',
-      use: 'sig',
-      kid,
-      alg: 'RS256',
-      n: hash,
-      e: 'AQAB',
-    };
   }
 }

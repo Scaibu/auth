@@ -980,13 +980,70 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
     }
   }
 
-  async saveSigningKey(key: { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }): Promise<void> {
+  async saveSigningKey(key: SigningKeyRecord): Promise<void> {
     this.mockSigningKeys.set(key.kid, { ...key });
   }
 
-  async getActiveSigningKey(): Promise<{ kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number } | null> {
-    const active = [...this.mockSigningKeys.values()].find((k) => k.status === 'ACTIVE');
+  async getActiveSigningKey(alg?: string): Promise<SigningKeyRecord | null> {
+    const active = [...this.mockSigningKeys.values()].find((k) => k.status === 'ACTIVE' && (!alg || k.alg === alg));
     return active ? { ...active } : null;
+  }
+
+  async getSigningKeyByKid(kid: string): Promise<SigningKeyRecord | null> {
+    const key = this.mockSigningKeys.get(kid);
+    return key ? { ...key } : null;
+  }
+
+  async listPublicJwksKeys(): Promise<ReadonlyArray<JwksKey>> {
+    const now = Date.now();
+    return [...this.mockSigningKeys.values()]
+      .filter((k) => (k.status === 'ACTIVE' || k.status === 'RETIRED') && (!k.expires_at_ms || k.expires_at_ms > now))
+      .map((k) => {
+        if (k.kty === 'OKP') {
+          return {
+            kty: k.kty,
+            use: k.use,
+            kid: k.kid,
+            alg: k.alg,
+            crv: k.crv || 'Ed25519',
+            x: k.x || '',
+          };
+        }
+        return {
+          kty: k.kty,
+          use: k.use,
+          kid: k.kid,
+          alg: k.alg,
+          n: k.x || 'sample_n',
+          e: 'AQAB',
+        };
+      });
+  }
+
+  async rotateSigningKey(newKey: SigningKeyRecord, gracePeriodMs: number): Promise<void> {
+    const graceExpiry = Date.now() + gracePeriodMs;
+    for (const [kid, key] of this.mockSigningKeys.entries()) {
+      if (key.status === 'ACTIVE' && key.alg === newKey.alg) {
+        this.mockSigningKeys.set(kid, {
+          ...key,
+          status: 'RETIRED',
+          expires_at_ms: graceExpiry,
+        });
+      }
+    }
+    this.mockSigningKeys.set(newKey.kid, { ...newKey });
+  }
+
+  async revokeSigningKey(kid: string, reason: string, revokedAtMs: number): Promise<void> {
+    const key = this.mockSigningKeys.get(kid);
+    if (key) {
+      this.mockSigningKeys.set(kid, {
+        ...key,
+        status: 'REVOKED',
+        revoked_at_ms: revokedAtMs,
+        revoked_reason: reason,
+      });
+    }
   }
 
   async saveSamlProvider(provider: any): Promise<void> {

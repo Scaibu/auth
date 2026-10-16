@@ -565,6 +565,18 @@ export class AuthService {
     return this.oidcService.getJwks();
   }
 
+  async rotateSigningKey(params?: { alg?: 'EdDSA' | 'RS256'; gracePeriodMs?: number }): Promise<{ newKey: SigningKeyRecord; gracePeriodMs: number }> {
+    return this.oidcService.keyRotationService.rotateKey(params);
+  }
+
+  async revokeSigningKey(kid: string, reason: string): Promise<void> {
+    return this.oidcService.keyRotationService.revokeKey(kid, reason);
+  }
+
+  async verifySignedJwt(token: string): Promise<{ header: Record<string, any>; payload: Record<string, any> }> {
+    return this.oidcService.keyRotationService.verifyJwt(token);
+  }
+
   async createOAuthAuthorizationCode(params: {
     client_id: string;
     redirect_uri: string;

@@ -846,6 +846,14 @@ export const ROUTE_RULES: RouteRule[] = [
     handler: (ctx) => handleGetJwks(ctx.service),
   },
   {
+    name: 'well_known_jwks',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.WELL_KNOWN_JWKS,
+    requiresAuth: false,
+    successMessage: 'JWKS public keys retrieved successfully',
+    handler: (ctx) => handleGetJwks(ctx.service),
+  },
+  {
     name: 'oidc_authorize',
     method: HTTP_METHODS.GET,
     pattern: AUTH_ENDPOINTS.OIDC_AUTHORIZE,

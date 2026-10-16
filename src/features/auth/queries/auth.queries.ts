@@ -265,6 +265,14 @@ export const AUTH_QUERIES = {
         OR (mfa_secret_encrypted IS NOT NULL AND mfa_secret_encrypted NOT LIKE 'enc:v1:%')
       )
   `,
+  FLOW_SIGNING_KEYS: {
+    INSERT_KEY: `INSERT INTO auth_signing_keys (kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms, crv, x, expires_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (kid) DO NOTHING`,
+    FIND_ACTIVE_BY_ALG: `SELECT kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms, crv, x, expires_at_ms, revoked_at_ms, revoked_reason FROM auth_signing_keys WHERE status = 'ACTIVE' AND ($1::text IS NULL OR alg = $1) ORDER BY created_at_ms DESC LIMIT 1`,
+    FIND_BY_KID: `SELECT kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms, crv, x, expires_at_ms, revoked_at_ms, revoked_reason FROM auth_signing_keys WHERE kid = $1 LIMIT 1`,
+    LIST_PUBLIC_KEYS: `SELECT kid, kty, alg, use, public_key_pem, crv, x, status, expires_at_ms FROM auth_signing_keys WHERE status IN ('ACTIVE', 'RETIRED') AND (expires_at_ms IS NULL OR expires_at_ms > $1) ORDER BY created_at_ms DESC`,
+    RETIRE_ACTIVE_KEY: `UPDATE auth_signing_keys SET status = 'RETIRED', expires_at_ms = $1 WHERE status = 'ACTIVE' AND alg = $2`,
+    REVOKE_KEY: `UPDATE auth_signing_keys SET status = 'REVOKED', revoked_at_ms = $2, revoked_reason = $3 WHERE kid = $1 AND status != 'REVOKED'`,
+  },
   FLOW_CHECK_AUTH_ASN_THREAT_INVARIANTS: `
     SELECT asn, threat_score, threat_category, is_blocked, velocity_limit_per_minute
     FROM auth_asn_reputation
@@ -273,6 +281,15 @@ export const AUTH_QUERIES = {
        OR (is_blocked = FALSE AND blocked_reason IS NOT NULL)
        OR (threat_category NOT IN ('RESIDENTIAL', 'DATACENTER', 'VPN_PROXY', 'TOR_EXIT', 'BULLETPROOF_HOSTING'))
        OR (velocity_limit_per_minute <= 0)
+  `,
+  FLOW_CHECK_AUTH_SIGNING_KEYS_INVARIANTS: `
+    SELECT kid, status, alg, kty, crv, x, revoked_at_ms, revoked_reason
+    FROM auth_signing_keys
+    WHERE (status NOT IN ('ACTIVE', 'RETIRED', 'REVOKED'))
+       OR (kty = 'OKP' AND (alg != 'EdDSA' OR crv != 'Ed25519' OR x IS NULL))
+       OR (kty = 'RSA' AND (alg != 'RS256' OR crv IS NOT NULL OR x IS NOT NULL))
+       OR (status = 'REVOKED' AND (revoked_at_ms IS NULL OR revoked_reason IS NULL))
+       OR (status != 'REVOKED' AND (revoked_at_ms IS NOT NULL OR revoked_reason IS NOT NULL))
   `,
 } as const;
 

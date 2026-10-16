@@ -30,22 +30,29 @@ export interface OAuthAuthorizationCodeRecord {
 
 export interface SigningKeyRecord {
   readonly kid: string;
-  readonly kty: string;
-  readonly alg: string;
+  readonly kty: 'OKP' | 'RSA' | string;
+  readonly alg: 'EdDSA' | 'RS256' | string;
   readonly use: string;
   readonly public_key_pem: string;
   readonly private_key_pem: string;
-  readonly status: 'ACTIVE' | 'RETIRED';
+  readonly status: 'ACTIVE' | 'RETIRED' | 'REVOKED';
   readonly created_at_ms: number;
+  readonly crv?: 'Ed25519' | string | null;
+  readonly x?: string | null;
+  readonly expires_at_ms?: number | null;
+  readonly revoked_at_ms?: number | null;
+  readonly revoked_reason?: string | null;
 }
 
 export interface JwksKey {
-  readonly kty: string;
+  readonly kty: 'OKP' | 'RSA' | string;
   readonly use: string;
   readonly kid: string;
   readonly alg: string;
-  readonly n: string;
-  readonly e: string;
+  readonly crv?: string;
+  readonly x?: string;
+  readonly n?: string;
+  readonly e?: string;
 }
 
 export interface OidcTokenResponse {
@@ -80,6 +87,9 @@ export interface OidcRepositoryPort {
   consumeAuthorizationCode(code: string): Promise<void>;
   
   saveSigningKey(key: SigningKeyRecord): Promise<void>;
-  getActiveSigningKey(): Promise<SigningKeyRecord | null>;
+  getActiveSigningKey(alg?: string): Promise<SigningKeyRecord | null>;
+  getSigningKeyByKid(kid: string): Promise<SigningKeyRecord | null>;
   listPublicJwksKeys(): Promise<ReadonlyArray<JwksKey>>;
+  rotateSigningKey(newKey: SigningKeyRecord, gracePeriodMs: number): Promise<void>;
+  revokeSigningKey(kid: string, reason: string, revokedAtMs: number): Promise<void>;
 }

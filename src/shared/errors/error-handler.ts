@@ -194,6 +194,18 @@ export function createErrorResponse(
     const authErr = new ValidationError('Invalid ASN block state: blocked_reason is mandatory when is_blocked is true');
     return createErrorResponse(authErr, metaOptions);
   }
+  if (rawMessage.includes('auth_signing_keys_algorithm_ck')) {
+    const authErr = new ValidationError('Invalid signing key algorithm: OKP requires EdDSA and Ed25519 with valid x coordinate, RSA requires RS256');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_signing_keys_revocation_ck')) {
+    const authErr = new ValidationError('Invalid signing key revocation state: revoked_at_ms and revoked_reason required when status is REVOKED');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_signing_keys_status_ck')) {
+    const authErr = new ValidationError('Invalid signing key status: must be ACTIVE, RETIRED, or REVOKED');
+    return createErrorResponse(authErr, metaOptions);
+  }
 
   return {
     statusCode: 500,

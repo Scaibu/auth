@@ -1542,17 +1542,27 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     }, { kind: SpanKind.CLIENT });
   }
 
-  async saveSigningKey(key: { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }): Promise<void> {
+  async saveSigningKey(key: SigningKeyRecord): Promise<void> {
     await withSpan('RealPostgresAuthAdapter.saveSigningKey', async () => {
-      const sql = `INSERT INTO auth_signing_keys (kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (kid) DO NOTHING`;
-      await this.pool.query(sql, [key.kid, key.kty, key.alg, key.use, key.public_key_pem, key.private_key_pem, key.status, key.created_at_ms]);
+      await this.pool.query(this.queries.FLOW_SIGNING_KEYS.INSERT_KEY, [
+        key.kid,
+        key.kty,
+        key.alg,
+        key.use,
+        key.public_key_pem,
+        key.private_key_pem,
+        key.status,
+        key.created_at_ms,
+        key.crv || null,
+        key.x || null,
+        key.expires_at_ms || null,
+      ]);
     }, { kind: SpanKind.CLIENT });
   }
 
-  async getActiveSigningKey(): Promise<{ kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number } | null> {
+  async getActiveSigningKey(alg?: string): Promise<SigningKeyRecord | null> {
     return withSpan('RealPostgresAuthAdapter.getActiveSigningKey', async () => {
-      const sql = `SELECT kid, kty, alg, use, public_key_pem, private_key_pem, status, created_at_ms FROM auth_signing_keys WHERE status = 'ACTIVE' ORDER BY created_at_ms DESC LIMIT 1`;
-      const res = await this.pool.query(sql);
+      const res = await this.pool.query(this.queries.FLOW_SIGNING_KEYS.FIND_ACTIVE_BY_ALG, [alg || null]);
       if (res.rows.length === 0) return null;
       const row = res.rows[0];
       return {
@@ -1564,7 +1574,98 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
         private_key_pem: row.private_key_pem,
         status: row.status,
         created_at_ms: Number(row.created_at_ms),
+        crv: row.crv,
+        x: row.x,
+        expires_at_ms: row.expires_at_ms ? Number(row.expires_at_ms) : null,
+        revoked_at_ms: row.revoked_at_ms ? Number(row.revoked_at_ms) : null,
+        revoked_reason: row.revoked_reason,
       };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async getSigningKeyByKid(kid: string): Promise<SigningKeyRecord | null> {
+    return withSpan('RealPostgresAuthAdapter.getSigningKeyByKid', async () => {
+      const res = await this.pool.query(this.queries.FLOW_SIGNING_KEYS.FIND_BY_KID, [kid]);
+      if (res.rows.length === 0) return null;
+      const row = res.rows[0];
+      return {
+        kid: row.kid,
+        kty: row.kty,
+        alg: row.alg,
+        use: row.use,
+        public_key_pem: row.public_key_pem,
+        private_key_pem: row.private_key_pem,
+        status: row.status,
+        created_at_ms: Number(row.created_at_ms),
+        crv: row.crv,
+        x: row.x,
+        expires_at_ms: row.expires_at_ms ? Number(row.expires_at_ms) : null,
+        revoked_at_ms: row.revoked_at_ms ? Number(row.revoked_at_ms) : null,
+        revoked_reason: row.revoked_reason,
+      };
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listPublicJwksKeys(): Promise<ReadonlyArray<JwksKey>> {
+    return withSpan('RealPostgresAuthAdapter.listPublicJwksKeys', async () => {
+      const now = Date.now();
+      const res = await this.pool.query(this.queries.FLOW_SIGNING_KEYS.LIST_PUBLIC_KEYS, [now]);
+      return res.rows.map((row: any) => {
+        if (row.kty === 'OKP') {
+          return {
+            kty: row.kty,
+            use: row.use,
+            kid: row.kid,
+            alg: row.alg,
+            crv: row.crv,
+            x: row.x,
+          };
+        }
+        return {
+          kty: row.kty,
+          use: row.use,
+          kid: row.kid,
+          alg: row.alg,
+          n: row.x || 'sample_n',
+          e: 'AQAB',
+        };
+      });
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async rotateSigningKey(newKey: SigningKeyRecord, gracePeriodMs: number): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.rotateSigningKey', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query('BEGIN');
+        const graceExpiry = Date.now() + gracePeriodMs;
+        await client.query(this.queries.FLOW_SIGNING_KEYS.RETIRE_ACTIVE_KEY, [graceExpiry, newKey.alg]);
+        await client.query(this.queries.FLOW_SIGNING_KEYS.INSERT_KEY, [
+          newKey.kid,
+          newKey.kty,
+          newKey.alg,
+          newKey.use,
+          newKey.public_key_pem,
+          newKey.private_key_pem,
+          newKey.status,
+          newKey.created_at_ms,
+          newKey.crv || null,
+          newKey.x || null,
+          newKey.expires_at_ms || null,
+        ]);
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async revokeSigningKey(kid: string, reason: string, revokedAtMs: number): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.revokeSigningKey', async () => {
+      await this.pool.query(this.queries.FLOW_SIGNING_KEYS.REVOKE_KEY, [kid, revokedAtMs, reason]);
     }, { kind: SpanKind.CLIENT });
   }
 

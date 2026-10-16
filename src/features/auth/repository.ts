@@ -170,8 +170,12 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   saveAuthorizationCode(codeRecord: { code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number }): Promise<void>;
   findAuthorizationCode(code: string): Promise<{ code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number } | null>;
   consumeAuthorizationCode(code: string): Promise<void>;
-  saveSigningKey(key: { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }): Promise<void>;
-  getActiveSigningKey(): Promise<{ kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number } | null>;
+  saveSigningKey(key: any): Promise<void>;
+  getActiveSigningKey(alg?: string): Promise<any | null>;
+  getSigningKeyByKid(kid: string): Promise<any | null>;
+  listPublicJwksKeys(): Promise<ReadonlyArray<any>>;
+  rotateSigningKey(newKey: any, gracePeriodMs: number): Promise<void>;
+  revokeSigningKey(kid: string, reason: string, revokedAtMs: number): Promise<void>;
   updateApiKeyAllowlist(keyId: string, ipAllowlist: readonly string[]): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null } | null>;
   findApiKeyMeta(keyId: string): Promise<{ key_id: string; org_id: string; ip_allowlist: string[]; rate_quota_rpm: number | null; anomaly_flag: boolean } | null>;
   flagApiKeyAnomaly(keyId: string, flaggedAtMs: number): Promise<void>;
