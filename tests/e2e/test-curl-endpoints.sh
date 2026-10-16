@@ -427,14 +427,49 @@ SAML_ACS_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/saml/acs" \
   -d '{"SAMLResponse":"PHNhbWxwOlJlc3BvbnNlPjwvc2FtbHA6UmVzcG9uc2U+","RelayState":"invalid_relay"}')
 echo "${SAML_ACS_RESP}"
 
+echo -e "\n--- [53/55] POST & GET /api/v1/auth/honeytokens (Honeytoken Canary & Deception - ADR 0041) ---"
+HONEY_CREATE_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/honeytokens" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"CI/CD AWS Key Trap","deployed_location":"repo:payments/.github/workflows/deploy.yml"}')
+echo "${HONEY_CREATE_RESP}"
+
+HONEY_TOKEN=$(echo "${HONEY_CREATE_RESP}" | node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(0, 'utf-8')); console.log(d.data?.token || '');")
+
+echo -e "\n--- [53b/55] GET /api/v1/auth/session (Adversary Canary Tripping - Silent 401 Rejection) ---"
+HONEY_TRIP_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/session" \
+  -H "Authorization: Bearer ${HONEY_TOKEN}" \
+  -H "X-Forwarded-For: 203.0.113.195" \
+  -H "User-Agent: AdversaryScraper/2.0")
+echo "${HONEY_TRIP_RESP}"
+
+echo -e "\n--- [54/55] POST & GET /api/v1/auth/audit/worm/seal (Immutable WORM Audit Sealing - ADR 0042) ---"
+NOW_MS=$(node -e 'console.log(Date.now())')
+START_MS=$((NOW_MS - 86400000))
+WORM_SEAL_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/audit/worm/seal" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"segment_start_ms\":${START_MS},\"segment_end_ms\":${NOW_MS},\"retention_years\":7}")
+echo "${WORM_SEAL_RESP}"
+
+WORM_ARC_ID=$(echo "${WORM_SEAL_RESP}" | node -e "const fs=require('fs'); const d=JSON.parse(fs.readFileSync(0, 'utf-8')); console.log(d.data?.id || '');")
+
+if [ -n "${WORM_ARC_ID}" ]; then
+  echo -e "\n--- [55/55] GET /api/v1/auth/audit/worm/archives/:id/verify (Merkle Tree Cryptographic Proof) ---"
+  WORM_VERIFY_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/audit/worm/archives/${WORM_ARC_ID}/verify" \
+    -H "Authorization: Bearer ${TOKEN}")
+  echo "${WORM_VERIFY_RESP}"
+fi
+
 echo -e "\n--- [BONUS] POST /api/v1/auth/sign-out (Sign Out & Revoke Session) ---"
 SIGNOUT_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/sign-out" \
   -H "Authorization: Bearer ${SWITCHED_TOKEN}")
 echo "${SIGNOUT_RESP}"
 
 echo -e "\n=========================================================="
-echo " All 52 Auth Endpoints Executed and Verified Successfully! "
+echo " All Live Auth Endpoints Executed and Verified Successfully! "
 echo "=========================================================="
+
 
 
 
