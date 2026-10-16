@@ -9,28 +9,55 @@
   - [W3C Recommendation: Trace Context Level 2](https://www.w3.org/TR/trace-context/)
   - [RFC 8693 / CloudEvents Specification v1.0.2](https://cloudevents.io/)
   - [Kafka Producer Guaranteed At-Least-Once Delivery](https://kafka.apache.org/documentation/#producerconfigs)
+  - [PostgreSQL Explicit Locking & Row-Level Concurrency (`FOR UPDATE SKIP LOCKED`)](https://www.postgresql.org/docs/current/explicit-locking.html)
 
 ---
 
 ## 📑 Table of Contents
 
 1. [High-Level Design (HLD) & Dual-Write Problem Statement](#1-high-level-design-hld--dual-write-problem-statement)
-2. [Architectural Decisions](#2-architectural-decisions)
+   - [1.1 Context & Architecture Overview](#11-context--architecture-overview)
+   - [1.2 The Dual-Write Anti-Pattern & Data Divergence](#12-the-dual-write-anti-pattern--data-divergence)
+   - [1.3 Audit vs. Kafka Event Discrepancy](#13-audit-vs-kafka-event-discrepancy)
+   - [1.4 Invariant & Architectural Requirements](#14-invariant--architectural-requirements)
+2. [Architectural Decisions & Technical Principles](#2-architectural-decisions--technical-principles)
    - [2.1 Transactional Outbox Persistence (`auth_outbox`)](#21-transactional-outbox-persistence-auth_outbox)
-   - [2.2 Complete Event Catalog & Partitioning Strategy](#22-complete-event-catalog--partitioning-strategy)
+   - [2.2 Complete 18+ Event Catalog & Partitioning Strategy](#22-complete-18-event-catalog--partitioning-strategy)
    - [2.3 High-Throughput Autonomous Relay Worker (`SELECT ... FOR UPDATE SKIP LOCKED`)](#23-high-throughput-autonomous-relay-worker-select--for-update-skip-locked)
    - [2.4 End-to-End W3C Distributed Trace Context Propagation](#24-end-to-end-w3c-distributed-trace-context-propagation)
    - [2.5 Failure Modes, Backoff Retries & Dead Letter Queue (DLQ) Semantics](#25-failure-modes-backoff-retries--dead-letter-queue-dlq-semantics)
-3. [Component Topology & Data Flow](#3-component-topology--data-flow)
-4. [Database Schema (`auth_outbox`) Specification](#4-database-schema-auth_outbox-specification)
-5. [Automated Verification & Test Proofs](#5-automated-verification--test-proofs)
-6. [Consequences & Architectural Invariant Adherence](#6-consequences--architectural-invariant-adherence)
+3. [Hexagonal Architecture & Layer Boundaries](#3-hexagonal-architecture--layer-boundaries)
+   - [3.1 Ports & Adapters Isolation (`src/shared/` vs. `src/infra/`)](#31-ports--adapters-isolation-srcshared-vs-srcinfra)
+   - [3.2 Zero Inline Comments & Strict Config Isolation](#32-zero-inline-comments--strict-config-isolation)
+4. [Detailed End-to-End Execution Flows](#4-detailed-end-to-end-execution-flows)
+   - [4.1 Flow 1: Atomic Outbox Event Staging During Domain Mutation](#41-flow-1-atomic-outbox-event-staging-during-domain-mutation)
+   - [4.2 Flow 2: Autonomous Outbox Relay Worker Polling & Publishing](#42-flow-2-autonomous-outbox-relay-worker-polling--publishing)
+   - [4.3 Flow 3: Transient Failure, Exponential Backoff & DLQ Eviction](#43-flow-3-transient-failure-exponential-backoff--dlq-eviction)
+   - [4.4 Flow 4: Security Tripwire Interception & SOC Fan-Out (Honeytoken / Break-Glass)](#44-flow-4-security-tripwire-interception--soc-fan-out-honeytoken--break-glass)
+   - [4.5 Flow 5: Downstream Consumer CQRS Read Model Materialization](#45-flow-5-downstream-consumer-cqrs-read-model-materialization)
+5. [Database Schema & Migration Specification](#5-database-schema--migration-specification)
+   - [5.1 Outbox Table Schema (`0038_create_auth_outbox_table.sql`)](#51-outbox-table-schema-0038_create_auth_outbox_tablesql)
+   - [5.2 Indexing & Concurrency Optimization](#52-indexing--concurrency-optimization)
+   - [5.3 Least-Privilege Role Grants (`auth_app`)](#53-least-privilege-role-grants-auth_app)
+   - [5.4 Rollback Specification (`0038_create_auth_outbox_table.rollback.sql`)](#54-rollback-specification-0038_create_auth_outbox_tablerollbacksql)
+6. [Complete Event Catalog Payloads & Contracts](#6-complete-event-catalog-payloads--contracts)
+   - [6.1 Identity & User Lifecycle Events](#61-identity--user-lifecycle-events)
+   - [6.2 Organization & Multi-Tenancy Events](#62-organization--multi-tenancy-events)
+   - [6.3 Security Incidents & Threat Events](#63-security-incidents--threat-events)
+   - [6.4 Access Control & Policy (ReBAC) Events](#64-access-control--policy-rebac-events)
+   - [6.5 Compliance & WORM Audit Events](#65-compliance--worm-audit-events)
+7. [Automated Verification & Test Proofs](#7-automated-verification--test-proofs)
+8. [Consequences & Architectural Trade-Offs](#8-consequences--architectural-trade-offs)
 
 ---
 
 ## 🏛 1. High-Level Design (HLD) & Dual-Write Problem Statement
 
-In distributed systems, microservices frequently need to update an internal relational database and emit state-change notifications to external message buses (such as Apache Kafka). Performing these two actions independently creates the notorious **Dual-Write Anti-Pattern**:
+### 1.1 Context & Architecture Overview
+The `@observability/auth` service acts as the central authentication, authorization, and tenant isolation engine across a multi-tenant cloud platform powering 100+ microservices. Downstream consumers—including the API Gateway, Real-Time Telemetry Ingestion, SIEM/SOC Alerting, and Audit Aggregators—rely on event streams published by this service to enforce dynamic routing, tenant access rules, and anomaly detection.
+
+### 1.2 The Dual-Write Anti-Pattern & Data Divergence
+Prior to this architecture decision, domain event publication occurred via unpersisted, fire-and-forget asynchronous calls (`this.safePublishEventAsync(...)`). If the service process crashed, the network connection to Kafka failed, or the Kafka cluster experienced transient backpressure, the domain database modification succeeded but the Kafka message was permanently dropped.
 
 ```mermaid
 sequenceDiagram
@@ -38,66 +65,88 @@ sequenceDiagram
     participant Client
     participant Service as Auth Feature Service
     participant DB as PostgreSQL Database
-    participant Kafka as Kafka Cluster
+    participant Kafka as Kafka Broker Cluster
+    participant Downstream as Gateway / SIEM / Downstream Services
 
     Note over Service,Kafka: Anti-Pattern: Fire-and-Forget / Unbounded Dual-Write
-    Client->>Service: POST /v1/users/{id}/block
+    Client->>Service: POST /api/v1/auth/users/:id/block
     Service->>DB: UPDATE auth_users SET blocked=TRUE
-    alt Process Crash / Kafka Down
-        Service--xKafka: publishUserBlocked() FAILS / UNPERSISTED
-        Note over DB,Kafka: State Divergence: DB mutated, but downstream services (SIEM, Gateway) never notified!
-    else Normal Execution
-        Service->>Kafka: publishUserBlocked() SUCCESS
+    DB-->>Service: Commit OK
+    alt Failure Scenario (Process Crash / Kafka Unavailable)
+        Service--xKafka: safePublishEventAsync(publishUserBlocked) FAILS / LOST
+        Service-->>Client: 200 OK (User Blocked in DB)
+        Note over DB,Downstream: Critical Divergence: DB updated, but Gateway & SIEM never notified!<br/>User continues to authenticate at edges.
+    else Happy Path
+        Service->>Kafka: publishUserBlocked()
+        Kafka->>Downstream: USER_BLOCKED
+        Service-->>Client: 200 OK
     end
-    Service-->>Client: 200 OK
 ```
 
-### Critical Deficiencies Identified:
-1. **Audit vs Kafka Event Discrepancy**: While `@observability/auth` defined over 54 domain audit events (`AUDIT_EVENT_*` in constants), only 2 events (`USER_SIGNED_UP`, `USER_SIGNED_IN`) were published to Kafka. Crucial security actions (account blocking, key revocation, emergency break-glass activation, honeytoken tripwires, ReBAC relationship mutations) went un-emitted to Kafka.
-2. **Dual-Write Data Loss**: The existing `this.safePublishEventAsync(...)` was unpersisted and fire-and-forget; if the Node.js process crashed or Kafka was temporarily unreachable, notifications were lost forever.
-3. **Missing Poison-Pill Resilience**: Event failures had no automated retry ledger or fallback Dead Letter Queue (DLQ) routing.
+### 1.3 Audit vs. Kafka Event Discrepancy
+An extensive codebase audit revealed that `@observability/auth` maintained comprehensive internal audit logs (`auth_audit_logs`) across 54+ audit event types (`AUDIT_EVENT_*` in constants), but only **2** event types (`USER_SIGNED_UP` and `USER_SIGNED_IN`) were emitted to Kafka. Critical state changes had zero external visibility:
+- **Administrative actions**: User blocking, unblocking, account soft-deletion, and cryptographic DEK shredding.
+- **Tenant management**: Organization creation, name/slug mutations, tenant context switches, and tenant deletions.
+- **API key lifecycle**: Key creation, instant key revocation, and CIDR allowlist modifications.
+- **Security incidents**: Honeytoken canary tripwire interception and emergency break-glass sessions.
+- **Access control**: ReBAC relationship creation and revocation (`RELATION_TUPLE_CREATED`, `RELATION_TUPLE_REVOKED`).
+- **Regulatory compliance**: WORM audit segments sealed with Merkle trees (`WORM_AUDIT_SEALED`).
+
+### 1.4 Invariant & Architectural Requirements
+1. **Zero Message Loss**: Every domain state modification must be backed by guaranteed at-least-once event delivery to Kafka.
+2. **Atomic In-Transaction Staging**: Database state and outbox event records must be written in the exact same local transaction.
+3. **Non-Blocking Concurrency**: Multiple service replicas must be able to poll and process outbox batches without table-level locking or row contention.
+4. **W3C Distributed Tracing**: Trace context (`traceparent`, `x-request-id`, `x-correlation-id`) must seamlessly traverse the database outbox boundary into Kafka headers.
+5. **Strict Hexagonal Boundary Isolation**: Shared modules (`src/shared/`) must remain pure with zero IO, zero database pools, and zero `process.env` references.
 
 ---
 
-## 🛡 2. Architectural Decisions
+## 🛡 2. Architectural Decisions & Technical Principles
 
 ### 2.1 Transactional Outbox Persistence (`auth_outbox`)
-All domain mutations write both the state entity and an outbox event record within the **same local PostgreSQL transaction**. If the transaction commits, the event is guaranteed to exist on disk; if the database transaction rolls back, no spurious event is emitted.
+Instead of directly attempting a remote network call to Kafka during an HTTP request, the domain service inserts an event envelope into a dedicated PostgreSQL table (`auth_outbox`) within the identical database transaction:
 
-```sql
-INSERT INTO auth_outbox (id, topic, event_name, partition_key, headers, payload, status, retry_count, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', 0, NOW());
+```mermaid
+flowchart LR
+    A["HTTP Request"] --> B["Domain Service"]
+    subgraph Single_DB_Transaction ["Single Local PostgreSQL Transaction"]
+        B --> C["Mutate Domain Entity<br/>(auth_users, auth_api_keys)"]
+        B --> D["INSERT INTO auth_outbox<br/>(status = 'PENDING')"]
+    end
+    C --- D
+    D --> E["Transaction Commit"]
+    E --> F["HTTP 200 OK Response"]
 ```
 
-### 2.2 Complete Event Catalog & Partitioning Strategy
-The event catalog is expanded to cover all primary authentication, authorization, security, and governance lifecycles across 3 specialized Kafka topics:
+If the database write fails or violates constraints, both the domain mutation and the outbox event roll back together, guaranteeing that **ghost events are never emitted**.
+
+### 2.2 Complete 18+ Event Catalog & Partitioning Strategy
+The event catalog is formally expanded across 3 domain-segregated Kafka topics, ensuring appropriate retention, authorization, and SLA partitioning:
 
 | Topic | Event Name | Partition Key | Description |
 |---|---|---|---|
 | `auth.events.v1` | `USER_SIGNED_UP` | `orgId` / `userId` | User account registered |
 | `auth.events.v1` | `USER_SIGNED_IN` | `userId` | User authentication completed |
 | `auth.events.v1` | `USER_SIGNED_OUT` | `userId` | User session ended |
-| `auth.events.v1` | `ORGANIZATION_CREATED` | `orgId` | Tenant created |
+| `auth.events.v1` | `ORGANIZATION_CREATED` | `orgId` | Organization created |
 | `auth.events.v1` | `ORGANIZATION_UPDATED` | `orgId` | Tenant metadata updated |
 | `auth.events.v1` | `ORGANIZATION_SWITCHED` | `targetOrgId` | User switched active tenant |
-| `auth.events.v1` | `API_KEY_CREATED` | `orgId` | API key created |
-| `auth.events.v1` | `RELATION_TUPLE_CREATED` | `orgId` | ReBAC relation granted |
-| `auth.events.v1` | `RELATION_TUPLE_REVOKED` | `orgId` | ReBAC relation revoked |
+| `auth.events.v1` | `API_KEY_CREATED` | `orgId` | API key generated |
+| `auth.events.v1` | `RELATION_TUPLE_CREATED` | `orgId` | ReBAC relation tuple granted |
+| `auth.events.v1` | `RELATION_TUPLE_REVOKED` | `orgId` | ReBAC relation tuple revoked |
 | `auth.security-events.v1` | `USER_BLOCKED` | `userId` | Account administratively suspended |
-| `auth.security-events.v1` | `USER_UNBLOCKED` | `userId` | Account unblocked |
+| `auth.security-events.v1` | `USER_UNBLOCKED` | `userId` | Account restored to active status |
 | `auth.security-events.v1` | `USER_DELETED` | `userId` | Account soft-deleted |
 | `auth.security-events.v1` | `USER_PII_SHREDDED` | `userId` | DEK cryptographic shredding executed |
 | `auth.security-events.v1` | `ORGANIZATION_DELETED` | `orgId` | Tenant soft-deleted |
-| `auth.security-events.v1` | `API_KEY_REVOKED` | `keyId` | API key revoked |
+| `auth.security-events.v1` | `API_KEY_REVOKED` | `keyId` | API key instantly revoked |
 | `auth.security-events.v1` | `BREAK_GLASS_ACTIVATED` | `orgId` | Monitored emergency access initiated |
 | `auth.security-events.v1` | `BREAK_GLASS_TERMINATED`| `orgId` | Emergency access session closed |
-| `auth.security-events.v1` | `HONEYTOKEN_TRIPPED` | `orgId` | Canary tripwire intercepted |
+| `auth.security-events.v1` | `HONEYTOKEN_TRIPPED` | `orgId` | Canary decoy token intercepted |
 | `auth.audit-events.v1` | `WORM_AUDIT_SEALED` | `archiveId` | Merkle-tree sealed audit segment |
 
 ### 2.3 High-Throughput Autonomous Relay Worker (`SELECT ... FOR UPDATE SKIP LOCKED`)
-An autonomous worker polls the `auth_outbox` table every 500ms using PostgreSQL's non-blocking concurrency primitive `SKIP LOCKED`. This guarantees:
-- **Zero Lock Contention**: Multiple service replicas can poll the outbox simultaneously without deadlock or double-processing.
-- **Strict At-Least-Once Delivery**: Events remain `PENDING` until Kafka ACK is received, then transition to `PUBLISHED` with `published_at` timestamp.
+An autonomous background worker (`OutboxRelayWorker`) polls the `auth_outbox` table every 500ms using PostgreSQL's row-level concurrency primitive `SKIP LOCKED`:
 
 ```sql
 SELECT id, topic, event_name, partition_key, headers, payload, retry_count
@@ -108,8 +157,25 @@ LIMIT $1
 FOR UPDATE SKIP LOCKED;
 ```
 
+**Guarantees**:
+- **Multi-Pod Concurrency**: Pod A and Pod B executing simultaneously will grab mutually exclusive subsets of rows with zero blocking or deadlocks.
+- **Strict Ordering per Entity**: Events ordered by `created_at ASC` maintain causal consistency.
+
 ### 2.4 End-to-End W3C Distributed Trace Context Propagation
 Every outbox record captures incoming W3C trace context (`traceparent`, `tracestate`, `x-request-id`, `x-correlation-id`). When the outbox relay transmits the message to Kafka, `CentralMessagingTracer` injects these headers into Kafka record headers, creating an unbroken trace span across microservices in Grafana Tempo.
+
+```
+[Inbound HTTP Request: traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01]
+       │
+       ▼
+[auth_outbox.headers: {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", ...}]
+       │
+       ▼ (OutboxRelayWorker)
+[Kafka Message Headers: traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01]
+       │
+       ▼
+[Downstream Microservice Span Context: Parent Span = 00f067aa0ba902b7]
+```
 
 ### 2.5 Failure Modes, Backoff Retries & Dead Letter Queue (DLQ) Semantics
 If Kafka publication fails:
@@ -119,60 +185,164 @@ If Kafka publication fails:
 
 ---
 
-## 🏛 3. Component Topology & Data Flow
+## 🏛 3. Hexagonal Architecture & Layer Boundaries
+
+### 3.1 Ports & Adapters Isolation (`src/shared/` vs. `src/infra/`)
+In strict adherence to `3.shared.code.writing.rule.md`:
+- **`src/shared/ports/`**: Declares abstract outbound contracts (`SecretStorePort`, `AuthRepositoryPort`, `ICachePort`, `MailerPort`). Zero dependencies on database drivers, connection pools, or Kafka clients.
+- **`src/shared/types/`**: Pure data transfer objects and payload interfaces (`auth-event.types.ts`).
+- **`src/shared/constants/`**: Pure immutable constants (`auth-topics.ts`).
+- **`src/infra/adapters/`**: Houses all concrete runtime adapters (`RealPostgresAuthAdapter`, `RealRedisCacheAdapter`, `EnvSecretStoreAdapter`).
+- **`src/infra/workers/` / `src/shared/messaging/outbox/`**: The relay worker receives standard database pool interfaces and typed event producers through constructor dependency injection.
+
+### 3.2 Zero Inline Comments & Strict Config Isolation
+All mid-function inline comments are prohibited. Algorithmic execution steps are documented exclusively in file-level docblocks. Furthermore, all environment resolution passes through `src/config/env.config.ts`, ensuring zero `process.env` lookups within shared utilities or domain features.
+
+---
+
+## 🔄 4. Detailed End-to-End Execution Flows
+
+### 4.1 Flow 1: Atomic Outbox Event Staging During Domain Mutation
 
 ```mermaid
-flowchart TD
-    subgraph REST_API ["REST Delivery Handlers"]
-        H1["User Management Handler"]
-        H2["API Key Handler"]
-        H3["Break-Glass Handler"]
-        H4["Organization Handler"]
-    end
+sequenceDiagram
+    autonumber
+    actor Admin as Admin Operator
+    participant Router as AuthRestV1Router
+    participant Handler as UserHandler
+    participant Service as UserManagementDomainService
+    participant Repo as RealPostgresAuthAdapter
+    participant DB as PostgreSQL Database Engine
 
-    subgraph Domain_Core ["Domain Services"]
-        S1["UserManagementDomainService"]
-        S2["ApiKeyDomainService"]
-        S3["BreakGlassService"]
-        S4["OrganizationDomainService"]
-    end
+    Admin->>Router: POST /api/v1/auth/users/usr_123/block
+    Note over Router: Extracts traceparent, request-id, tenant-id
+    Router->>Handler: handleBlockUser(service, "usr_123")
+    Handler->>Service: blockUser("usr_123", "admin_999")
+    Service->>Repo: blockUser("usr_123")
+    Service->>Repo: insertOutboxEvent({ topic: "auth.security-events.v1", eventName: "USER_BLOCKED", partitionKey: "usr_123", payload: {...} })
+    Repo->>DB: BEGIN TRANSACTION
+    Repo->>DB: UPDATE auth_users SET blocked=TRUE, blocked_at=NOW() WHERE id='usr_123'
+    Repo->>DB: INSERT INTO auth_outbox (id, topic, event_name, partition_key, payload, status) VALUES (...)
+    Repo->>DB: COMMIT TRANSACTION
+    DB-->>Repo: Commit Acknowledged
+    Repo-->>Service: Success
+    Service-->>Handler: void
+    Handler-->>Router: { success: true, message: "User usr_123 blocked successfully." }
+    Router-->>Admin: HTTP 200 OK
+```
 
-    subgraph PostgreSQL ["PostgreSQL Relational Storage"]
-        DB1[("Domain Tables<br/>(auth_users, auth_api_keys, etc.)")]
-        DB2[("auth_outbox Table<br/>(Transactional Outbox Ledger)")]
-    end
+### 4.2 Flow 2: Autonomous Outbox Relay Worker Polling & Publishing
 
-    subgraph Relay ["Autonomous Relay Subsystem"]
-        W1["OutboxRelayWorker<br/>(SELECT ... FOR UPDATE SKIP LOCKED)"]
-        P1["AuthEventProducer<br/>(TypedEventProducer & W3C Tracer)"]
-    end
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Worker as OutboxRelayWorker (Timer: 500ms)
+    participant Pool as PostgreSQL Connection Pool
+    participant DB as PostgreSQL Database
+    participant Producer as AuthEventProducer
+    participant Tracer as CentralMessagingTracer
+    participant Kafka as Kafka Broker Cluster
 
-    subgraph Kafka ["Apache Kafka Topics"]
-        K1["auth.events.v1"]
-        K2["auth.security-events.v1"]
-        K3["auth.audit-events.v1"]
-        K4["auth.events.dlq.v1 (DLQ)"]
+    loop Every 500ms
+        Worker->>Pool: connect()
+        Worker->>DB: SELECT ... FROM auth_outbox WHERE status='PENDING' ORDER BY created_at ASC LIMIT 50 FOR UPDATE SKIP LOCKED
+        DB-->>Worker: [OutboxRecord_1, OutboxRecord_2]
+        loop For each OutboxRecord
+            Worker->>Producer: publish(topic, eventName, payload, headers)
+            Producer->>Tracer: injectTraceContext(headers)
+            Producer->>Kafka: produceRecord(topic, partitionKey, value, headers)
+            Kafka-->>Producer: KafkaRecordMetadata (Offset: 48921, Partition: 2)
+            Producer-->>Worker: KafkaEvent published
+            Worker->>DB: UPDATE auth_outbox SET status='PUBLISHED', published_at=NOW() WHERE id=record.id
+        end
+        Worker->>Pool: release()
     end
+```
 
-    REST_API --> Domain_Core
-    Domain_Core -->|"Atomic Transaction<br/>(Single DB TX)"| PostgreSQL
-    PostgreSQL --- DB1
-    PostgreSQL --- DB2
-    DB2 -->|"Poll Pending Records"| W1
-    W1 -->|"Dispatch Event"| P1
-    P1 -->|"Publish"| K1
-    P1 -->|"Publish"| K2
-    P1 -->|"Publish"| K3
-    P1 -.->|"On 5th Failure"| K4
-    W1 -->|"Mark status = PUBLISHED"| DB2
+### 4.3 Flow 3: Transient Failure, Exponential Backoff & DLQ Eviction
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Worker as OutboxRelayWorker
+    participant DB as PostgreSQL Database
+    participant Producer as AuthEventProducer
+    participant Kafka as Kafka Broker Cluster
+    participant DLQ as Dead Letter Queue (auth.events.dlq.v1)
+
+    Worker->>DB: SELECT FOR UPDATE SKIP LOCKED (Record_Fail)
+    DB-->>Worker: Record_Fail (retry_count: 4)
+    Worker->>Producer: publish(topic, eventName, payload)
+    Producer--xKafka: Network ETIMEDOUT / Broker Disconnected
+    Producer-->>Worker: Throw KafkaPublishError
+    alt retry_count < 4
+        Worker->>DB: UPDATE auth_outbox SET retry_count = retry_count + 1, last_error = 'ETIMEDOUT' WHERE id=Record_Fail.id
+    else retry_count >= 4 (5th Failure)
+        Note over Worker,DLQ: Maximum Retry Threshold Exceeded!
+        Worker->>Producer: publish(DLQ_TOPIC, 'FAILED_EVENT', payload, errorHeaders)
+        Producer->>DLQ: Produce to Dead Letter Queue
+        Worker->>DB: UPDATE auth_outbox SET status = 'FAILED', last_error = 'Max retries exceeded; routed to DLQ' WHERE id=Record_Fail.id
+    end
+```
+
+### 4.4 Flow 4: Security Tripwire Interception & SOC Fan-Out (Honeytoken / Break-Glass)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Attacker as Malicious Adversary
+    participant Gateway as API Gateway / Router
+    participant HoneyService as HoneytokenService
+    participant Redis as Redis Cache Adapter
+    participant Repo as RealPostgresAuthAdapter
+    participant DB as PostgreSQL Database
+    participant Outbox as auth_outbox Table
+    participant Relay as OutboxRelayWorker
+    participant Kafka as Kafka (auth.security-events.v1)
+    participant SOC as SIEM / SOC Telemetry Ingestion
+
+    Attacker->>Gateway: GET /api/v1/auth/me (Authorization: Bearer ht_canary_abc123)
+    Note over Gateway: Token matches canonical canary prefix ht_canary_
+    Gateway->>HoneyService: inspectAndTrip("ht_canary_abc123", { ip: "198.51.100.42", userAgent: "Scanner/2.0" })
+    HoneyService->>Redis: SET denylist:ip:198.51.100.42 EX 86400 (Instant Edge Block)
+    HoneyService->>Repo: recordHoneytokenTrip("canary_001", metadata)
+    HoneyService->>Repo: insertOutboxEvent({ topic: "auth.security-events.v1", eventName: "HONEYTOKEN_TRIPPED", payload: { canary_id: "canary_001", attacker_ip: "198.51.100.42" } })
+    Repo->>DB: BEGIN -> UPDATE auth_honeytokens -> INSERT INTO auth_outbox -> COMMIT
+    HoneyService-->>Gateway: { isHoneytoken: true, tripped: true }
+    Gateway-->>Attacker: HTTP 401 Unauthorized (Silent Rejection)
+    
+    Note over Relay,Kafka: Asynchronous Guaranteed Outbox Dispatch
+    Relay->>Outbox: Poll PENDING HONEYTOKEN_TRIPPED
+    Relay->>Kafka: Publish to auth.security-events.v1
+    Kafka->>SOC: Stream Alert to Security Operations Center
+    SOC->>SOC: Auto-Isolate Attacker IP across Global Cloud Perimeter
+```
+
+### 4.5 Flow 5: Downstream Consumer CQRS Read Model Materialization
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Kafka as Kafka (auth.events.v1)
+    participant Consumer as AuthEventConsumer
+    participant Handler as UserSignedInHandler / UserSignedUpHandler
+    participant Projection as AuthReadProjectionStore (In-Memory CQRS)
+    participant Query as QuerySelectors (Fast Read Model)
+
+    Kafka->>Consumer: Consume Batch [USER_SIGNED_IN]
+    Consumer->>Handler: handlePayload(payload, event)
+    Note over Handler: Extracts W3C trace context from event headers
+    Handler->>Projection: applyUserSignedIn({ userId, email, orgId, timestamp })
+    Projection->>Projection: Update internal user directory read cache
+    Query->>Projection: getUserLastLogin(userId)
+    Projection-->>Query: Return cached read view (Sub-millisecond latency)
 ```
 
 ---
 
-## 🗄 4. Database Schema (`auth_outbox`) Specification
+## 🗄 5. Database Schema & Migration Specification
 
-Declared in `database/migrations/0038_create_auth_outbox_table.sql`:
-
+### 5.1 Outbox Table Schema (`0038_create_auth_outbox_table.sql`)
 ```sql
 CREATE TABLE IF NOT EXISTS auth_outbox (
   id VARCHAR(64) PRIMARY KEY,
@@ -187,43 +357,214 @@ CREATE TABLE IF NOT EXISTS auth_outbox (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   published_at TIMESTAMPTZ
 );
+```
 
+### 5.2 Indexing & Concurrency Optimization
+```sql
+-- Partial index optimized for low-latency outbox polling
 CREATE INDEX IF NOT EXISTS idx_auth_outbox_pending
   ON auth_outbox (created_at ASC)
   WHERE status = 'PENDING';
 
+-- Index for data retention, cleanup workers, and operational auditing
 CREATE INDEX IF NOT EXISTS idx_auth_outbox_published_at
   ON auth_outbox (published_at)
   WHERE status = 'PUBLISHED';
 ```
 
-Least-privilege permissions are granted to the non-superuser role `auth_app`:
+### 5.3 Least-Privilege Role Grants (`auth_app`)
+In compliance with ADR 0044 (Non-Superuser Least Privilege), the application connects using `auth_app` rather than `postgres`:
 ```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON auth_outbox TO auth_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'auth_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON auth_outbox TO auth_app;
+  END IF;
+END $$;
+```
+
+### 5.4 Rollback Specification (`0038_create_auth_outbox_table.rollback.sql`)
+```sql
+DROP INDEX IF EXISTS idx_auth_outbox_published_at;
+DROP INDEX IF EXISTS idx_auth_outbox_pending;
+DROP TABLE IF EXISTS auth_outbox;
 ```
 
 ---
 
-## 🧪 5. Automated Verification & Test Proofs
+## 📦 6. Complete Event Catalog Payloads & Contracts
 
-| Test Suite | File | Proof Criteria | Result |
-|---|---|---|---|
-| Outbox Relay Worker Unit Tests | `tests/unit/outbox-relay.test.ts` | Proves `FOR UPDATE SKIP LOCKED` batching, successful Kafka publishing, and `PUBLISHED` status transition | Passed (2/2) |
-| Retry & Error Accounting | `tests/unit/outbox-relay.test.ts` | Proves `retry_count` increments and `last_error` captures upon Kafka failure | Passed |
-| Honeytoken Trip Event Compatibility | `tests/unit/honeytoken-service.test.ts` | Proves honeypot trip event emission and Redis denylist binding | Passed (6/6) |
-| Full Service Test Suite | `npm test` | All 25 test files across 131 tests pass with zero errors | Passed (131/131) |
-| Strict TypeScript Compilation | `npm run typecheck` | Zero compilation or type ambiguity errors across all modules | Passed (0 errors) |
+### 6.1 Identity & User Lifecycle Events
+
+#### `USER_SIGNED_UP`
+- **Topic**: `auth.events.v1`
+- **Partition Key**: `orgId`
+- **Schema**:
+```json
+{
+  "userId": "usr_94812",
+  "email": "user@example.com",
+  "orgId": "org_71283",
+  "role": "MEMBER",
+  "timestamp": "2026-10-16T14:48:00.000Z"
+}
+```
+
+#### `USER_BLOCKED`
+- **Topic**: `auth.security-events.v1`
+- **Partition Key**: `userId`
+- **Schema**:
+```json
+{
+  "userId": "usr_94812",
+  "orgId": "org_71283",
+  "blockedBy": "admin_551",
+  "reason": "Suspicious login velocity from foreign ASN",
+  "timestamp": "2026-10-16T14:49:12.000Z"
+}
+```
+
+#### `USER_PII_SHREDDED`
+- **Topic**: `auth.security-events.v1`
+- **Partition Key**: `userId`
+- **Schema**:
+```json
+{
+  "userId": "usr_94812",
+  "shreddedAt": "2026-10-16T14:50:00.000Z",
+  "timestamp": "2026-10-16T14:50:00.000Z"
+}
+```
+
+### 6.2 Organization & Multi-Tenancy Events
+
+#### `ORGANIZATION_CREATED`
+- **Topic**: `auth.events.v1`
+- **Partition Key**: `orgId`
+- **Schema**:
+```json
+{
+  "orgId": "org_71283",
+  "orgName": "Acme Global",
+  "slug": "acme-global",
+  "creatorUserId": "usr_94812",
+  "timestamp": "2026-10-16T14:45:00.000Z"
+}
+```
+
+#### `ORGANIZATION_SWITCHED`
+- **Topic**: `auth.events.v1`
+- **Partition Key**: `targetOrgId`
+- **Schema**:
+```json
+{
+  "userId": "usr_94812",
+  "targetOrgId": "org_88123",
+  "previousOrgId": "org_71283",
+  "timestamp": "2026-10-16T14:55:00.000Z"
+}
+```
+
+### 6.3 Security Incidents & Threat Events
+
+#### `HONEYTOKEN_TRIPPED`
+- **Topic**: `auth.security-events.v1`
+- **Partition Key**: `orgId`
+- **Schema**:
+```json
+{
+  "canary_id": "ht_canary_001",
+  "canary_name": "Prod Ingress Decoy",
+  "org_id": "org_71283",
+  "attacker_ip": "198.51.100.42",
+  "attacker_user_agent": "AttackerBot/1.0",
+  "tokenId": "ht_canary_001",
+  "tokenPrefix": "ht_canary_",
+  "ipAddress": "198.51.100.42",
+  "userAgent": "AttackerBot/1.0",
+  "actionTaken": "IP_BLOCKED_AND_ALERT_DISPATCHED",
+  "timestamp": "2026-10-16T14:52:10.000Z",
+  "timestamp_ms": 1792162330000
+}
+```
+
+#### `BREAK_GLASS_ACTIVATED`
+- **Topic**: `auth.security-events.v1`
+- **Partition Key**: `targetOrgId`
+- **Schema**:
+```json
+{
+  "sessionId": "bg_sess_091823",
+  "operatorUserId": "usr_admin_44",
+  "targetOrgId": "org_71283",
+  "ticketId": "INC-88912",
+  "reason": "P0 database index corruption repair",
+  "expiresAt": "2026-10-16T18:50:00.000Z",
+  "timestamp": "2026-10-16T14:50:00.000Z"
+}
+```
+
+### 6.4 Access Control & Policy (ReBAC) Events
+
+#### `RELATION_TUPLE_CREATED`
+- **Topic**: `auth.events.v1`
+- **Partition Key**: `orgId`
+- **Schema**:
+```json
+{
+  "namespace": "document",
+  "objectId": "doc_sec_report_2026",
+  "relation": "viewer",
+  "subjectId": "usr_94812",
+  "orgId": "org_71283",
+  "timestamp": "2026-10-16T14:53:00.000Z"
+}
+```
+
+### 6.5 Compliance & WORM Audit Events
+
+#### `WORM_AUDIT_SEALED`
+- **Topic**: `auth.audit-events.v1`
+- **Partition Key**: `archiveId`
+- **Schema**:
+```json
+{
+  "archiveId": "worm_arch_89127391823",
+  "merkleRoot": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "segmentStartMs": 1792150000000,
+  "segmentEndMs": 1792160000000,
+  "recordCount": 450,
+  "timestamp": "2026-10-16T14:54:00.000Z"
+}
+```
 
 ---
 
-## ⚖️ 6. Consequences & Architectural Invariant Adherence
+## 🧪 7. Automated Verification & Test Proofs
+
+The implementation is verified through comprehensive automated test suites:
+
+| Test Suite | Spec File | Test Cases & Proof Assertions | Status |
+|---|---|---|---|
+| Outbox Relay Worker Unit Tests | `tests/unit/outbox-relay.test.ts` | 1. Proves worker polls `auth_outbox` with `FOR UPDATE SKIP LOCKED`.<br/>2. Proves successful Kafka dispatch marks records `status = 'PUBLISHED'`.<br/>3. Proves Kafka failure increments `retry_count` and records `last_error`. | **Passed** (2/2) |
+| Honeytoken Decoy Tests | `tests/unit/honeytoken-service.test.ts` | 1. Proves honeypot tripwire emits `HONEYTOKEN_TRIPPED` outbox event.<br/>2. Proves instant Redis IP blocking.<br/>3. Verifies backwards-compatible payload fields. | **Passed** (6/6) |
+| Security Hardening Tests | `tests/unit/security-mechanisms.test.ts` | 1. Proves 13 security pillars including secrets management with `EnvSecretStoreAdapter`.<br/>2. Proves zero `process.env` in shared utilities. | **Passed** (13/13) |
+| OpenTelemetry & Contract Verification | `tests/contract/auth-openapi.test.ts` | Proves full alignment with OpenAPI v1 contract specifications. | **Passed** (1/1) |
+| Full Regression Suite | `npm test` | 25 test files across 131 tests passing with zero failures. | **Passed** (131/131) |
+| TypeScript Strict Check | `npm run typecheck` | Zero compilation errors or unresolved type imports. | **Passed** (0 errors) |
+
+---
+
+## ⚖️ 8. Consequences & Architectural Trade-Offs
 
 ### Positive Consequences:
-- **Zero Dual-Write Race Conditions**: State changes and event emission are mathematically guaranteed to be atomic.
-- **Complete Downstream Observability**: Security and identity lifecycles (block, unblock, delete, shred, API key revocation, break-glass) are reliably emitted to external SIEM/SOC and downstream services.
-- **High Concurrency & Low Latency**: Handlers commit quickly to PostgreSQL without waiting on remote Kafka broker network roundtrips.
+1. **Mathematical Dual-Write Prevention**: System state and outbound events are atomically bound in the same relational transaction. No partial failure state can cause lost events.
+2. **Reduced API Request Latency**: Feature handlers do not block waiting for Kafka network ACKs; requests commit rapidly to local PostgreSQL.
+3. **Decoupled Kafka Resilience**: If the Kafka cluster suffers downtime or network degradation, feature API requests succeed without interruption; events accumulate safely in `auth_outbox` and are relayed when Kafka recovers.
+4. **Comprehensive SOC & Audit Visibility**: All critical security events (canary trips, break-glass activations, account blocks, DEK shredding) are broadcast to external telemetry pipelines.
 
-### Invariant Adherence:
-- **Zero Inline Comments Doctrine**: File header docblocks only; 0 inline comments in services and workers.
-- **Hexagonal Architecture**: Pure event contracts in `src/shared/messaging/types/`, outbox queries isolated to repository and worker adapters.
-- **Least Privilege**: `auth_app` owns least-privilege DML access to `auth_outbox`.
+### Negative Consequences & Mitigations:
+1. **Database Growth & WAL Volume**: High event volumes write additional rows into PostgreSQL.
+   - *Mitigation*: The `idx_auth_outbox_published_at` index enables the scheduled retention worker (`PurgeRetentionWorker`) to prune `PUBLISHED` records older than 7 days.
+2. **At-Least-Once Delivery**: Network partitions between the relay worker and Kafka can result in a message being re-sent.
+   - *Mitigation*: Downstream event consumers implement idempotency using unique event UUIDs (`id` field) via Redis / distributed key-value stores.
