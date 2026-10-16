@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes, createHmac } from 'crypt
 import { SecurityError } from '../errors/auth.errors';
 
 export interface EnvelopeEncryptionContext {
-  readonly orgId?: string;
-  readonly fieldName?: string;
+  readonly orgId: string;
+  readonly fieldName: string;
 }
 
 export interface KmsMasterKey {
@@ -15,6 +15,10 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const DEK_LENGTH = 32;
 const ENVELOPE_PREFIX = 'enc:v1:';
+
+function zeroizeBuffer(target: Buffer): void {
+  target.fill(0);
+}
 
 export function canonicalizeEmail(rawEmail: string): string {
   return rawEmail.trim().toLowerCase();
@@ -32,44 +36,45 @@ export function generateUserDek(): Buffer {
 export function encryptEnvelope(
   plaintext: string,
   masterKey: Readonly<KmsMasterKey>,
-  context?: Readonly<EnvelopeEncryptionContext>
+  context: Readonly<EnvelopeEncryptionContext>
 ): string {
   const dek = generateUserDek();
-  const dataIv = randomBytes(IV_LENGTH);
-
-  const dataCipher = createCipheriv(ALGORITHM, dek, dataIv);
-  if (context) {
-    const aad = `${context.orgId || ''}:${context.fieldName || ''}`;
+  try {
+    const dataIv = randomBytes(IV_LENGTH);
+    const dataCipher = createCipheriv(ALGORITHM, dek, dataIv);
+    const aad = `${context.orgId}:${context.fieldName}`;
     dataCipher.setAAD(Buffer.from(aad, 'utf-8'));
+
+    const encryptedData = Buffer.concat([
+      dataCipher.update(plaintext, 'utf-8'),
+      dataCipher.final(),
+    ]);
+    const dataAuthTag = dataCipher.getAuthTag();
+
+    const dekIv = randomBytes(IV_LENGTH);
+    const dekCipher = createCipheriv(ALGORITHM, masterKey.key, dekIv);
+    dekCipher.setAAD(Buffer.from(masterKey.kid, 'utf-8'));
+
+    const encryptedDek = Buffer.concat([
+      dekCipher.update(dek),
+      dekCipher.final(),
+    ]);
+    const dekAuthTag = dekCipher.getAuthTag();
+
+    const payload = JSON.stringify({
+      kid: masterKey.kid,
+      dek_iv: dekIv.toString('base64url'),
+      dek_tag: dekAuthTag.toString('base64url'),
+      edek: encryptedDek.toString('base64url'),
+      data_iv: dataIv.toString('base64url'),
+      data_tag: dataAuthTag.toString('base64url'),
+      ct: encryptedData.toString('base64url'),
+    });
+
+    return `${ENVELOPE_PREFIX}${Buffer.from(payload, 'utf-8').toString('base64url')}`;
+  } finally {
+    zeroizeBuffer(dek);
   }
-
-  const encryptedData = Buffer.concat([
-    dataCipher.update(plaintext, 'utf-8'),
-    dataCipher.final(),
-  ]);
-  const dataAuthTag = dataCipher.getAuthTag();
-
-  const dekIv = randomBytes(IV_LENGTH);
-  const dekCipher = createCipheriv(ALGORITHM, masterKey.key, dekIv);
-  dekCipher.setAAD(Buffer.from(masterKey.kid, 'utf-8'));
-
-  const encryptedDek = Buffer.concat([
-    dekCipher.update(dek),
-    dekCipher.final(),
-  ]);
-  const dekAuthTag = dekCipher.getAuthTag();
-
-  const payload = JSON.stringify({
-    kid: masterKey.kid,
-    dek_iv: dekIv.toString('base64url'),
-    dek_tag: dekAuthTag.toString('base64url'),
-    edek: encryptedDek.toString('base64url'),
-    data_iv: dataIv.toString('base64url'),
-    data_tag: dataAuthTag.toString('base64url'),
-    ct: encryptedData.toString('base64url'),
-  });
-
-  return `${ENVELOPE_PREFIX}${Buffer.from(payload, 'utf-8').toString('base64url')}`;
 }
 
 export function encryptUserDek(dek: Buffer, masterKey: Readonly<KmsMasterKey>): string {
@@ -96,7 +101,7 @@ export function decryptUserDek(
   envelope: string,
   masterKeys: ReadonlyMap<string, Buffer> | Readonly<KmsMasterKey>
 ): Buffer {
-  if (!envelope.startsWith(ENVELOPE_PREFIX)) {
+  if (!envelope || !envelope.startsWith(ENVELOPE_PREFIX)) {
     throw new SecurityError('Malformed user DEK envelope prefix');
   }
 
@@ -133,14 +138,12 @@ export function decryptUserDek(
 export function encryptWithDek(
   plaintext: string,
   dek: Buffer,
-  context?: Readonly<EnvelopeEncryptionContext>
+  context: Readonly<EnvelopeEncryptionContext>
 ): string {
   const dataIv = randomBytes(IV_LENGTH);
   const dataCipher = createCipheriv(ALGORITHM, dek, dataIv);
-  if (context) {
-    const aad = `${context.orgId || ''}:${context.fieldName || ''}`;
-    dataCipher.setAAD(Buffer.from(aad, 'utf-8'));
-  }
+  const aad = `${context.orgId}:${context.fieldName}`;
+  dataCipher.setAAD(Buffer.from(aad, 'utf-8'));
 
   const encryptedData = Buffer.concat([
     dataCipher.update(plaintext, 'utf-8'),
@@ -160,10 +163,10 @@ export function encryptWithDek(
 export function decryptWithDek(
   envelope: string,
   dek: Buffer,
-  context?: Readonly<EnvelopeEncryptionContext>
+  context: Readonly<EnvelopeEncryptionContext>
 ): string {
-  if (!envelope.startsWith(ENVELOPE_PREFIX)) {
-    return envelope;
+  if (!envelope || !envelope.startsWith(ENVELOPE_PREFIX)) {
+    throw new SecurityError('Invalid ciphertext envelope: missing mandatory enc:v1: prefix');
   }
 
   const encoded = envelope.substring(ENVELOPE_PREFIX.length);
@@ -176,10 +179,8 @@ export function decryptWithDek(
 
   try {
     const dataDecipher = createDecipheriv(ALGORITHM, dek, Buffer.from(parsed.data_iv, 'base64url'));
-    if (context) {
-      const aad = `${context.orgId || ''}:${context.fieldName || ''}`;
-      dataDecipher.setAAD(Buffer.from(aad, 'utf-8'));
-    }
+    const aad = `${context.orgId}:${context.fieldName}`;
+    dataDecipher.setAAD(Buffer.from(aad, 'utf-8'));
     dataDecipher.setAuthTag(Buffer.from(parsed.data_tag, 'base64url'));
 
     const decrypted = Buffer.concat([
@@ -196,10 +197,10 @@ export function decryptWithDek(
 export function decryptEnvelope(
   envelope: string,
   masterKeys: ReadonlyMap<string, Buffer> | Readonly<KmsMasterKey>,
-  context?: Readonly<EnvelopeEncryptionContext>
+  context: Readonly<EnvelopeEncryptionContext>
 ): string {
-  if (!envelope.startsWith(ENVELOPE_PREFIX)) {
-    return envelope;
+  if (!envelope || !envelope.startsWith(ENVELOPE_PREFIX)) {
+    throw new SecurityError('Invalid ciphertext envelope: missing mandatory enc:v1: prefix');
   }
 
   const encoded = envelope.substring(ENVELOPE_PREFIX.length);
@@ -231,7 +232,7 @@ export function decryptEnvelope(
     throw new SecurityError(`Master key ${parsed.kid} not available for envelope decryption`);
   }
 
-  let dek: Buffer;
+  let dek: Buffer | undefined;
   try {
     const dekDecipher = createDecipheriv(
       ALGORITHM,
@@ -245,20 +246,14 @@ export function decryptEnvelope(
       dekDecipher.update(Buffer.from(parsed.edek, 'base64url')),
       dekDecipher.final(),
     ]);
-  } catch {
-    throw new SecurityError('DEK integrity authentication verification failed');
-  }
 
-  try {
     const dataDecipher = createDecipheriv(
       ALGORITHM,
       dek,
       Buffer.from(parsed.data_iv, 'base64url')
     );
-    if (context) {
-      const aad = `${context.orgId || ''}:${context.fieldName || ''}`;
-      dataDecipher.setAAD(Buffer.from(aad, 'utf-8'));
-    }
+    const aad = `${context.orgId}:${context.fieldName}`;
+    dataDecipher.setAAD(Buffer.from(aad, 'utf-8'));
     dataDecipher.setAuthTag(Buffer.from(parsed.data_tag, 'base64url'));
 
     const decrypted = Buffer.concat([
@@ -269,5 +264,9 @@ export function decryptEnvelope(
     return decrypted.toString('utf-8');
   } catch {
     throw new SecurityError('Field ciphertext authentication tag verification failed');
+  } finally {
+    if (dek) {
+      zeroizeBuffer(dek);
+    }
   }
 }

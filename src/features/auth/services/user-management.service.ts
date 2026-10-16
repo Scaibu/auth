@@ -35,6 +35,13 @@ import type { NotificationDomainService } from './notification.service';
 import type { UserDsarExportPayload } from '../../../shared/types/auth.types';
 import { withSpan } from '../../../infra/tracing/tracer';
 import { SpanStatusCode } from '@chief-strategist-j/shared-infra';
+import { AUTH_CONFIG } from '../../../config/env.config';
+import {
+  generateUserDek,
+  encryptUserDek,
+  encryptWithDek,
+  computeBlindIndex,
+} from '../../../shared/utils/envelope-encryption.util';
 
 export class UserManagementDomainService {
   constructor(
@@ -79,21 +86,42 @@ export class UserManagementDomainService {
     const tempPassword = `Tmp_${Math.random().toString(36).substring(2, 10)}!1A`;
     const passwordHash = await hashPassword(tempPassword);
     const userId = `usr_${Math.random().toString(36).substring(2, 9)}`;
+    const masterKey = {
+      kid: AUTH_CONFIG.encryption.masterKeyId,
+      key: Buffer.from(AUTH_CONFIG.encryption.masterKey, 'hex'),
+    };
+    const userDek = generateUserDek();
+    const encryptedUserDek = encryptUserDek(userDek, masterKey);
+    const blindIndex = computeBlindIndex(email, AUTH_CONFIG.encryption.blindIndexKey);
+    const emailEncrypted = encryptEnvelope(email, masterKey, { orgId: normalizedOrgId, fieldName: 'email' });
+    const name = normalizeString(validated.name);
+    const nameEncrypted = encryptEnvelope(name, masterKey, { orgId: normalizedOrgId, fieldName: 'name' });
+    userDek.fill(0);
 
     const userRecord: AuthUserRecord = {
       id: userId,
       email,
       password_hash: passwordHash,
-      name: normalizeString(validated.name),
+      name,
       org_id: normalizedOrgId,
       org_name: normalizedOrgName,
       role: validated.role ?? AUTH_CONSTANTS.ROLE_MEMBER,
       blocked: false,
       user_permissions: Array.isArray(validated.permissions) ? [...validated.permissions] : [],
+      name_encrypted: nameEncrypted,
+      email_encrypted: emailEncrypted,
+      email_blind_index: blindIndex,
     };
 
     await this.repo.createUser(userRecord);
     await this.repo.recordPasswordHistory(userId, passwordHash);
+    await this.repo.saveUserEncryptionKey({
+      id: `ukey_${Math.random().toString(36).substring(2, 9)}`,
+      user_id: userId,
+      org_id: normalizedOrgId,
+      kid: masterKey.kid,
+      encrypted_dek: encryptedUserDek,
+    });
 
     if (this.notificationService) {
       Promise.resolve()
@@ -124,6 +152,7 @@ export class UserManagementDomainService {
   async createUser(input: CreateUserInput): Promise<AuthUserRecord> {
     const validated = CreateUserInputSchema.parse(input);
     const email = normalizeString(validated.email, 'lower');
+    const normalizedOrgId = normalizeString(validated.org_id);
 
     const existingUser = await this.repo.findUserByEmail(email);
     if (existingUser) {
@@ -132,21 +161,42 @@ export class UserManagementDomainService {
 
     const passwordHash = await hashPassword(validated.password);
     const userId = `usr_${Math.random().toString(36).substring(2, 9)}`;
+    const masterKey = {
+      kid: AUTH_CONFIG.encryption.masterKeyId,
+      key: Buffer.from(AUTH_CONFIG.encryption.masterKey, 'hex'),
+    };
+    const userDek = generateUserDek();
+    const encryptedUserDek = encryptUserDek(userDek, masterKey);
+    const blindIndex = computeBlindIndex(email, AUTH_CONFIG.encryption.blindIndexKey);
+    const emailEncrypted = encryptEnvelope(email, masterKey, { orgId: normalizedOrgId, fieldName: 'email' });
+    const name = normalizeString(validated.name);
+    const nameEncrypted = encryptEnvelope(name, masterKey, { orgId: normalizedOrgId, fieldName: 'name' });
+    userDek.fill(0);
 
     const userRecord: AuthUserRecord = {
       id: userId,
       email,
       password_hash: passwordHash,
-      name: normalizeString(validated.name),
-      org_id: normalizeString(validated.org_id),
+      name,
+      org_id: normalizedOrgId,
       org_name: '',
       role: validated.role ?? AUTH_CONSTANTS.ROLE_MEMBER,
       blocked: false,
       user_permissions: Array.isArray(validated.permissions) ? [...validated.permissions] : [],
+      name_encrypted: nameEncrypted,
+      email_encrypted: emailEncrypted,
+      email_blind_index: blindIndex,
     };
 
     await this.repo.createUser(userRecord);
     await this.repo.recordPasswordHistory(userId, passwordHash);
+    await this.repo.saveUserEncryptionKey({
+      id: `ukey_${Math.random().toString(36).substring(2, 9)}`,
+      user_id: userId,
+      org_id: normalizedOrgId,
+      kid: masterKey.kid,
+      encrypted_dek: encryptedUserDek,
+    });
     return userRecord;
   }
 

@@ -53,6 +53,7 @@ import {
   encryptEnvelope,
   generateUserDek,
   encryptUserDek,
+  encryptWithDek,
 } from '../../../shared/utils/envelope-encryption.util';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import { resolveRules, type Rule } from '@chief-strategist-j/shared-infra/rules-engine';
@@ -148,6 +149,7 @@ export class UserAuthDomainService {
     const blindIndex = computeBlindIndex(email, AUTH_CONFIG.encryption.blindIndexKey);
     const emailEncrypted = encryptEnvelope(email, masterKey, { orgId, fieldName: 'email' });
     const nameEncrypted = encryptEnvelope(name, masterKey, { orgId, fieldName: 'name' });
+    userDek.fill(0);
 
     const userRecord: AuthUserRecord = {
       id: userId,

@@ -69,4 +69,11 @@ describe('Envelope Encryption Pure Functions (ADR 0035, NIST SP 800-38D)', () =>
     const envelope = encryptEnvelope(plaintext, masterKey, writeContext);
     expect(() => decryptEnvelope(envelope, masterKey, wrongContext)).toThrow(SecurityError);
   });
+
+  it('strictly rejects decryption of plaintext or envelopes without enc:v1: prefix', () => {
+    const rawPlaintext = 'plain_unencrypted_value@enterprise.com';
+    const context = { orgId: 'org_strict', fieldName: 'email' };
+
+    expect(() => decryptEnvelope(rawPlaintext, masterKey, context)).toThrow(SecurityError);
+  });
 });
