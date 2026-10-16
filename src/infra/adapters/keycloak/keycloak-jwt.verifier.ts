@@ -17,7 +17,6 @@
 
 import { AuthTokenPayloadSchema, type AuthTokenPayload, type TenantContext } from '../../../shared/types/auth.types';
 import { TokenExpiredError, UnauthorizedError } from '../../../shared/errors/auth.errors';
-import { AUTH_CONFIG } from '../../../config/env.config';
 
 export interface KeycloakTokenPayload {
   sub: string;
@@ -41,7 +40,6 @@ export interface KeycloakTokenPayload {
 
 export class KeycloakJwtVerifier {
   private readonly issuerUrl: string;
-  private readonly jwksUrl: string;
   private readonly allowedClockSkewSeconds: number;
 
   constructor(options?: {
@@ -50,7 +48,6 @@ export class KeycloakJwtVerifier {
     allowedClockSkewSeconds?: number;
   }) {
     this.issuerUrl = options?.issuerUrl || process.env.KEYCLOAK_ISSUER_URL || 'http://localhost:8080/realms/llm-observability';
-    this.jwksUrl = options?.jwksUrl || `${this.issuerUrl}/protocol/openid-connect/certs`;
     this.allowedClockSkewSeconds = options?.allowedClockSkewSeconds ?? 60;
   }
 
@@ -90,6 +87,10 @@ export class KeycloakJwtVerifier {
 
     if (typeof rawPayload.nbf === 'number' && rawPayload.nbf > now + this.allowedClockSkewSeconds) {
       throw new UnauthorizedError('Token is not yet active (nbf in future)');
+    }
+
+    if (rawPayload.iss && typeof rawPayload.iss === 'string' && !rawPayload.iss.startsWith(this.issuerUrl)) {
+      throw new UnauthorizedError(`Token issuer mismatch: expected ${this.issuerUrl}`);
     }
 
     const sub = rawPayload.sub || rawPayload.user_id || 'anonymous';

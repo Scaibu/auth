@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { SpanKind } from '@chief-strategist-j/shared-infra';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
-import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
+import type { OAuthClientRecord, SigningKeyRecord, JwksKey } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, WebhookSubscriptionRecord, WebhookDeliveryRecord, BreakGlassSessionRecord } from '../../../shared/types/auth.types';
 import { REAL_POSTGRES_QUERIES, AUTH_QUERIES } from './queries/real-postgres.queries';

@@ -1,5 +1,4 @@
 import type { AuthService } from '../../../../features/auth/service';
-import type { AuthTokenPayload } from '../../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../../shared/errors/auth.errors';
 import { KeycloakJwtVerifier } from '../../../../infra/adapters/keycloak/keycloak-jwt.verifier';

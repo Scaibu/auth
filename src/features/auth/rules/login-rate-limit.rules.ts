@@ -129,7 +129,7 @@ export const DEFAULT_FALLBACK_RULE: Rule = Object.freeze({
 export const DEFAULT_LOGIN_RESULT_REGISTRY: ReadonlyMap<string, RuleResultResolver> = new Map<string, RuleResultResolver>([
   [
     LOGIN_RATE_LIMIT_RULE_IDS.ASN_VELOCITY_EXCEEDED,
-    (ctx: Readonly<Record<string, unknown>>) =>
+    (_ctx: Readonly<Record<string, unknown>>) =>
       Object.freeze({
         allowed: false,
         reason: AUTH_CONSTANTS.SECURITY_REASONS.ASN_VELOCITY_EXCEEDED,

@@ -1,7 +1,6 @@
 import { createHash, timingSafeEqual } from 'crypto';
 import type { AuthRepositoryPort } from '../repository';
 import type {
-  SigningKeyRecord,
   JwksKey,
   OidcTokenResponse,
   M2mTokenResponse,

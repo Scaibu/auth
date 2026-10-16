@@ -1,5 +1,5 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
-import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
+import type { OAuthClientRecord, SigningKeyRecord, JwksKey } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
 import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, BreakGlassSessionRecord } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
@@ -954,7 +954,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
 
   private readonly mockOAuthClients = new Map<string, OAuthClientRecord>();
   private readonly mockAuthCodes = new Map<string, { code: string; client_id: string; user_id: string; org_id: string; redirect_uri: string; code_challenge: string; code_challenge_method: 'S256'; scope: string; used: boolean; expires_at_ms: number; created_at_ms: number }>();
-  private readonly mockSigningKeys = new Map<string, { kid: string; kty: string; alg: string; use: string; public_key_pem: string; private_key_pem: string; status: 'ACTIVE' | 'RETIRED'; created_at_ms: number }>();
+  private readonly mockSigningKeys = new Map<string, SigningKeyRecord>();
 
   async saveOAuthClient(client: OAuthClientRecord): Promise<void> {
     this.mockOAuthClients.set(client.id, { ...client });

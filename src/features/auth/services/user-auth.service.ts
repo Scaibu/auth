@@ -53,7 +53,6 @@ import {
   encryptEnvelope,
   generateUserDek,
   encryptUserDek,
-  encryptWithDek,
 } from '../../../shared/utils/envelope-encryption.util';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import { resolveRules, type Rule } from '@chief-strategist-j/shared-infra/rules-engine';

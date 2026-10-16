@@ -101,7 +101,7 @@ export class KeyRotationService {
         throw new UnauthorizedError('Malformed JWT structure');
       }
 
-      const [b64Header, b64Payload, b64Signature] = parts;
+      const [b64Header, b64Payload, b64Signature] = parts as [string, string, string];
       let header: Record<string, any>;
       let payload: Record<string, any>;
 

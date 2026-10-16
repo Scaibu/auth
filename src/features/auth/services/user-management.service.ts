@@ -39,7 +39,7 @@ import { AUTH_CONFIG } from '../../../config/env.config';
 import {
   generateUserDek,
   encryptUserDek,
-  encryptWithDek,
+  encryptEnvelope,
   computeBlindIndex,
 } from '../../../shared/utils/envelope-encryption.util';
 
