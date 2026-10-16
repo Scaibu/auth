@@ -3,6 +3,7 @@ import {
   handleSignUp,
   handleSignIn,
   handleSignOut,
+  handleRefreshToken,
   handleResolveChallenge,
   handleFetchAuditLogs,
   handleCreateOrganization,
@@ -180,6 +181,13 @@ export const ROUTE_RULES: RouteRule[] = [
       await handleSignOut(ctx.service, ctx.authHeader);
       return { success: true };
     },
+  },
+  {
+    name: 'refresh_token',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.REFRESH,
+    successMessage: 'Token refreshed successfully',
+    handler: (ctx) => handleRefreshToken(ctx.service, ctx.body),
   },
   {
     name: 'resolve_challenge',

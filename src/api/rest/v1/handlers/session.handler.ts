@@ -2,19 +2,20 @@ import type { AuthService } from '../../../../features/auth/service';
 import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
 import { UnauthorizedError } from '../../../../shared/errors/auth.errors';
 import { KeycloakJwtVerifier } from '../../../../infra/adapters/keycloak/keycloak-jwt.verifier';
+import { verifyToken } from '../../../../shared/utils/jwt.util';
 
 const keycloakVerifier = new KeycloakJwtVerifier();
 
-export async function handleVerifySession(service: AuthService, authorizationHeader?: string): Promise<any> {
+export async function handleVerifySession(_service: AuthService, authorizationHeader?: string): Promise<any> {
   if (!authorizationHeader || !authorizationHeader.startsWith(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX)) {
     throw new UnauthorizedError('Missing or invalid Authorization header');
   }
 
   const token = authorizationHeader.substring(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX.length).trim();
   try {
-    return await keycloakVerifier.verifyToken(token);
+    return keycloakVerifier.verifyToken(token);
   } catch {
-    return await service.validateSession(token);
+    return verifyToken(token);
   }
 }
 

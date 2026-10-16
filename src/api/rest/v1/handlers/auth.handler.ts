@@ -129,8 +129,13 @@ export async function handleSignOut(service: AuthService, authHeader?: string): 
   return service.signOut(token);
 }
 
-export async function handleRefreshToken(_service: AuthService, _body: unknown, _headers?: Record<string, string>): Promise<unknown> {
-  throw new ValidationError('Refresh token rotation is managed by Keycloak');
+export async function handleRefreshToken(service: AuthService, body: unknown): Promise<unknown> {
+  const raw = (body && typeof body === 'object') ? (body as Record<string, unknown>) : {};
+  const refreshToken = typeof raw.refreshToken === 'string' ? raw.refreshToken : (typeof raw.refresh_token === 'string' ? raw.refresh_token : '');
+  if (!refreshToken) {
+    throw new ValidationError('refreshToken is required');
+  }
+  return service.keycloakApi.refreshAccessToken(refreshToken);
 }
 
 export async function handleListApiKeys(service: AuthService, orgId: string): Promise<unknown> {

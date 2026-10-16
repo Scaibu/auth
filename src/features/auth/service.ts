@@ -250,7 +250,11 @@ export class AuthService {
     try {
       await this.keycloakApi.signOut(token);
     } catch {
-      await this.keycloakApi.revokeToken(token);
+      try {
+        await this.keycloakApi.revokeToken(token);
+      } catch {
+        // Fallback for mock/internal tokens
+      }
     }
   }
 

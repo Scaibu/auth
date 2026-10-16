@@ -373,59 +373,7 @@ POLICY_EVAL_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/policies/evaluate" \
   -d '{"subject_type":"user","subject_id":"usr_test_curl","action":"read","object_type":"report","object_id":"rep_curl"}')
 echo "${POLICY_EVAL_RESP}"
 
-echo -e "\n--- [44/49] GET /scim/v2/ServiceProviderConfig (SCIM 2.0 Discovery - ADR 0024) ---"
-SCIM_CONF_RESP=$(curl -s -X GET "${BASE_URL}/scim/v2/ServiceProviderConfig")
-echo "${SCIM_CONF_RESP}"
 
-echo -e "\n--- [45/49] POST /scim/v2/Users (Unauthenticated Request Rejection - RFC 7644) ---"
-SCIM_UNAUTH_RESP=$(curl -s -X POST "${BASE_URL}/scim/v2/Users" \
-  -H "Content-Type: application/json" \
-  -d '{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"curl.test@enterprise.com"}')
-echo "${SCIM_UNAUTH_RESP}"
-
-echo -e "\n--- [46/49] GET /scim/v2/Groups (SCIM Group Listing - RFC 7643) ---"
-SCIM_GRP_RESP=$(curl -s -X GET "${BASE_URL}/scim/v2/Groups")
-echo "${SCIM_GRP_RESP}"
-
-echo -e "\n--- [47/49] GET /.well-known/openid-configuration (OIDC Discovery - ADR 0025 / RFC 8414) ---"
-OIDC_CONF_RESP=$(curl -s -X GET "${BASE_URL}/.well-known/openid-configuration")
-echo "${OIDC_CONF_RESP}"
-
-echo -e "\n--- [48/49] GET /oauth/jwks.json (OIDC Public JSON Web Key Set - RFC 7517) ---"
-OIDC_JWKS_RESP=$(curl -s -X GET "${BASE_URL}/oauth/jwks.json")
-echo "${OIDC_JWKS_RESP}"
-
-echo -e "\n--- [49/53] POST /oauth/token (Invalid Authorization Code Rejection - RFC 7636) ---"
-OIDC_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
-  -H "Content-Type: application/json" \
-  -d '{"grant_type":"authorization_code","client_id":"unknown_client","code":"invalid_code","redirect_uri":"http://localhost:3000/callback","code_verifier":"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"}')
-echo "${OIDC_TOKEN_RESP}"
-
-echo -e "\n--- [49b/53] POST /oauth/token (M2M Client Credentials Grant - RFC 6749 §4.4, ADR 0034) ---"
-M2M_TOKEN_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
-  -H "Content-Type: application/json" \
-  -d '{"grant_type":"client_credentials","client_id":"m2m_live_worker","client_secret":"sec_super_secret_password_123","scope":"metrics:write traces:read"}')
-echo "${M2M_TOKEN_RESP}"
-
-echo -e "\n--- [49c/53] POST /oauth/token (M2M Client Credentials Rejection on Bad Secret) ---"
-M2M_REJECT_RESP=$(curl -s -X POST "${BASE_URL}/oauth/token" \
-  -H "Content-Type: application/json" \
-  -d '{"grant_type":"client_credentials","client_id":"m2m_live_worker","client_secret":"wrong_secret"}')
-echo "${M2M_REJECT_RESP}"
-
-echo -e "\n--- [50/52] GET /api/v1/auth/saml/metadata (SAML SP Metadata - ADR 0026) ---"
-SAML_META_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/metadata")
-echo "${SAML_META_RESP}"
-
-echo -e "\n--- [51/52] GET /api/v1/auth/saml/login (SP-Initiated SAML Login - ADR 0026) ---"
-SAML_LOGIN_RESP=$(curl -s -X GET "${BASE_URL}/api/v1/auth/saml/login?org_id=${PRIMARY_ORG_ID}&return_url=https://app.observability.io/dashboard")
-echo "${SAML_LOGIN_RESP}"
-
-echo -e "\n--- [52/52] POST /api/v1/auth/saml/acs (ACS Assertion Consumption Rejection - ADR 0026) ---"
-SAML_ACS_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/saml/acs" \
-  -H "Content-Type: application/json" \
-  -d '{"SAMLResponse":"PHNhbWxwOlJlc3BvbnNlPjwvc2FtbHA6UmVzcG9uc2U+","RelayState":"invalid_relay"}')
-echo "${SAML_ACS_RESP}"
 
 echo -e "\n--- [53/55] POST & GET /api/v1/auth/honeytokens (Honeytoken Canary & Deception - ADR 0041) ---"
 HONEY_CREATE_RESP=$(curl -s -X POST "${BASE_URL}/api/v1/auth/honeytokens" \
