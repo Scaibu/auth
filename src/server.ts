@@ -126,6 +126,60 @@ const server = http.createServer((req, res) => {
         queryParams[key] = val;
       });
 
+      if (pathname === '/openapi.yaml') {
+        const fs = await import('fs');
+        const path = await import('path');
+        const specPath = path.resolve(process.cwd(), 'contracts/openapi/v1.yaml');
+        const rawYaml = fs.readFileSync(specPath, 'utf8');
+        res.writeHead(200, {
+          ...AUTH_CONSTANTS.SECURITY_CONFIG.CORS_HEADERS,
+          'Content-Type': 'text/yaml; charset=utf-8',
+        });
+        res.end(rawYaml);
+        return;
+      }
+
+      if (pathname === '/docs' || pathname === '/docs/') {
+        const swaggerHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Observability Auth Service API - Swagger UI</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #fafafa; }
+    .topbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/openapi.yaml',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout"
+      });
+    };
+  </script>
+</body>
+</html>`;
+        res.writeHead(200, {
+          ...AUTH_CONSTANTS.SECURITY_CONFIG.CORS_HEADERS,
+          'Content-Type': 'text/html; charset=utf-8',
+        });
+        res.end(swaggerHtml);
+        return;
+      }
+
       const result = await router.route(method, pathname, parsedBody, headersRecord, queryParams);
 
       res.writeHead(result.statusCode, {
