@@ -208,12 +208,21 @@ export class UserAuthDomainService {
         span?.setAttribute('auth.email_domain', email.split('@')[1] ?? '');
         span?.setAttribute('auth.client_ip', ip);
 
-        const rateLimit = await this.checkRateLimit(ip, email);
+        const currentTelemetry = this.geoIpPort
+          ? await this.geoIpPort.lookup(ip)
+          : { ip, isDatacenter: false, asn: 'AS_UNKNOWN' };
+
+        const rateLimit = await this.checkRateLimit(ip, email, {
+          asn: currentTelemetry.asn,
+          isDatacenter: currentTelemetry.isDatacenter,
+          telemetry: currentTelemetry,
+        });
         const normalizedReason = normalizeString(rateLimit.reason, 'upper');
 
         if (!rateLimit.allowed) {
           span?.setAttribute('auth.rate_limit_blocked', true);
           span?.setAttribute('auth.rate_limit_reason', normalizedReason);
+          span?.setAttribute('auth.geo_asn', currentTelemetry.asn ?? 'unknown');
           if (normalizedReason === AUTH_CONSTANTS.SECURITY_REASONS.ACCOUNT_LOCKED) {
             throw new AccountLockedError();
           }
@@ -302,9 +311,6 @@ export class UserAuthDomainService {
           } as any;
         }
 
-        const currentTelemetry = this.geoIpPort
-          ? await this.geoIpPort.lookup(ip)
-          : { ip, isDatacenter: false };
         const latestLogin = await this.repo.getLatestLoginLocation(user.id);
         const riskEval = this.riskService.evaluateRisk(
           currentTelemetry,
@@ -536,9 +542,13 @@ export class UserAuthDomainService {
     });
   }
 
-  private async checkRateLimit(ip: string, email: string): Promise<LoginRateLimitResult> {
+  private async checkRateLimit(
+    ip: string,
+    email: string,
+    extraContext?: Readonly<Record<string, unknown>>
+  ): Promise<LoginRateLimitResult> {
     return this.rateLimiterService
-      ? await this.rateLimiterService.checkLoginAllowed(ip, email)
+      ? await this.rateLimiterService.checkLoginAllowed(ip, email, extraContext)
       : { allowed: true };
   }
 

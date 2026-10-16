@@ -178,6 +178,22 @@ export function createErrorResponse(
     const authErr = new ValidationError('Invalid DEK state: shredded_at timestamp must correspond to SHREDDED status');
     return createErrorResponse(authErr, metaOptions);
   }
+  if (rawMessage.includes('auth_asn_threat_score_ck')) {
+    const authErr = new ValidationError('Invalid ASN threat score: must be an integer between 0 and 100');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_asn_category_ck')) {
+    const authErr = new ValidationError('Invalid ASN category: must be RESIDENTIAL, DATACENTER, VPN_PROXY, TOR_EXIT, or BULLETPROOF_HOSTING');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_asn_velocity_limit_ck')) {
+    const authErr = new ValidationError('Invalid ASN velocity limit: must be greater than 0');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_asn_block_state_ck')) {
+    const authErr = new ValidationError('Invalid ASN block state: blocked_reason is mandatory when is_blocked is true');
+    return createErrorResponse(authErr, metaOptions);
+  }
 
   return {
     statusCode: 500,

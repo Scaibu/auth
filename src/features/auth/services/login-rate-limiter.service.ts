@@ -17,6 +17,7 @@ import { withSpan } from '../../../infra/tracing/tracer';
 import { AUTH_CONFIG, type RateLimitConfig } from '../../../config/env.config';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { normalizeString } from '../../../shared/utils/string.util';
+import { extractSubnetPrefix } from '../../../shared/utils/cidr.util';
 import type { ICachePort } from '../../../shared/ports/cache.interface';
 import { InMemoryCacheAdapter } from '@chief-strategist-j/shared-infra/cache';
 import { resolveRules, type Rule } from '@chief-strategist-j/shared-infra/rules-engine';
@@ -94,10 +95,34 @@ export class LoginRateLimiterService {
       const accountRetryAfterMs = Math.max(0, record.lockedUntilMs - now);
       const isCaptchaRequired = !isAccountLocked && record.count >= this.config.emailCaptchaThreshold;
 
+      const asn = (extraContext?.asn as string | undefined) ?? (extraContext?.telemetry as any)?.asn ?? 'AS_UNKNOWN';
+      const isDatacenter = Boolean((extraContext?.isDatacenter as boolean | undefined) ?? (extraContext?.telemetry as any)?.isDatacenter);
+      const subnetPrefix = extractSubnetPrefix(normalizedIp);
+
+      const incrFn = this.cache.incr ?? (async () => 0);
+      const asnWindowMs = 300000;
+      const asnKey = `ratelimit:asn:${asn}`;
+      const asnAttempts = await incrFn.call(this.cache, asnKey, asnWindowMs);
+
+      const asnLimit = isDatacenter ? 50 : 200;
+      const isAsnVelocityExceeded = asnAttempts > asnLimit;
+      const isDatacenterStuffingBlocked = isDatacenter && asnAttempts > 20 && isAccountLocked;
+
+      span.setAttribute('geo.asn', asn);
+      span.setAttribute('geo.is_datacenter', isDatacenter);
+      span.setAttribute('security.asn_attempts', asnAttempts);
+      span.setAttribute('security.subnet_prefix', subnetPrefix);
+
       const ruleCtx: Readonly<Record<string, unknown>> = Object.freeze({
         ...(extraContext || {}),
         ip: normalizedIp,
         email: normalizedEmail,
+        asn,
+        isDatacenter,
+        subnetPrefix,
+        asnAttempts,
+        isAsnVelocityExceeded,
+        isDatacenterStuffingBlocked,
         now,
         cache: this.cache,
         windowMs,

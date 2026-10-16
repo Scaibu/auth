@@ -23,6 +23,8 @@ export interface LoginRateLimitResult {
 }
 
 export const LOGIN_RATE_LIMIT_RULE_IDS = Object.freeze({
+  ASN_VELOCITY_EXCEEDED: 'login.rule.asn_velocity_exceeded',
+  DATACENTER_CREDENTIAL_STUFFING_BLOCKED: 'login.rule.datacenter_credential_stuffing_blocked',
   IP_RATE_LIMIT: 'login.rule.ip_rate_limit_exceeded',
   ACCOUNT_LOCKED: 'login.rule.account_locked',
   REQUIRE_CAPTCHA: 'login.rule.require_captcha',
@@ -35,6 +37,34 @@ export type RuleResultResolver = (
 ) => LoginRateLimitResult;
 
 export const DEFAULT_LOGIN_RATE_LIMIT_RULES: readonly Rule[] = Object.freeze([
+  {
+    id: LOGIN_RATE_LIMIT_RULE_IDS.ASN_VELOCITY_EXCEEDED,
+    name: 'Deny request if ASN velocity limit exceeded (OAT-008)',
+    category: 'threat_defense',
+    priority: 120,
+    effect: 'deny',
+    conditions: [
+      {
+        field: 'isAsnVelocityExceeded',
+        op: 'equals',
+        value: true,
+      },
+    ],
+  },
+  {
+    id: LOGIN_RATE_LIMIT_RULE_IDS.DATACENTER_CREDENTIAL_STUFFING_BLOCKED,
+    name: 'Deny request from cloud hosting datacenter with high stuffing velocity',
+    category: 'threat_defense',
+    priority: 110,
+    effect: 'deny',
+    conditions: [
+      {
+        field: 'isDatacenterStuffingBlocked',
+        op: 'equals',
+        value: true,
+      },
+    ],
+  },
   {
     id: LOGIN_RATE_LIMIT_RULE_IDS.IP_RATE_LIMIT,
     name: 'Deny request if IP rate limit exceeded (RFC 6585)',
@@ -97,6 +127,26 @@ export const DEFAULT_FALLBACK_RULE: Rule = Object.freeze({
 });
 
 export const DEFAULT_LOGIN_RESULT_REGISTRY: ReadonlyMap<string, RuleResultResolver> = new Map<string, RuleResultResolver>([
+  [
+    LOGIN_RATE_LIMIT_RULE_IDS.ASN_VELOCITY_EXCEEDED,
+    (ctx: Readonly<Record<string, unknown>>) =>
+      Object.freeze({
+        allowed: false,
+        reason: AUTH_CONSTANTS.SECURITY_REASONS.ASN_VELOCITY_EXCEEDED,
+        retryAfterMs: 300000,
+        retryAfterSeconds: 300,
+      }),
+  ],
+  [
+    LOGIN_RATE_LIMIT_RULE_IDS.DATACENTER_CREDENTIAL_STUFFING_BLOCKED,
+    () =>
+      Object.freeze({
+        allowed: false,
+        reason: AUTH_CONSTANTS.SECURITY_REASONS.DATACENTER_TRAFFIC_BLOCKED,
+        retryAfterMs: 600000,
+        retryAfterSeconds: 600,
+      }),
+  ],
   [
     LOGIN_RATE_LIMIT_RULE_IDS.IP_RATE_LIMIT,
     (ctx: Readonly<Record<string, unknown>>) =>

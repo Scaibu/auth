@@ -265,6 +265,15 @@ export const AUTH_QUERIES = {
         OR (mfa_secret_encrypted IS NOT NULL AND mfa_secret_encrypted NOT LIKE 'enc:v1:%')
       )
   `,
+  FLOW_CHECK_AUTH_ASN_THREAT_INVARIANTS: `
+    SELECT asn, threat_score, threat_category, is_blocked, velocity_limit_per_minute
+    FROM auth_asn_reputation
+    WHERE (threat_score < 0 OR threat_score > 100)
+       OR (is_blocked = TRUE AND blocked_reason IS NULL)
+       OR (is_blocked = FALSE AND blocked_reason IS NOT NULL)
+       OR (threat_category NOT IN ('RESIDENTIAL', 'DATACENTER', 'VPN_PROXY', 'TOR_EXIT', 'BULLETPROOF_HOSTING'))
+       OR (velocity_limit_per_minute <= 0)
+  `,
 } as const;
 
 

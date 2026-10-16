@@ -110,3 +110,16 @@ export function checkCidrAllowlist(clientIp: string, allowlist: readonly string[
   }
   return false;
 }
+
+export function extractSubnetPrefix(ip: string): string {
+  const normalized = ip.toLowerCase().startsWith(IPV4_MAPPED_PREFIX) ? ip.slice(IPV4_MAPPED_PREFIX.length) : ip;
+  if (isIpv4(normalized)) {
+    const octets = normalized.split('.');
+    return `${octets[0]}.${octets[1]}.${octets[2]}.0/24`;
+  }
+  const groups = expandIpv6Groups(normalized);
+  const p1 = (groups[0] ?? 0).toString(16);
+  const p2 = (groups[1] ?? 0).toString(16);
+  const p3 = (groups[2] ?? 0).toString(16);
+  return `${p1}:${p2}:${p3}::/48`;
+}
