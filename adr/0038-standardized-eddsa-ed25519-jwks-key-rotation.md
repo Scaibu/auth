@@ -369,17 +369,29 @@ stateDiagram-v2
 ### 6.2 Asymmetric Ed25519 Signature Minting & Verification Specification
 
 1. **Header Construction**:
-   $$\text{Header} = \text{base64url}(\text{JSON}(\{\text{"alg"}: \text{"EdDSA"}, \text{"typ"}: \text{"JWT"}, \text{"kid"}: \text{activeKid}\}))$$
+   ```typescript
+   Header = base64url(JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: activeKid }))
+   ```
 2. **Payload Construction**:
-   $$\text{Payload} = \text{base64url}(\text{JSON}(\{\text{"sub"}: \dots, \text{"iss"}: \dots, \text{"exp"}: \dots\}))$$
+   ```typescript
+   Payload = base64url(JSON.stringify({ sub: userId, iss: issuer, exp: expSeconds, iat: nowSeconds }))
+   ```
 3. **Signing Input**:
-   $$M = \text{Header} \mathbin{\Vert} \text{"."} \mathbin{\Vert} \text{Payload}$$
+   ```typescript
+   SigningInput = `${Header}.${Payload}`
+   ```
 4. **Ed25519 Sign**:
-   $$\text{Signature} = \text{base64url}(\text{crypto.sign}(\text{null}, M, \text{privateKeyObject}))$$
-5. **JWT Token**:
-   $$T = M \mathbin{\Vert} \text{"."} \mathbin{\Vert} \text{Signature}$$
-6. **Verification**:
-   $$\text{crypto.verify}(\text{null}, M, \text{publicKeyObject}, \text{base64url\_decode}(\text{Signature})) \equiv \text{true}$$
+   ```typescript
+   Signature = base64url(crypto.sign(null, Buffer.from(SigningInput), privateKeyObject))
+   ```
+5. **JWT Token Assembly**:
+   ```typescript
+   Token = `${SigningInput}.${Signature}`
+   ```
+6. **Signature Verification**:
+   ```typescript
+   crypto.verify(null, Buffer.from(SigningInput), publicKeyObject, Buffer.from(Signature, 'base64url')) === true
+   ```
 
 ---
 
