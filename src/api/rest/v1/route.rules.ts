@@ -135,7 +135,36 @@ export const ROUTE_RULES: RouteRule[] = [
       version: '1.0.0',
       routesEndpoint: AUTH_ENDPOINTS.ROUTES,
       totalActiveRoutes: ROUTE_RULES.length,
+      openapiEndpoint: '/openapi.yaml',
+      docsEndpoint: '/docs',
     }),
+  },
+  {
+    name: 'openapi_spec',
+    method: HTTP_METHODS.GET,
+    pattern: '/openapi.yaml',
+    successMessage: 'OpenAPI specification retrieved successfully',
+    handler: async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const specPath = path.resolve(process.cwd(), 'contracts/openapi/v1.yaml');
+      const rawYaml = fs.readFileSync(specPath, 'utf8');
+      return { rawYaml, openapiPath: 'contracts/openapi/v1.yaml' };
+    },
+  },
+  {
+    name: 'openapi_docs_ui',
+    method: HTTP_METHODS.GET,
+    pattern: '/docs',
+    successMessage: 'OpenAPI documentation UI metadata',
+    handler: async () => {
+      return {
+        title: 'Observability Auth Service API Documentation',
+        specUrl: '/openapi.yaml',
+        swaggerEditorUrl: 'https://editor.swagger.io/?url=http://localhost:3001/openapi.yaml',
+        description: 'OpenAPI 3.0.3 specification defining all request/response envelopes, parameters, and error models.',
+      };
+    },
   },
   {
     name: 'list_routes',

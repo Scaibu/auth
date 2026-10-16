@@ -196,18 +196,45 @@ The complete reference for all **34 API endpoints** — including request parame
 
 👉 **For the complete catalog of all 34 endpoints and sample curl requests, see [ADR 0008: Master API Catalog](./adr/0008-master-api-catalog-parameter-contracts-and-response-envelopes.md).**
 
+---
+
+## 📄 OpenAPI 3.0 Contract & Swagger Documentation
+
+The full declarative API contract specifying every request body, query parameter, HTTP success envelope, and typed error code is published under OpenAPI 3.0.3:
+
+- **Local OpenAPI File**: [`contracts/openapi/v1.yaml`](./contracts/openapi/v1.yaml)
+- **Live OpenAPI Spec Endpoint**: [http://localhost:3001/openapi.yaml](http://localhost:3001/openapi.yaml)
+- **Live Documentation Metadata**: [http://localhost:3001/docs](http://localhost:3001/docs)
+- **Interactive Swagger Viewer**: [https://editor.swagger.io/?url=http://localhost:3001/openapi.yaml](https://editor.swagger.io/?url=http://localhost:3001/openapi.yaml)
+
+All endpoints strictly adhere to the unified envelope structure:
+```json
+{
+  "success": true,
+  "status": "success",
+  "statusCode": 200,
+  "message": "Resource retrieved successfully",
+  "data": { ... },
+  "error": null,
+  "meta": {
+    "requestId": "req_1792150314097",
+    "correlationId": "req_1792150314097",
+    "timestamp": "2026-10-16T11:31:54.109Z",
+    "executionTimeMs": 13,
+    "apiVersion": "1.0.0"
+  }
+}
+```
 
 ---
 
 ## ⚡ Automated Live API Curl Test Suite
 
-To run all `curl` endpoints against your local server automatically:
+To run and verify all live `curl` API endpoints against the running server:
 
 ```bash
 npm run test:curl
 ```
-
----
 
 ## 🐳 Production Docker Image Run Commands (`chiefj/llm-obs-auth`)
 
