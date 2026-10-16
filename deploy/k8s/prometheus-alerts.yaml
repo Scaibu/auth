@@ -1,0 +1,57 @@
+groups:
+  - name: auth-service-alerts
+    rules:
+      - alert: AuthHighSignInFailureRate
+        expr: job:auth_sign_in_failure_ratio:5m > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: security-sre
+        annotations:
+          summary: "Abnormal Authentication Failure Rate Exceeds 5%"
+          description: "Sign-in failure rate is {{ $value | humanizePercentage }} over the last 5 minutes on {{ $labels.instance }}."
+          runbook_url: "https://docs.observability.internal/runbooks/auth-high-failure-rate"
+
+      - alert: AuthAccountLockoutSpike
+        expr: rate(auth_account_lockout_events_total[1m]) * 60 > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: security-sre
+        annotations:
+          summary: "Brute-Force Velocity: Elevated Account Lockout Spike"
+          description: "Account lockout velocity exceeds 10 lockouts/min (current: {{ $value | printf \"%.1f\" }}/min)."
+          runbook_url: "https://docs.observability.internal/runbooks/auth-brute-force"
+
+      - alert: AuthHighLatencyP95
+        expr: job:auth_http_request_duration_p95:5m > 0.300
+        for: 5m
+        labels:
+          severity: warning
+          team: core-sre
+        annotations:
+          summary: "P95 Authentication Latency Exceeds 300ms SLA"
+          description: "P95 response latency on {{ $labels.route }} is {{ $value | humanizeDuration }}."
+          runbook_url: "https://docs.observability.internal/runbooks/auth-high-latency"
+
+      - alert: AuthHoneytokenTripped
+        expr: increase(auth_honeytoken_tripped_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: secops
+        annotations:
+          summary: "Deception Alarm: Honeytoken Tripwire Activated"
+          description: "Decoy credential tripwire tripped. Adversarial credential harvest detected."
+          runbook_url: "https://docs.observability.internal/runbooks/honeytoken-tripped"
+
+      - alert: AuthWormAuditSealingFailed
+        expr: increase(auth_worm_audit_archive_failed_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: compliance-sre
+        annotations:
+          summary: "Regulatory Compliance: WORM Audit Archive Sealing Failure"
+          description: "SEC 17a-4(f) WORM audit archive segment failed to seal or replicate to cold storage."
+          runbook_url: "https://docs.observability.internal/runbooks/worm-audit-failure"

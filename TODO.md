@@ -43,17 +43,18 @@
 | **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
 | **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ✅ **Completed (ADR 0041)** | v1.3 | **P3** |
 | **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ✅ **Completed (ADR 0042)** | v1.3 | **P3** |
+| **Observability & SRE** | Prometheus Alert Rules, Recording Rules & SLO Latency Telemetry | SRE Golden Signals | ✅ **Completed (ADR 0043)** | v1.2 | **P2** |
 | **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ✅ **Completed** | v1.1 | **P1** |
 
 ---
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: Prometheus Alert Rules for Authentication [P2]
-- **Objective**: Production-grade Prometheus alert rules and recording metrics for the authentication subsystem.
+### 2.1 Next Recommended Feature: Production Hardening & E2E Integration Suite [P1]
+- **Objective**: Full lifecycle end-to-end multi-tenant validation across the complete auth surface.
 - **Specification**:
-  - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
-  - Recording rules for login success/failure ratios, token refresh velocity, and MFA challenge abandon rates.
+  - Validates end-to-end integration flows across Honeytokens, WORM audit sealing, mTLS authentication, and Redis JTI denylists.
+  - Automated smoke verification script verifying Prometheus alert rules syntax (`promtool check rules`).
 
 ---
 
@@ -218,7 +219,10 @@
   - Endpoint `GET /api/v1/auth/users/me/export` returning machine-readable JSON archive.
 - [x] **Automated Database Seeder (`database/seeds/seed.ts`)**:
   - `npm run db:seed`: Populates development fixtures (Default Organization, Admin, Viewer, pre-seeded API keys).
-- [ ] **Prometheus Alert Rules for Authentication**:
-  - High Failure Rate: Alert if sign-in failure rate exceeds 5% over 5 minutes.
-  - Brute Force Spikes: Alert if lockout events exceed 10 per minute.
-  - High Latency: Alert if p95 authentication latency exceeds 300ms.
+- [x] **Prometheus Alert Rules & Recording Metrics for Authentication (ADR 0043)**:
+  - High Failure Rate: Alert if sign-in failure rate exceeds 5% over 5 minutes (`AuthHighSignInFailureRate`).
+  - Brute Force Spikes: Alert if lockout events exceed 10 per minute (`AuthAccountLockoutSpike`).
+  - High Latency: Alert if p95 authentication latency exceeds 300ms (`AuthHighLatencyP95`).
+  - Deception Alarms: Instant alert on Honeytoken canary tripwires (`AuthHoneytokenTripped`).
+  - Regulatory WORM: Instant alert on compliance archive sealing failures (`AuthWormAuditSealingFailed`).
+

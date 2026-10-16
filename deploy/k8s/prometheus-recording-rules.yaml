@@ -1,0 +1,19 @@
+groups:
+  - name: auth-service-recording-rules
+    rules:
+      - record: job:auth_sign_in_failure_ratio:5m
+        expr: >
+          sum(rate(auth_sign_in_attempts_total{status="failure"}[5m]))
+          /
+          clamp_min(sum(rate(auth_sign_in_attempts_total[5m])), 0.001)
+
+      - record: job:auth_http_request_duration_p95:5m
+        expr: >
+          histogram_quantile(0.95, sum(rate(auth_http_request_duration_seconds_bucket[5m])) by (le, route))
+
+      - record: job:auth_http_request_duration_p99:5m
+        expr: >
+          histogram_quantile(0.99, sum(rate(auth_http_request_duration_seconds_bucket[5m])) by (le, route))
+
+      - record: job:auth_token_refresh_rate:1m
+        expr: sum(rate(auth_token_refresh_total[1m]))
