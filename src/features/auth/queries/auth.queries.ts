@@ -27,11 +27,11 @@ export const AUTH_QUERIES = {
   },
   FLOW_CREATE_USER: {
     FIND_ORG_BY_ID: `SELECT id, name FROM auth_organizations WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
-    INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions, name_encrypted, email_encrypted, email_blind_index, mfa_secret_encrypted) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
-    LIST_BY_ORG: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE org_id = $1 AND deleted_at IS NULL`,
+    LIST_BY_ORG: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms, name_encrypted, email_encrypted, email_blind_index, mfa_secret_encrypted FROM auth_users WHERE org_id = $1 AND deleted_at IS NULL`,
     UNBLOCK_USER: `UPDATE auth_users SET blocked = FALSE, blocked_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`,
-    UPDATE_PROFILE_NAME: `UPDATE auth_users SET name = $1 WHERE id = $2 AND deleted_at IS NULL`,
+    UPDATE_PROFILE_NAME: `UPDATE auth_users SET name = $1, name_encrypted = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND deleted_at IS NULL`,
     UPDATE_ROLE: `UPDATE auth_users SET role = $1 WHERE id = $2 AND deleted_at IS NULL`,
     UPDATE_PERMISSIONS: `UPDATE auth_users SET user_permissions = $1 WHERE id = $2 AND deleted_at IS NULL`,
   },
@@ -53,15 +53,15 @@ export const AUTH_QUERIES = {
   FLOW_SIGN_UP: {
     CHECK_ORG_EXISTS: `SELECT id FROM auth_organizations WHERE (name = $1 OR slug = $2) AND deleted_at IS NULL LIMIT 1`,
     INSERT_ORG: `INSERT INTO auth_organizations (id, name, slug) VALUES ($1, $2, $3)`,
-    INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    INSERT_USER: `INSERT INTO auth_users (id, email, password_hash, name, org_id, org_name, role, user_permissions, name_encrypted, email_encrypted, email_blind_index, mfa_secret_encrypted) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     INSERT_USER_ORG: `INSERT INTO auth_user_organizations (user_id, org_id, role) VALUES ($1, $2, $3) ON CONFLICT (user_id, org_id) DO NOTHING`,
   },
   FLOW_SIGN_IN: {
-    FIND_USER_BY_EMAIL: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE email = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_USER_BY_EMAIL: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms, name_encrypted, email_encrypted, email_blind_index, mfa_secret_encrypted FROM auth_users WHERE (email = $1 OR email_blind_index = $2) AND deleted_at IS NULL LIMIT 1`,
     RECORD_AUDIT_LOG: `INSERT INTO auth_audit_logs (id, user_id, org_id, event_type, ip_address, user_agent, timestamp_ms) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
   },
   FLOW_SESSION_VERIFY: {
-    FIND_USER_BY_ID: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms FROM auth_users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+    FIND_USER_BY_ID: `SELECT id, email, password_hash, name, org_id, org_name, role, blocked, user_permissions, email_verified, mfa_enabled, mfa_secret, mfa_enrolled_at_ms, name_encrypted, email_encrypted, email_blind_index, mfa_secret_encrypted FROM auth_users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
     ADD_TOKEN_DENYLIST: `INSERT INTO auth_token_denylist (token_hash, expires_at_ms) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
     CHECK_TOKEN_DENYLIST: `SELECT 1 FROM auth_token_denylist WHERE token_hash = $1 AND expires_at_ms > $2 LIMIT 1`,
   },
@@ -242,6 +242,17 @@ export const AUTH_QUERIES = {
     INSERT_DELIVERY: `INSERT INTO auth_webhook_deliveries (id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     LIST_DELIVERIES_BY_SUB: `SELECT id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms FROM auth_webhook_deliveries WHERE subscription_id = $1 AND org_id = $2 ORDER BY delivered_at_ms DESC LIMIT 100`,
   },
+  FLOW_CHECK_AUTH_USERS_ENCRYPTION_INVARIANTS: `
+    SELECT id, email, email_blind_index, email_encrypted
+    FROM auth_users
+    WHERE deleted_at IS NULL
+      AND (
+        (email_encrypted IS NOT NULL AND email_encrypted NOT LIKE 'enc:v1:%')
+        OR (email_blind_index IS NOT NULL AND email_blind_index !~ '^[a-f0-9]{64}$')
+        OR (name_encrypted IS NOT NULL AND name_encrypted NOT LIKE 'enc:v1:%')
+        OR (mfa_secret_encrypted IS NOT NULL AND mfa_secret_encrypted NOT LIKE 'enc:v1:%')
+      )
+  `,
 } as const;
 
 

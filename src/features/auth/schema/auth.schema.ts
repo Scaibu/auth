@@ -186,6 +186,10 @@ export const AuthUserEntitySchema = z.object({
   mfa_enabled: z.boolean().default(false).optional(),
   mfa_secret: z.string().nullable().optional(),
   mfa_enrolled_at_ms: z.number().int().nullable().optional(),
+  name_encrypted: z.string().nullable().optional(),
+  email_encrypted: z.string().nullable().optional(),
+  email_blind_index: z.string().nullable().optional(),
+  mfa_secret_encrypted: z.string().nullable().optional(),
 });
 
 export const MfaVerifyInputSchema = z.object({

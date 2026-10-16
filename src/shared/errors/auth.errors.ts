@@ -235,6 +235,12 @@ export class PasswordRecentlyUsedError extends AuthError {
   }
 }
 
+export class SecurityError extends AuthError {
+  constructor(message: string) {
+    super(message, 'SECURITY_ERROR', 400);
+  }
+}
+
 
 
 

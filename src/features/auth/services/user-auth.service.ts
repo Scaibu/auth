@@ -48,6 +48,11 @@ import { withSpan } from '../../../infra/tracing/tracer';
 import { normalizeString } from '../../../shared/utils/string.util';
 import type { SessionDenylistService } from './session-denylist.service';
 import type { LoginRateLimiterService, LoginRateLimitResult } from './login-rate-limiter.service';
+import {
+  computeBlindIndex,
+  encryptEnvelope,
+} from '../../../shared/utils/envelope-encryption.util';
+import { AUTH_CONFIG } from '../../../config/env.config';
 import { resolveRules, type Rule } from '@chief-strategist-j/shared-infra/rules-engine';
 import { trace } from '@chief-strategist-j/shared-infra';
 import {
@@ -129,16 +134,28 @@ export class UserAuthDomainService {
       return hashPassword(validated.password);
     });
 
+    const masterKey = {
+      kid: AUTH_CONFIG.encryption.masterKeyId,
+      key: Buffer.from(AUTH_CONFIG.encryption.masterKey, 'hex'),
+    };
+    const orgId = this.generateEntityId('org');
+    const blindIndex = computeBlindIndex(email, AUTH_CONFIG.encryption.blindIndexKey);
+    const emailEncrypted = encryptEnvelope(email, masterKey, { orgId, fieldName: 'email' });
+    const nameEncrypted = encryptEnvelope(name, masterKey, { orgId, fieldName: 'name' });
+
     const userRecord: AuthUserRecord = {
       id: this.generateEntityId('usr'),
       email,
       password_hash: passwordHash,
       name,
-      org_id: this.generateEntityId('org'),
+      org_id: orgId,
       org_name: orgName,
       role: validated.role ?? AUTH_CONSTANTS.ROLE_ADMIN,
       blocked: false,
       user_permissions: [AUTH_CONSTANTS.PERMISSION_ADMIN_ALL],
+      name_encrypted: nameEncrypted,
+      email_encrypted: emailEncrypted,
+      email_blind_index: blindIndex,
     };
 
     try {

@@ -145,6 +145,26 @@ export function createErrorResponse(
     const authErr = new ValidationError('Invalid organization ID: The target organization does not exist or has been deleted.');
     return createErrorResponse(authErr, metaOptions);
   }
+  if (rawMessage.includes('auth_users_email_blind_index_format_ck')) {
+    const authErr = new ValidationError('Invalid blind index format: expected 64-character lowercase hex HMAC-SHA256 hash');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (
+    rawMessage.includes('auth_users_name_enc_prefix_ck') ||
+    rawMessage.includes('auth_users_email_enc_prefix_ck') ||
+    rawMessage.includes('auth_users_mfa_secret_enc_prefix_ck')
+  ) {
+    const authErr = new ValidationError('Invalid envelope encryption format: missing enc:v1: serialization prefix');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (
+    rawMessage.includes('auth_users_name_enc_trimmed_ck') ||
+    rawMessage.includes('auth_users_email_enc_trimmed_ck') ||
+    rawMessage.includes('auth_users_mfa_secret_enc_trimmed_ck')
+  ) {
+    const authErr = new ValidationError('Invalid encrypted payload: cannot be empty or contain untrimmed whitespace');
+    return createErrorResponse(authErr, metaOptions);
+  }
 
   return {
     statusCode: 500,

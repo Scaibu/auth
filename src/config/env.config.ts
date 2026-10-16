@@ -9,6 +9,7 @@ import { loadGeoIpConfig, type GeoIpConfig } from './geoip.config';
 import { loadOidcConfig, type OidcConfig } from './oidc.config';
 import { loadSamlConfig, type SamlConfig } from './saml.config';
 import { loadWebhookConfig, type WebhookConfig } from './webhook.config';
+import { loadEncryptionConfig, type EncryptionConfig } from './encryption.config';
 
 
 
@@ -84,9 +85,10 @@ export const AUTH_CONFIG = Object.freeze({
   oidc: loadOidcConfig(),
   saml: loadSamlConfig(),
   webhook: loadWebhookConfig(),
+  encryption: loadEncryptionConfig(),
 });
 
-export type { RateLimitConfig, SessionDenylistConfig, SecurityLimitsConfig, SecurityHeadersConfig, MailerConfig, SesMailerConfig, SendgridMailerConfig, SmtpMailerConfig, MailerProvider, OAuthConfig, GeoIpConfig, OidcConfig, SamlConfig, WebhookConfig };
+export type { RateLimitConfig, SessionDenylistConfig, SecurityLimitsConfig, SecurityHeadersConfig, MailerConfig, SesMailerConfig, SendgridMailerConfig, SmtpMailerConfig, MailerProvider, OAuthConfig, GeoIpConfig, OidcConfig, SamlConfig, WebhookConfig, EncryptionConfig };
 export const authEnv = AUTH_CONFIG;
 
 

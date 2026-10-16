@@ -236,8 +236,10 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
 
   async findUserByEmail(email: string): Promise<AuthUserRecord | null> {
     this.getFlowQuery(AUTH_CONSTANTS.AUTH_QUERY_FLOWS.FLOW_SIGN_IN);
-    const user = this.mockUsers.get(email);
-    if (!user || user.deleted_at) return null;
+    const user = [...this.mockUsers.values()].find(
+      (u) => !u.deleted_at && (u.email === email || (u.email_blind_index && u.email_blind_index === email))
+    );
+    if (!user) return null;
     return user;
   }
 
