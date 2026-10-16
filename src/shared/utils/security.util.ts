@@ -108,12 +108,5 @@ export class SecurityEngine {
   }
 }
 
-export interface SecretStorePort {
-  getSecret(key: string): Promise<string | null>;
-}
+export type { SecretStorePort } from '../ports/secret-store.port';
 
-export class EnvSecretStoreAdapter implements SecretStorePort {
-  async getSecret(key: string): Promise<string | null> {
-    return process.env[key] ?? null;
-  }
-}

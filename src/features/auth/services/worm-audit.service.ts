@@ -33,6 +33,7 @@ import { ValidationError, NotFoundError } from '../../../shared/errors/auth.erro
 
 import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
 import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+import { AUTH_CONFIG } from '../../../config/env.config';
 
 export class WormAuditDomainService {
   constructor(
@@ -117,7 +118,7 @@ export class WormAuditDomainService {
       const archiveId = `${AUTH_CONSTANTS.WORM_AUDIT.ID_PREFIX}${crypto.randomBytes(16).toString('hex')}`;
       const retentionYears = input.retention_years ?? AUTH_CONSTANTS.WORM_AUDIT.DEFAULT_RETENTION_YEARS;
       const retentionUntilMs = Date.now() + retentionYears * 365.25 * 24 * 3600 * 1000;
-      const s3Bucket = process.env.AUTH_WORM_S3_BUCKET || AUTH_CONSTANTS.WORM_AUDIT.DEFAULT_S3_BUCKET;
+      const s3Bucket = AUTH_CONFIG.worm?.s3Bucket || AUTH_CONSTANTS.WORM_AUDIT.DEFAULT_S3_BUCKET;
       const s3Key = `auth/audit-worm/${archiveId}.ndjson.gz`;
       const storageLocation = `s3://${s3Bucket}/${s3Key}`;
       const versionId = `v_${crypto.randomBytes(8).toString('hex')}`;

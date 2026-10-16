@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SecurityEngine, EnvSecretStoreAdapter } from '../../src/shared/utils/security.util';
+import { SecurityEngine } from '../../src/shared/utils/security.util';
+import { EnvSecretStoreAdapter } from '../../src/infra/adapters/security/secret-store.adapter';
 import { hashPassword, verifyPassword } from '../../src/shared/utils/argon2.util';
 import { SignUpInputSchema } from '../../src/features/auth/schema/auth.schema';
 import { AUTH_QUERIES } from '../../src/features/auth/queries/auth.queries';

@@ -86,6 +86,9 @@ export const AUTH_CONFIG = Object.freeze({
   saml: loadSamlConfig(),
   webhook: loadWebhookConfig(),
   encryption: loadEncryptionConfig(),
+  worm: {
+    s3Bucket: process.env.AUTH_WORM_S3_BUCKET || 'auth-audit-worm-archive',
+  },
 });
 
 export type { RateLimitConfig, SessionDenylistConfig, SecurityLimitsConfig, SecurityHeadersConfig, MailerConfig, SesMailerConfig, SendgridMailerConfig, SmtpMailerConfig, MailerProvider, OAuthConfig, GeoIpConfig, OidcConfig, SamlConfig, WebhookConfig, EncryptionConfig };
