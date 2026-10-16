@@ -15,17 +15,23 @@ echo "==> [users-profile] GET /api/v1/auth/users/${TARGET_USER_ID} -> Get User P
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Get User Profile by User ID",
+#   "message": "User retrieved",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "id": "usr_qranszx",
+#       "email": "member@example.com",
+#       "name": "Invited Member",
+#       "org_id": "org_babrsm3",
+#       "org_name": "Admin Org",
+#       "role": "member",
+#       "blocked": false,
+#       "user_permissions": ["logs:read"]
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

@@ -15,19 +15,23 @@ echo "==> [api-keys] GET /api/v1/auth/api-keys -> List Organization API Keys"
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "List Organization API Keys",
+#   "message": "API keys retrieved",
 #   "data": [
 #     {
-#       "id": "sample-item-1",
-#       "status": "active"
+#       "key_id": "key_aja4sig",
+#       "org_id": "org_46tq326",
+#       "key_type": "general",
+#       "name": "Flow Test Ingestion Key",
+#       "permissions": ["traces:read", "traces:write"],
+#       "revoked": false
 #     }
 #   ],
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

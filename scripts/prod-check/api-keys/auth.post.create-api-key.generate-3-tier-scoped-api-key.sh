@@ -20,17 +20,24 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys -> Generate 3-Tier Scoped API Ke
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Generate 3-Tier Scoped API Key",
+#   "message": "API key successfully created",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "rawKey": "ak_gen_org_46tq326_sxt40d6tprjg88gzfj7ht",
+#     "keyRecord": {
+#       "key_id": "key_aja4sig",
+#       "org_id": "org_46tq326",
+#       "key_type": "general",
+#       "name": "Flow Test Ingestion Key",
+#       "permissions": ["traces:read", "traces:write"],
+#       "revoked": false
+#     }
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

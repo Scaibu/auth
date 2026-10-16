@@ -15,17 +15,23 @@ echo "==> [users-profile] GET /api/v1/auth/users/me -> Get Authenticated User Pr
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Get Authenticated User Profile",
+#   "message": "User retrieved",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "id": "usr_g5hicaw",
+#       "email": "admin@example.com",
+#       "name": "Admin User",
+#       "org_id": "org_babrsm3",
+#       "org_name": "Admin Org",
+#       "role": "admin",
+#       "blocked": false,
+#       "user_permissions": ["admin:all"]
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

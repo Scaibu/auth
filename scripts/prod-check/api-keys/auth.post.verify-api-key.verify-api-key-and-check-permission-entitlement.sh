@@ -15,17 +15,22 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys/verify -> Verify API Key and Che
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Verify API Key and Check Permission Entitlement",
+#   "message": "API key verified",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "valid": true,
+#     "record": {
+#       "key_id": "key_aja4sig",
+#       "org_id": "org_46tq326",
+#       "permissions": ["traces:read", "traces:write"]
+#     },
+#     "authorized": true
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

@@ -15,19 +15,20 @@ echo "==> [organizations] GET /api/v1/auth/organizations -> List All Organizatio
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "List All Organizations for Authenticated User",
+#   "message": "Organizations retrieved",
 #   "data": [
 #     {
-#       "id": "sample-item-1",
-#       "status": "active"
+#       "id": "org_kodp48m",
+#       "name": "Acme Corp",
+#       "slug": "acme-corp"
 #     }
 #   ],
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

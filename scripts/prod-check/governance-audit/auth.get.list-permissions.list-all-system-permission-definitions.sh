@@ -15,19 +15,26 @@ echo "==> [governance-audit] GET /api/v1/auth/permissions -> List All System Per
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "List All System Permission Definitions",
-#   "data": [
-#     {
-#       "id": "sample-item-1",
-#       "status": "active"
-#     }
-#   ],
+#   "message": "System permissions retrieved",
+#   "data": {
+#     "permissions": [
+#       "traces:read",
+#       "traces:write",
+#       "metrics:read",
+#       "metrics:write",
+#       "logs:read",
+#       "logs:write",
+#       "alerts:read",
+#       "alerts:write",
+#       "admin:all"
+#     ]
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

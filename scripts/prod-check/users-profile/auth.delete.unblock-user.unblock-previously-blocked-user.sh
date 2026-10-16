@@ -15,16 +15,17 @@ echo "==> [users-profile] DELETE /api/v1/auth/users/${TARGET_USER_ID}/unblock ->
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Unblock Previously Blocked User",
+#   "message": "User unblocked successfully",
 #   "data": {
-#     "success": true
+#     "success": true,
+#     "message": "User usr_qranszx unblocked successfully."
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

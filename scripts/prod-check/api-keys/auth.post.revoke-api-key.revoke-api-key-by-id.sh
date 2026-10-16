@@ -15,16 +15,14 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys/${TARGET_KEY_ID}/revoke -> Revok
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Revoke API Key by ID",
-#   "data": {
-#     "success": true
-#   },
+#   "message": "API key revoked",
+#   "data": null,
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

@@ -15,17 +15,16 @@ echo "==> [users-profile] GET /api/v1/auth/users/${TARGET_USER_ID}/permissions -
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Get User Effective Permission Set",
-#   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
-#   },
+#   "message": "User permissions retrieved",
+#   "data": [
+#     "logs:read"
+#   ],
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

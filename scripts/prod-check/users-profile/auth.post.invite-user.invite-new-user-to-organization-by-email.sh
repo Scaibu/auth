@@ -15,17 +15,20 @@ echo "==> [users-profile] POST /api/v1/auth/users/invite -> Invite New User to O
 #   "success": true,
 #   "status": "success",
 #   "statusCode": 200,
-#   "message": "Invite New User to Organization by Email",
+#   "message": "User invited to organization",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "id": "usr_qranszx",
+#     "email": "invited@example.com",
+#     "name": "Invited Member",
+#     "org_id": "org_babrsm3",
+#     "role": "member"
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }

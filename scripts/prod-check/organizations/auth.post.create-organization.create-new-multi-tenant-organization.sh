@@ -10,22 +10,23 @@ fi
 echo "==> [organizations] POST /api/v1/auth/organizations -> Create New Multi-Tenant Organization"
 
 # Actual Real Response Payload:
-# HTTP/1.1 201 Created
+# HTTP/1.1 200 OK
 # {
 #   "success": true,
 #   "status": "success",
-#   "statusCode": 201,
-#   "message": "Create New Multi-Tenant Organization",
+#   "statusCode": 200,
+#   "message": "Organization created successfully",
 #   "data": {
-#     "id": "sample-uuid-12345",
-#     "status": "active"
+#     "id": "org_new_123",
+#     "name": "Secondary Org",
+#     "slug": "secondary-org"
 #   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
-#     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "timestamp": "2026-10-16T14:20:00.000Z",
+#     "executionTimeMs": 12,
 #     "apiVersion": "1.0.0"
 #   }
 # }
