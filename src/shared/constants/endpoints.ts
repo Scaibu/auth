@@ -78,6 +78,9 @@ export const AUTH_ENDPOINTS = {
   WEBHOOK_SUBSCRIPTIONS_ITEM: '/api/v1/auth/webhooks/subscriptions/:id',
   WEBHOOK_DELIVERIES: '/api/v1/auth/webhooks/subscriptions/:id/deliveries',
   USER_SHRED: '/api/v1/auth/users/:id/shred',
+  BREAK_GLASS_ACTIVATE: '/api/v1/auth/break-glass/activate',
+  BREAK_GLASS_TERMINATE: '/api/v1/auth/break-glass/:id/terminate',
+  BREAK_GLASS_ACTIVE: '/api/v1/auth/break-glass/active',
   HEALTH: '/health',
 } as const;
 

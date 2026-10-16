@@ -82,6 +82,11 @@ import {
   handleListWebhookDeliveries,
 } from './handlers/webhook.handler';
 import {
+  handleActivateBreakGlass,
+  handleTerminateBreakGlass,
+  handleListActiveBreakGlassSessions,
+} from './handlers/break-glass.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -1095,6 +1100,32 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'Webhook deliveries retrieved successfully',
     handler: (ctx, session) => handleListWebhookDeliveries(ctx.service, ctx.params.id ?? '', session),
+  },
+  {
+    name: 'break_glass_activate',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.BREAK_GLASS_ACTIVATE,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'Emergency break-glass session activated successfully',
+    handler: (ctx, session) => handleActivateBreakGlass(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'break_glass_terminate',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.BREAK_GLASS_TERMINATE,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'Emergency break-glass session terminated successfully',
+    handler: (ctx, session) => handleTerminateBreakGlass(ctx.service, ctx.params.id ?? '', ctx.body, session),
+  },
+  {
+    name: 'break_glass_list_active',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.BREAK_GLASS_ACTIVE,
+    requiresAuth: true,
+    successMessage: 'Active emergency break-glass sessions retrieved successfully',
+    handler: (ctx, session) => handleListActiveBreakGlassSessions(ctx.service, session),
   },
 ];
 

@@ -273,6 +273,14 @@ export const AUTH_QUERIES = {
     RETIRE_ACTIVE_KEY: `UPDATE auth_signing_keys SET status = 'RETIRED', expires_at_ms = $1 WHERE status = 'ACTIVE' AND alg = $2`,
     REVOKE_KEY: `UPDATE auth_signing_keys SET status = 'REVOKED', revoked_at_ms = $2, revoked_reason = $3 WHERE kid = $1 AND status != 'REVOKED'`,
   },
+  FLOW_BREAK_GLASS: {
+    INSERT_SESSION: `INSERT INTO auth_break_glass_sessions (id, org_id, user_id, incident_ticket_id, justification, status, token_hash, elevated_role, activated_at, expires_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 'ACTIVATED', $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    FIND_SESSION_BY_ID: `SELECT id, org_id, user_id, incident_ticket_id, justification, status, token_hash, elevated_role, activated_at, expires_at, terminated_at, terminated_by, terminated_reason, created_at, updated_at FROM auth_break_glass_sessions WHERE id = $1 LIMIT 1`,
+    FIND_SESSION_BY_HASH: `SELECT id, org_id, user_id, incident_ticket_id, justification, status, token_hash, elevated_role, activated_at, expires_at, terminated_at, terminated_by, terminated_reason, created_at, updated_at FROM auth_break_glass_sessions WHERE token_hash = $1 LIMIT 1`,
+    LIST_ACTIVE_SESSIONS: `SELECT id, org_id, user_id, incident_ticket_id, justification, status, token_hash, elevated_role, activated_at, expires_at, terminated_at, terminated_by, terminated_reason, created_at, updated_at FROM auth_break_glass_sessions WHERE status = 'ACTIVATED' AND expires_at > CURRENT_TIMESTAMP AND ($1::text IS NULL OR org_id = $1) ORDER BY activated_at DESC`,
+    TERMINATE_SESSION: `UPDATE auth_break_glass_sessions SET status = 'TERMINATED', terminated_at = $2, terminated_by = $3, terminated_reason = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'ACTIVATED'`,
+    AUTO_EXPIRE_STALE_SESSIONS: `UPDATE auth_break_glass_sessions SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE status = 'ACTIVATED' AND expires_at <= CURRENT_TIMESTAMP`,
+  },
   FLOW_CHECK_AUTH_ASN_THREAT_INVARIANTS: `
     SELECT asn, threat_score, threat_category, is_blocked, velocity_limit_per_minute
     FROM auth_asn_reputation
@@ -290,6 +298,16 @@ export const AUTH_QUERIES = {
        OR (kty = 'RSA' AND (alg != 'RS256' OR crv IS NOT NULL OR x IS NOT NULL))
        OR (status = 'REVOKED' AND (revoked_at_ms IS NULL OR revoked_reason IS NULL))
        OR (status != 'REVOKED' AND (revoked_at_ms IS NOT NULL OR revoked_reason IS NOT NULL))
+  `,
+  FLOW_CHECK_AUTH_BREAK_GLASS_INVARIANTS: `
+    SELECT id, incident_ticket_id, justification, status, token_hash, elevated_role, activated_at, expires_at, terminated_at, terminated_by, terminated_reason
+    FROM auth_break_glass_sessions
+    WHERE (EXTRACT(EPOCH FROM (expires_at - activated_at)) <= 0)
+       OR (EXTRACT(EPOCH FROM (expires_at - activated_at)) > 14400)
+       OR (incident_ticket_id !~ '^(INC|SEC|OPS)-[0-9]{3,}$')
+       OR (token_hash !~ '^[a-f0-9]{64}$')
+       OR (status = 'TERMINATED' AND (terminated_at IS NULL OR terminated_by IS NULL OR terminated_reason IS NULL))
+       OR (status != 'TERMINATED' AND (terminated_at IS NOT NULL OR terminated_by IS NOT NULL OR terminated_reason IS NOT NULL))
   `,
 } as const;
 

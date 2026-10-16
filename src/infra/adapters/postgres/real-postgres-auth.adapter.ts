@@ -4,7 +4,7 @@ import { AUTH_CONFIG } from '../../../config/env.config';
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, WebhookSubscriptionRecord, WebhookDeliveryRecord, BreakGlassSessionRecord } from '../../../shared/types/auth.types';
 import { REAL_POSTGRES_QUERIES, AUTH_QUERIES } from './queries/real-postgres.queries';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '../../tracing/tracer';
@@ -2299,6 +2299,126 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       try {
         const randomNoise = `enc:v1:${Buffer.from(crypto.randomUUID()).toString('base64url')}`;
         await client.query(this.queries.FLOW_USER_KEYS.SHRED_KEY_BY_USER_ID, [userId, randomNoise]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async saveBreakGlassSession(session: BreakGlassSessionRecord): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveBreakGlassSession', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.FLOW_BREAK_GLASS.INSERT_SESSION, [
+          session.id,
+          session.org_id,
+          session.user_id,
+          session.incident_ticket_id,
+          session.justification,
+          session.token_hash,
+          session.elevated_role,
+          session.activated_at,
+          session.expires_at,
+        ]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findBreakGlassSessionById(id: string): Promise<BreakGlassSessionRecord | null> {
+    return withSpan('RealPostgresAuthAdapter.findBreakGlassSessionById', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.FLOW_BREAK_GLASS.FIND_SESSION_BY_ID, [id]);
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          org_id: row.org_id,
+          user_id: row.user_id,
+          incident_ticket_id: row.incident_ticket_id,
+          justification: row.justification,
+          status: row.status,
+          token_hash: row.token_hash,
+          elevated_role: row.elevated_role,
+          activated_at: typeof row.activated_at === 'string' ? row.activated_at : row.activated_at.toISOString(),
+          expires_at: typeof row.expires_at === 'string' ? row.expires_at : row.expires_at.toISOString(),
+          terminated_at: row.terminated_at ? (typeof row.terminated_at === 'string' ? row.terminated_at : row.terminated_at.toISOString()) : null,
+          terminated_by: row.terminated_by,
+          terminated_reason: row.terminated_reason,
+          created_at: row.created_at ? (typeof row.created_at === 'string' ? row.created_at : row.created_at.toISOString()) : undefined,
+          updated_at: row.updated_at ? (typeof row.updated_at === 'string' ? row.updated_at : row.updated_at.toISOString()) : undefined,
+        };
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findBreakGlassSessionByHash(tokenHash: string): Promise<BreakGlassSessionRecord | null> {
+    return withSpan('RealPostgresAuthAdapter.findBreakGlassSessionByHash', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.FLOW_BREAK_GLASS.FIND_SESSION_BY_HASH, [tokenHash]);
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          org_id: row.org_id,
+          user_id: row.user_id,
+          incident_ticket_id: row.incident_ticket_id,
+          justification: row.justification,
+          status: row.status,
+          token_hash: row.token_hash,
+          elevated_role: row.elevated_role,
+          activated_at: typeof row.activated_at === 'string' ? row.activated_at : row.activated_at.toISOString(),
+          expires_at: typeof row.expires_at === 'string' ? row.expires_at : row.expires_at.toISOString(),
+          terminated_at: row.terminated_at ? (typeof row.terminated_at === 'string' ? row.terminated_at : row.terminated_at.toISOString()) : null,
+          terminated_by: row.terminated_by,
+          terminated_reason: row.terminated_reason,
+          created_at: row.created_at ? (typeof row.created_at === 'string' ? row.created_at : row.created_at.toISOString()) : undefined,
+          updated_at: row.updated_at ? (typeof row.updated_at === 'string' ? row.updated_at : row.updated_at.toISOString()) : undefined,
+        };
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]> {
+    return withSpan('RealPostgresAuthAdapter.listActiveBreakGlassSessions', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.FLOW_BREAK_GLASS.LIST_ACTIVE_SESSIONS, [orgId ?? null]);
+        return res.rows.map((row) => ({
+          id: row.id,
+          org_id: row.org_id,
+          user_id: row.user_id,
+          incident_ticket_id: row.incident_ticket_id,
+          justification: row.justification,
+          status: row.status,
+          token_hash: row.token_hash,
+          elevated_role: row.elevated_role,
+          activated_at: typeof row.activated_at === 'string' ? row.activated_at : row.activated_at.toISOString(),
+          expires_at: typeof row.expires_at === 'string' ? row.expires_at : row.expires_at.toISOString(),
+          terminated_at: row.terminated_at ? (typeof row.terminated_at === 'string' ? row.terminated_at : row.terminated_at.toISOString()) : null,
+          terminated_by: row.terminated_by,
+          terminated_reason: row.terminated_reason,
+          created_at: row.created_at ? (typeof row.created_at === 'string' ? row.created_at : row.created_at.toISOString()) : undefined,
+          updated_at: row.updated_at ? (typeof row.updated_at === 'string' ? row.updated_at : row.updated_at.toISOString()) : undefined,
+        }));
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async terminateBreakGlassSession(id: string, terminatedBy: string, reason: string, terminatedAt: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.terminateBreakGlassSession', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.FLOW_BREAK_GLASS.TERMINATE_SESSION, [id, terminatedAt, terminatedBy, reason]);
       } finally {
         client.release();
       }

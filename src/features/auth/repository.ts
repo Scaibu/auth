@@ -1,5 +1,5 @@
 import type { AuthUserRecord, AuditLogRecord } from './types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, CustomRoleRecord, MagicLinkRecord, WebhookSubscriptionRecord, WebhookDeliveryRecord, BreakGlassSessionRecord } from '../../shared/types/auth.types';
 import type { SamlRepositoryPort } from './ports/saml-repository.port';
 import type { OAuthClientRecord } from './ports/oidc-repository.port';
 
@@ -212,6 +212,11 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   saveUserEncryptionKey(keyRecord: { id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string }): Promise<void>;
   findUserEncryptionKey(userId: string): Promise<{ id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string; dek_status: 'ACTIVE' | 'SHREDDED'; shredded_at?: string } | null>;
   shredUserEncryptionKey(userId: string): Promise<void>;
+  saveBreakGlassSession(session: BreakGlassSessionRecord): Promise<void>;
+  findBreakGlassSessionById(id: string): Promise<BreakGlassSessionRecord | null>;
+  findBreakGlassSessionByHash(tokenHash: string): Promise<BreakGlassSessionRecord | null>;
+  listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]>;
+  terminateBreakGlassSession(id: string, terminatedBy: string, reason: string, terminatedAt: string): Promise<void>;
 }
 
 

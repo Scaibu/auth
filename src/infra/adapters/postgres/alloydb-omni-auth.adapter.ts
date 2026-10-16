@@ -1,7 +1,7 @@
 import type { AuthRepositoryPort, OrganizationRecord } from '../../../features/auth/repository';
 import type { OAuthClientRecord } from '../../../features/auth/ports/oidc-repository.port';
 import type { AuthUserRecord, AuditLogRecord } from '../../../features/auth/types';
-import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple } from '../../../shared/types/auth.types';
+import type { ApiKeyRecord, FederatedIdentityRecord, ClaimedDomainRecord, BlockedDomainRecord, RelationTuple, BreakGlassSessionRecord } from '../../../shared/types/auth.types';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { AUTH_QUERIES } from '../../../features/auth/queries/auth.queries';
 
@@ -34,6 +34,7 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
   private readonly mockSamlRequests = new Map<string, any>();
   private readonly mockSamlAssertionReplay = new Map<string, number>();
   private readonly mockPasswordHistory = new Map<string, Array<{ id: string; password_hash: string; created_at_ms: number }>>();
+  private readonly mockBreakGlassSessions = new Map<string, BreakGlassSessionRecord>();
   public readonly queries = AUTH_QUERIES;
 
 
@@ -1341,6 +1342,48 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       key.encrypted_dek = 'enc:v1:0000000000000000000000000000000000000000000000000000000000000000';
       key.dek_status = 'SHREDDED';
       key.shredded_at = new Date().toISOString();
+    }
+  }
+
+  async saveBreakGlassSession(session: BreakGlassSessionRecord): Promise<void> {
+    this.mockBreakGlassSessions.set(session.id, { ...session });
+  }
+
+  async findBreakGlassSessionById(id: string): Promise<BreakGlassSessionRecord | null> {
+    const s = this.mockBreakGlassSessions.get(id);
+    return s ? { ...s } : null;
+  }
+
+  async findBreakGlassSessionByHash(tokenHash: string): Promise<BreakGlassSessionRecord | null> {
+    for (const s of this.mockBreakGlassSessions.values()) {
+      if (s.token_hash === tokenHash) {
+        return { ...s };
+      }
+    }
+    return null;
+  }
+
+  async listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]> {
+    const now = Date.now();
+    const result: BreakGlassSessionRecord[] = [];
+    for (const s of this.mockBreakGlassSessions.values()) {
+      if (s.status === 'ACTIVATED' && new Date(s.expires_at).getTime() > now) {
+        if (!orgId || s.org_id === orgId) {
+          result.push({ ...s });
+        }
+      }
+    }
+    return result.sort((a, b) => new Date(b.activated_at).getTime() - new Date(a.activated_at).getTime());
+  }
+
+  async terminateBreakGlassSession(id: string, terminatedBy: string, reason: string, terminatedAt: string): Promise<void> {
+    const s = this.mockBreakGlassSessions.get(id);
+    if (s && s.status === 'ACTIVATED') {
+      s.status = 'TERMINATED';
+      s.terminated_by = terminatedBy;
+      s.terminated_reason = reason;
+      s.terminated_at = terminatedAt;
+      s.updated_at = new Date().toISOString();
     }
   }
 }

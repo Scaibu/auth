@@ -333,3 +333,22 @@ export const UserEncryptionKeyRecordSchema = z.object({
 });
 export type UserEncryptionKeyRecord = z.infer<typeof UserEncryptionKeyRecordSchema>;
 
+export const BreakGlassSessionRecordSchema = z.object({
+  id: z.string().min(1),
+  org_id: z.string().min(1),
+  user_id: z.string().min(1),
+  incident_ticket_id: z.string().min(1),
+  justification: z.string().min(1),
+  status: z.enum(['ACTIVATED', 'TERMINATED', 'EXPIRED']),
+  token_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  elevated_role: z.string().min(1),
+  activated_at: z.string(),
+  expires_at: z.string(),
+  terminated_at: z.string().nullable().optional(),
+  terminated_by: z.string().nullable().optional(),
+  terminated_reason: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+export type BreakGlassSessionRecord = z.infer<typeof BreakGlassSessionRecordSchema>;
+

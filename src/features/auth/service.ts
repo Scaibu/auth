@@ -83,6 +83,8 @@ import { PasskeyService } from './services/passkey.service';
 import { CustomRoleService } from './services/custom-role.service';
 import { MagicLinkService } from './services/magic-link.service';
 import { WebhookService, type CreateWebhookSubscriptionInput, type WebhookSubscriptionCreationResult } from './services/webhook.service';
+import { BreakGlassService, type ActivateBreakGlassParams, type BreakGlassActivationResult } from './services/break-glass.service';
+import type { BreakGlassSessionRecord } from '../../shared/types/auth.types';
 import type { CustomRoleRecord, PermissionEvaluationResult, MagicLinkVerifyResult, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
 
 export class AuthService {
@@ -106,6 +108,7 @@ export class AuthService {
   private readonly customRoleService: CustomRoleService;
   private readonly magicLinkService: MagicLinkService;
   private readonly webhookService: WebhookService;
+  private readonly breakGlassService: BreakGlassService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -129,6 +132,7 @@ export class AuthService {
     this.customRoleService = new CustomRoleService(repo);
     this.magicLinkService = new MagicLinkService(repo);
     this.webhookService = new WebhookService(repo, AUTH_CONFIG.webhook);
+    this.breakGlassService = new BreakGlassService(repo);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
@@ -785,6 +789,22 @@ export class AuthService {
 
   async listWebhookDeliveries(subscriptionId: string, orgId: string): Promise<WebhookDeliveryRecord[]> {
     return this.webhookService.listDeliveries(subscriptionId, orgId);
+  }
+
+  async activateBreakGlass(params: ActivateBreakGlassParams): Promise<BreakGlassActivationResult> {
+    return this.breakGlassService.activate(params);
+  }
+
+  async verifyBreakGlassToken(token: string): Promise<BreakGlassSessionRecord> {
+    return this.breakGlassService.verifyToken(token);
+  }
+
+  async terminateBreakGlass(params: { sessionId: string; terminatedBy: string; reason: string; orgId?: string }): Promise<BreakGlassSessionRecord> {
+    return this.breakGlassService.terminate(params);
+  }
+
+  async listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]> {
+    return this.breakGlassService.listActive(orgId);
   }
 }
 

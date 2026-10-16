@@ -198,6 +198,22 @@ export function createErrorResponse(
     const authErr = new ValidationError('Invalid signing key algorithm: OKP requires EdDSA and Ed25519 with valid x coordinate, RSA requires RS256');
     return createErrorResponse(authErr, metaOptions);
   }
+  if (rawMessage.includes('auth_break_glass_duration_ck')) {
+    const authErr = new ValidationError('Invalid break-glass session duration: duration must be positive and cannot exceed 4 hours');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_break_glass_ticket_ck')) {
+    const authErr = new ValidationError('Invalid incident ticket ID format: must follow ^(INC|SEC|OPS)-[0-9]{3,}$');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_break_glass_token_hash_ck')) {
+    const authErr = new ValidationError('Invalid token hash format: must be 64-character lowercase hex SHA-256');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_break_glass_termination_ck')) {
+    const authErr = new ValidationError('Invalid break-glass termination state: terminated_at, terminated_by, and terminated_reason must be provided if and only if status is TERMINATED');
+    return createErrorResponse(authErr, metaOptions);
+  }
   if (rawMessage.includes('auth_signing_keys_revocation_ck')) {
     const authErr = new ValidationError('Invalid signing key revocation state: revoked_at_ms and revoked_reason required when status is REVOKED');
     return createErrorResponse(authErr, metaOptions);
