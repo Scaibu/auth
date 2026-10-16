@@ -1,228 +1,205 @@
-# 📋 Auth Module Feature Roadmap & Security Specification
+# 📋 Keycloak Migration & Technical Debt Reduction Roadmap (TODO-KEYCLOAK.md)
 
-*A comprehensive enterprise engineering roadmap, security specification, and architectural backlog for `@observability/auth`.*
-
----
-
-## 📊 1. Master Feature Implementation Matrix
-
-> **Priority Tier Definitions**:
-> - **P0 (Critical Live Production Blocker)**: Zero-day vulnerabilities or core service unavailability in live production.
-> - **P1 (Immediate Core Hardening)**: Security baselines, credential lifecycle, regulatory compliance, and developer fixtures.
-> - **P2 (Scaled Enterprise Security)**: Phishing-resistant authentication, adaptive risk heuristics, granular session and network controls.
-> - **P3 (Enterprise Directory & Federation)**: B2B directory sync, graph-based access control, and cryptographic zero-trust infrastructure.
-
-| Domain | Capability | RFC / Standard | Current Status | Milestone | Priority |
-|---|---|---|---|---|---|
-| **Security & Defense** | Step-Up Authentication for High-Value Actions (incl. Impersonation) | RFC 9470 | ✅ **Completed (ADR 0013)** | v1.1 | **P1** |
-| **Session Management** | Refresh Token Rotation & Family Reuse Detection | RFC 6749 §10.4 | ✅ **Completed (ADR 0014)** | v1.1 | **P1** |
-| **Core Authentication** | Breached Password Screening (HaveIBeenPwned k-Anonymity) | NIST SP 800-63B | ✅ **Completed (ADR 0015)** | v1.1 | **P1** |
-| **User Lifecycle** | Automated 30-Day Cascade Soft-Delete Purge Cron Worker | GDPR Article 17 | ✅ **Completed (ADR 0016)** | v1.1 | **P1** |
-| **Audit & Compliance** | GDPR Data Subject Access Request (DSAR) JSON Export | GDPR Article 15 | ✅ **Completed (ADR 0017)** | v1.1 | **P1** |
-| **Security & Defense** | Automated Security Headers & Strict CSP (Nonces) | W3C CSP Level 3 | ✅ **Completed (ADR 0018)** | v1.1 | **P1** |
-| **Enterprise Identity** | OAuth2 / OIDC Social Login (Google, GitHub, GitLab) | RFC 6749 / OIDC | ✅ **Completed (ADR 0020)** | v1.1 | **P1** |
-| **Session Management** | Multi-Device Session Listing & Remote Kill | OWASP ASVS 3.3 | ✅ **Completed (ADR 0019)** | v1.2 | **P2** |
-| **Enterprise Identity** | Organization Domain Claiming & Verified Auto-Join | DNS TXT + Email Gate | ✅ **Completed (ADR 0021)** | v1.2 | **P2** |
-| **Security & Defense** | Unified Adaptive Risk-Based Authentication (Soft Step-Up) | NIST SP 800-63-3 | ✅ **Completed (ADR 0022)** | v1.2 | **P2** |
-| **Access Control (RBAC/ABAC)** | Relationship-Based Access Control (ReBAC / Zanzibar Graphs) | Google Zanzibar Model | ✅ **Completed (ADR 0023)** | v1.3 | **P3** |
-| **Enterprise Identity** | SCIM 2.0 Automated User & Group Directory Provisioning | RFC 7643 / RFC 7644 | ✅ **Completed (ADR 0024)** | v1.3 | **P3** |
-| **Enterprise Identity** | Full OAuth 2.0 / OIDC Identity Provider (Auth Code + PKCE) | RFC 7636 / RFC 6749 | ✅ **Completed (ADR 0025)** | v1.3 | **P3** |
-| **Enterprise Identity** | Enterprise SAML 2.0 Service Provider Federation | SAML 2.0 Core | ✅ **Completed (ADR 0026)** | v1.3 | **P3** |
-| **API Key Engine** | IP / CIDR Subnet Allowlist & Usage Analytics Telemetry | Zero-Trust Network | ✅ **Completed (ADR 0027)** | v1.2 | **P2** |
-| **User Lifecycle** | Password History Enforcement (Disallow Prior 10 Passwords) | NIST SP 800-63B | ✅ **Completed (ADR 0028)** | v1.2 | **P2** |
-| **Core Authentication** | WebAuthn / FIDO2 Passkeys (Biometrics & Hardware Keys) | W3C WebAuthn L3 | ✅ **Completed (ADR 0029)** | v1.2 | **P2** |
-| **Access Control (RBAC/ABAC)** | Custom Enterprise Roles & 64-bit Permission Bitmasks | Granular Bitmask Engine | ✅ **Completed (ADR 0030)** | v1.2 | **P2** |
-| **Core Authentication** | Magic Link / Passwordless Authentication Flow | RFC 7519 | ✅ **Completed (ADR 0031)** | v1.2 | **P2** |
-| **Security & Defense** | Anti-Homoglyph & Unicode Normalization Shield | Unicode TR39 / NFKC | ✅ **Completed (ADR 0032)** | v1.2 | **P2** |
-| **Security & Defense** | Webhook Cryptographic Signatures & Anti-Replay Nonces | RFC 2104 HMAC-SHA256 | ✅ **Completed (ADR 0033)** | v1.2 | **P2** |
-| **Enterprise Identity** | Machine-to-Machine (M2M) Client Credentials Grant | RFC 6749 §4.4 | ✅ **Completed (ADR 0034)** | v1.3 | **P3** |
-| **Session Management** | Standardized EdDSA (Ed25519) JWKS Key Rotation | RFC 8037 EdDSA | ✅ **Completed (ADR 0038)** | v1.3 | **P3** |
-| **Access Control (RBAC/ABAC)** | Monitored Break-Glass Emergency Access Workflow | SOC 2 CC6.1 / CC6.2 | ✅ **Completed (ADR 0039)** | v1.3 | **P3** |
-| **Security & Defense** | Field-Level PII Envelope Encryption (AES-256-GCM / KMS) | NIST SP 800-38D | ✅ **Completed (ADR 0035)** | v1.3 | **P3** |
-| **Security & Defense** | Distributed Credential Stuffing & ASN Velocity Defense | Threat Intelligence | ✅ **Completed (ADR 0037)** | v1.3 | **P3** |
-| **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
-| **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ✅ **Completed (ADR 0041)** | v1.3 | **P3** |
-| **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ✅ **Completed (ADR 0042)** | v1.3 | **P3** |
-| **Observability & SRE** | Prometheus Alert Rules, Recording Rules & SLO Latency Telemetry | SRE Golden Signals | ✅ **Completed (ADR 0043)** | v1.2 | **P2** |
-| **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ✅ **Completed** | v1.1 | **P1** |
+*An in-depth, phased architectural roadmap to migrate `@observability/auth` from a hand-rolled IAM engine to Keycloak, and purge dead, duplicated, and redundant code.*
 
 ---
 
-## 🎯 2. Active Roadmap Focus & Immediate Backlog
+## 📊 1. Master Migration & Deletion Matrix
 
-### 2.1 Next Recommended Feature: Production Hardening & E2E Integration Suite [P1]
-- **Objective**: Full lifecycle end-to-end multi-tenant validation across the complete auth surface.
-- **Specification**:
-  - Validates end-to-end integration flows across Honeytokens, WORM audit sealing, mTLS authentication, and Redis JTI denylists.
-  - Automated smoke verification script verifying Prometheus alert rules syntax (`promtool check rules`).
+> **Action Types**:
+> - 🔴 **DELETE**: Completely remove code/tables rendered obsolete by Keycloak.
+> - 🟡 **REFACTOR**: Simplify to integrate with Keycloak (e.g., replace custom logic with Keycloak JWT/JWKS verification).
+> - 🟢 **RETAIN**: Keep as core application-level domain capabilities (API Keys, Tenant Org hierarchy, App ReBAC, Honeytokens).
 
----
-
-## 🔐 3. Deep-Dive: Security-Related Specifications
-
-### 3.1 Dual-Track Rate Limiting & Bot Defense
-- **Vulnerability Addressed**: Distributed brute-force, password guessing, and automated account lockout DoS.
-- **Specification**:
-  - Redis sliding-window counter tracking `login_failures:ip:{subnet}` and `login_failures:email:{email_hash}`.
-  - IP threshold: 10 failures in 10 minutes $\rightarrow$ `HTTP 429 Too Many Requests` (`Retry-After: 600`).
-  - Email threshold: 3 failures in 15 minutes $\rightarrow$ subsequent requests require valid `cf-turnstile-response` header + 2-second progressive delay.
-
-### 3.2 Breached Password Detection (HaveIBeenPwned k-Anonymity)
-- **Vulnerability Addressed**: Credential stuffing using compromised passwords from public breaches.
-- **Specification**:
-  - On user sign-up and password update, compute SHA-1 of candidate password.
-  - Query HaveIBeenPwned API using **k-anonymity**: send only first 5 characters of SHA-1 hash (`GET https://api.pwnedpasswords.com/range/{prefix}`).
-  - Match remainder locally. If the password appears in breach dumps, reject with `400 Bad Request`. Zero password material ever leaves the auth server.
-
-### 3.3 Step-Up Authentication for High-Value Actions (RFC 9470)
-- **Vulnerability Addressed**: Unauthorized execution of destructive actions via hijacked or abandoned sessions.
-- **Protected Endpoints**:
-  1. `POST /api/v1/auth/admin/impersonate/:user_id` (Account Takeover Guard)
-  2. `DELETE /api/v1/auth/organizations/:id` (Organization Destruction)
-  3. `POST /api/v1/auth/api-keys` with `tier: super_secret` (High-Privilege Credential Creation)
-  4. `PATCH /api/v1/auth/users/:id/role` to `owner` or `admin` (Privilege Escalation)
-  5. `POST /api/v1/auth/mfa/disable` (Security Control Downgrade)
-- **Specification**:
-  - Requires fresh re-authentication token (`reauth_token`) generated within last **300 seconds (5 minutes)**.
-  - If missing or expired, return `HTTP 403 Forbidden` with header `WWW-Authenticate: StepUp max_age=300`.
-
-### 3.4 Unified Adaptive Risk-Based Authentication (Soft Step-Up)
-- **Vulnerability Addressed**: Static authentication barriers that fail against targeted attacks, while avoiding false-positive session disruption for mobile and VPN users.
-- **Specification**:
-  - Calculate dynamic Risk Score ($0 - 100$):
-    - Known Datacenter/Proxy/Tor ASN: $+40$ risk.
-    - Extreme Velocity ($>900\text{ km/h}$ between consecutive geographic locations): $+35$ risk.
-    - Unrecognized Browser Fingerprint / User-Agent Shift: $+25$ risk.
-  - **Action Thresholds**:
-    - `Risk < 30`: Normal seamless access.
-    - `30 <= Risk < 75`: Soft Step-Up Challenge (Prompts TOTP, WebAuthn passkey, or sends a 6-digit confirmation code).
-    - `Risk >= 75`: Reject authentication with security notification dispatched to user and SIEM alert.
-
-### 3.5 Field-Level PII Envelope Encryption (AES-256-GCM & KMS)
-- **Vulnerability Addressed**: Cleartext data exposure during database backups or database dump leaks.
-- **Storage Model**:
-  - Reversible fields (`email`, `phone`, `mfa_secret`) encrypted using AES-256-GCM with Data Encryption Keys (DEKs) wrapped by KMS Key Encryption Key (KEK).
-  - Irreversible fields (MFA recovery codes) stored as salted SHA-256 hashes (one-time burn on use).
-  - Blind indexes (HMAC-SHA256 with tenant salt) used for exact-match database queries (`email_hash`).
-
-### 3.6 Cryptographic Shredding & Right-To-Be-Forgotten (GDPR Art. 17)
-- **Vulnerability Addressed**: Inability to purge PII from immutable database backups and write-ahead logs (WAL).
-- **Specification**:
-  - Every user identity has a dedicated AES-256 DEK stored in an isolated Key Vault table.
-  - Upon user deletion or GDPR Article 17 execution, the user's DEK is securely zeroized from the Key Vault.
-  - Historical snapshots and WAL records become mathematically unrecoverable noise immediately.
-
-### 3.7 Standardized Asymmetric EdDSA (Ed25519) JWKS Key Rotation
-- **Design Decision**: Standardize exclusively on **EdDSA (RFC 8037 curve Ed25519)** for asymmetric token signing.
-- **Specification**:
-  - Publish public keys via `GET /.well-known/jwks.json` using `kty: "OKP"` and `crv: "Ed25519"`.
-  - Maintain active and retirement key IDs (`kid`) to support scheduled zero-downtime key rotation.
-
-### 3.8 Automated Security Headers & Strict CSP (Nonces)
-- **Vulnerability Addressed**: Cross-Site Scripting (XSS), Clickjacking, MIME-sniffing, and downgrade attacks.
-- **Specification**:
-  - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS).
-  - `X-Content-Type-Options: nosniff`.
-  - `X-Frame-Options: DENY`.
-  - `Referrer-Policy: strict-origin-when-cross-origin`.
-  - `Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()`.
-  - Dynamic cryptographically secure base64 CSP nonce generated per request (`script-src 'nonce-{NONCE}' 'strict-dynamic'; object-src 'none'; base-uri 'none'`).
-
-### 3.9 Anti-Homoglyph & Unicode Normalization Shield (NFKC / UTR 39)
-- **Vulnerability Addressed**: Internationalized domain name (IDN) homograph attacks and Unicode visual spoofing.
-- **Specification**:
-  - Normalize all email and username inputs to Unicode Normalization Form KC (NFKC) before validation.
-  - Reject registrations containing mixed-script confusable characters targeting registered tenant domains or administrative accounts.
-
-### 3.10 Webhook Cryptographic Signatures & Anti-Replay Nonces
-- **Vulnerability Addressed**: Man-in-the-middle tampering, spoofed webhook payloads, and replay attacks.
-- **Specification**:
-  - Outbound webhooks include headers `X-Auth-Signature: t={timestamp},v1={hmac_sha256_hex}` and `X-Auth-Nonce: {uuid_v4}`.
-  - Signature calculated over `t.{timestamp}.payload.{body}` using tenant shared secret.
-  - Tolerance window: receivers reject webhooks where `|current_time - timestamp| > 300` seconds.
-
-### 3.11 Mutual TLS (mTLS) Zero-Trust Microservice Authentication & Certificate-Bound Tokens (ADR 0040)
-- **Vulnerability Addressed**: Token theft and replay by untrusted network intermediaries in zero-trust service meshes.
-- **Specification**:
-  - Validates client X.509 certificate against trusted Certificate Authorities (CAs).
-  - Verifies Subject Alternative Names (SANs) with DNS/IP matching rules.
-  - Issues RFC 8705 certificate-bound access tokens embedding SHA-256 certificate thumbprint in `cnf.x5t#S256`.
-  - Enforces proof-of-possession verification on protected resources with dedicated endpoints:
-    - `POST /api/v1/auth/mtls/tokens`: Issues mTLS certificate-bound access tokens.
-    - `POST /api/v1/auth/mtls/verify`: Validates certificate thumbprint binding and token proof-of-possession.
+| Subsystem / Area | Component File(s) | Keycloak Replacement | Action | Impact / Savings |
+|---|---|---|---|---|
+| **Social / OAuth Identity** | `oauth.service.ts`, `oauth.handler.ts`, Google/GitHub adapters | Keycloak Identity Brokering & Social Logins | 🔴 **DELETE** | ~600 LOC removed |
+| **OIDC Identity Provider** | `oidc-provider.service.ts`, `oidc.handler.ts`, `oidc.config.ts` | Keycloak Native OpenID Connect Provider | 🔴 **DELETE** | ~600 LOC removed |
+| **SAML 2.0 SP Federation** | `saml-provider.service.ts`, `saml.handler.ts`, `saml.config.ts`, `saml-xml.builder.ts` | Keycloak SAML 2.0 Identity Provider | 🔴 **DELETE** | ~600 LOC removed |
+| **SCIM 2.0 Directory Sync** | `scim-provisioning.service.ts`, `scim.handler.ts`, SCIM ports | Keycloak User Federation / LDAP / SCIM plugins | 🔴 **DELETE** | ~400 LOC removed |
+| **Password & Credential Lifecycle** | `password.service.ts`, `password.handler.ts`, `argon2.util.ts`, `pwned-passwords.adapter.ts` | Keycloak Credential Policy & Brute Force | 🔴 **DELETE** | ~450 LOC removed |
+| **MFA & Recovery Codes** | `mfa.service.ts`, `mfa.handler.ts`, `totp-mfa.adapter.ts` | Keycloak TOTP & WebAuthn / OTP Flows | 🔴 **DELETE** | ~350 LOC removed |
+| **Passkeys / WebAuthn** | `passkey.service.ts`, `passkey.handler.ts` | Keycloak WebAuthn Passkeys Authenticator | 🔴 **DELETE** | ~400 LOC removed |
+| **Magic Link Passwordless** | `magic-link.service.ts`, `magic-link.handler.ts` | Keycloak Magic Link / OTP Action Tokens | 🔴 **DELETE** | ~300 LOC removed |
+| **Session Invalidation & Denylist** | `session-denylist.service.ts`, `session.handler.ts`, Redis token denylist | Keycloak Backchannel Logout & Token Introspection | 🔴 **DELETE** | ~200 LOC removed |
+| **Refresh Token Family Rotation** | `refresh-token.service.ts`, `auth_refresh_tokens` table | Keycloak Session & Token Refresh Engine | 🔴 **DELETE** | ~350 LOC removed |
+| **Asymmetric Key Rotation** | `key-rotation.service.ts`, EdDSA key table | Keycloak Realm Keys (`/protocol/openid-connect/certs`) | 🔴 **DELETE** | ~300 LOC removed |
+| **Login Rate Limiter & Shield** | `login-rate-limiter.service.ts`, `login-rate-limit.rules.ts` | Keycloak Brute Force & Rate Limiting | 🔴 **DELETE** | ~350 LOC removed |
+| **Unused Workflow Engine** | `src/shared/workflow-engine/*`, `auth-provisioning.workflow.ts` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~200 LOC removed |
+| **Unused Declarative Rules Engine** | `src/shared/rules-engine/*` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~200 LOC removed |
+| **Unused Data-Driven Decorators** | `src/shared/data-driven/*` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~250 LOC removed |
+| **Unused Session State Machine** | `auth-session.machine.ts` | Dead code (0 runtime usages) | 🔴 **DELETE** | ~100 LOC removed |
+| **Unused Proxy Stubs** | `src/infra/adapters/proxy/*` (`traefik.adapter.ts`, `envoy.adapter.ts`) | Dead code (0 runtime usages) | 🔴 **DELETE** | ~150 LOC removed |
+| **Duplicate In-Memory DB Mock** | `alloydb-omni-auth.adapter.ts` | In-memory 1,438-line mock duplicating real adapter | 🔴 **DELETE / CONSOLIDATE** | ~1,438 LOC removed |
+| **Session Verification Middleware** | `handleVerifySession` | Verifies JWT locally against Keycloak JWKS | 🟡 **REFACTOR** | Replace custom JWT decode with standard JWKS cache |
+| **User Sign-up & Organization Binding** | `user-auth.service.ts`, `organization.service.ts` | Sync Keycloak `sub` ID to Org Tenant tables | 🟡 **REFACTOR** | Slim down to tenant context provider |
+| **User Management API** | `user-management.service.ts` | Delegate user CRUD to Keycloak Admin REST API | 🟡 **REFACTOR** | Thin facade over Keycloak Admin Client |
+| **Internal API Key Engine** | `api-key.service.ts`, `api-key.handler.ts`, CIDR / Quotas | None (App-specific M2M & CLI tokens) | 🟢 **RETAIN** | Keep core capability |
+| **ReBAC Policy Engine** | `policy-engine.service.ts`, `policy.handler.ts` | None (Zanzibar granular graph authorization) | 🟢 **RETAIN** | Keep core capability |
+| **Organization Tenant Management** | `organization.service.ts` (tenant switching & quotas) | None (Tenant isolation & metadata) | 🟢 **RETAIN** | Keep core capability |
+| **Audit Log Subsystem** | `audit-log.service.ts` | None (Business-event audit compliance) | 🟢 **RETAIN** | Keep core capability |
+| **Break-Glass Emergency Access** | `break-glass.service.ts`, `break-glass.handler.ts` | None (Specialized high-assurance SOC2 workflow) | 🟢 **RETAIN** | Keep core capability |
+| **Honeytokens & Secret Scanning** | `honeytoken.service.ts`, `honeytoken.handler.ts` | None (Active defense canary token system) | 🟢 **RETAIN** | Keep core capability |
 
 ---
 
-## 🔑 4. Deep-Dive: Auth-Related Specifications
+## 🎯 2. Migration Execution Phases
 
-### 4.1 Multi-Factor Authentication (RFC 6238 TOTP & Salted Recovery Codes)
-- **Endpoints**:
-  - `POST /api/v1/auth/mfa/setup`: Generates secure base32 secret and `otpauth://` QR code URI.
-  - `POST /api/v1/auth/mfa/verify`: Validates 6-digit TOTP code and activates MFA on account.
-  - `POST /api/v1/auth/mfa/recovery-codes`: Generates 10 single-use random recovery codes.
-- **Storage Model**:
-  - Recovery codes hashed with salted SHA-256 prior to database insertion (`auth_recovery_codes`).
-  - Row permanently deleted upon successful use (one-time burn).
-
-### 4.2 Refresh Token Rotation & Family Reuse Detection
-- **Endpoints**:
-  - `POST /api/v1/auth/refresh`: Exchanges valid refresh token for fresh access token (15m TTL) and new refresh token (7d TTL).
-- **Security Protections**:
-  - Refresh tokens stored in `HttpOnly; Secure; SameSite=Lax` cookies.
-  - If an already-used refresh token is presented, revoke the entire token family immediately.
-
-### 4.3 Super-Admin User Impersonation
-- **Mandatory Controls**:
-  1. Fresh 5-minute `reauth_token` required.
-  2. Strict 15-minute maximum session expiry (non-refreshable).
-  3. Automated notification email instantly dispatched to target user.
-  4. Tenant boundaries enforced (Organization Admins cannot impersonate across tenants).
-  5. Audit attributes `{ impersonated_by: admin_user_id, ticket_id: "..." }` embedded in all logs.
-
-### 4.4 Organization Domain Claiming & Email-Verified Auto-Join
-- **Specification**:
-  - Enterprises claim email domains via DNS TXT record verification.
-  - New users registering with matching corporate domains are held in pending status until email ownership is cryptographically verified via confirmation token or corporate SSO/SAML assertion.
-
-### 4.5 Multi-Device Session Management
-- **Endpoints**:
-  - `GET /api/v1/auth/sessions`: Lists active user sessions with IP, location, browser, OS, login timestamp, and `is_current` flag.
-  - `DELETE /api/v1/auth/sessions/:session_id`: Revokes specific remote session.
-  - `DELETE /api/v1/auth/sessions`: Revokes all other active sessions.
-
-### 4.6 SCIM 2.0 Directory Provisioning (RFC 7643 & RFC 7644)
-- **Endpoints**:
-  - `GET/POST /scim/v2/Users`: Enumerates and provisions enterprise directory users.
-  - `GET/PATCH/DELETE /scim/v2/Users/:id`: Inspects, modifies, and deprovisions user access.
-  - `GET/POST/PATCH/DELETE /scim/v2/Groups`: Manages directory team groups.
-
-### 4.7 Enterprise SAML 2.0 Service Provider Federation
-- **Endpoints**:
-  - `GET /api/v1/auth/saml/metadata`: Publishes SP metadata XML with X.509 signing certificates.
-  - `GET /api/v1/auth/saml/login`: Initiates SP-initiated SSO returning AuthNRequest and signed RelayState.
-  - `POST /api/v1/auth/saml/acs`: Assertion Consumer Service verifying XMLDSig signatures, clock skew, and replay rejection.
-
-### 4.8 Zero-Trust API Key Network Ingress & Rate Quotas (ADR 0027)
-- **Endpoints**:
-  - `POST /api/v1/auth/api-keys`: Creates key with `ip_allowlist` CIDRs and `rate_quota_rpm`.
-  - `POST /api/v1/auth/api-keys/verify`: Evaluates client IP against CIDR subnets and checks atomic sliding 60s epoch rate quota.
-  - `GET/PATCH /api/v1/auth/api-keys/:id/allowlist`: Manages key allowlists dynamically.
-  - Automatic anomaly detection: flags `anomaly_flag = TRUE` when traffic breaches $3\times$ quota.
+```mermaid
+flowchart LR
+    Phase0["Phase 0<br/>Dead Code Purge"] --> Phase1["Phase 1<br/>Keycloak Setup & Realm Config"]
+    Phase1 --> Phase2["Phase 2<br/>JWKS Verifier Middleware"]
+    Phase2 --> Phase3["Phase 3<br/>Service & Handler Deletion"]
+    Phase3 --> Phase4["Phase 4<br/>DB Schema & Adapter Consolidation"]
+    Phase4 --> Phase5["Phase 5<br/>E2E & Integration Verification"]
+```
 
 ---
 
-## 🛠 5. Compliance & Operational Backlog
+### Phase 0: Immediate Dead Code & Scaffolding Purge (Zero Risk)
+Clean up code that is currently 100% unused by `src/server.ts` or any active HTTP request path.
 
-- [x] **Automated 30-Day Cascade Soft-Delete Purge Cron Worker (ADR 0016)**:
-  - Nightly worker hard-purging records where `deleted_at_ms < (now - 30 days)`.
-- [x] **GDPR DSAR JSON Export Endpoint (ADR 0017)**:
-  - Endpoint `GET /api/v1/auth/users/me/export` returning machine-readable JSON archive.
-- [x] **Automated Database Seeder (`database/seeds/seed.ts`)**:
-  - `npm run db:seed`: Populates development fixtures (Default Organization, Admin, Viewer, pre-seeded API keys).
-- [x] **Prometheus Alert Rules & Recording Metrics for Authentication (ADR 0043)**:
-  - High Failure Rate: Alert if sign-in failure rate exceeds 5% over 5 minutes (`AuthHighSignInFailureRate`).
-  - Brute Force Spikes: Alert if lockout events exceed 10 per minute (`AuthAccountLockoutSpike`).
-  - High Latency: Alert if p95 authentication latency exceeds 300ms (`AuthHighLatencyP95`).
-  - Deception Alarms: Instant alert on Honeytoken canary tripwires (`AuthHoneytokenTripped`).
-  - Regulatory WORM: Instant alert on compliance archive sealing failures (`AuthWormAuditSealingFailed`).
+- [ ] **Delete Unused Framework Stubs**:
+  - [ ] Delete `src/shared/workflow-engine/runner.ts` and `step-registry.ts`.
+  - [ ] Delete `src/features/auth/workflows/auth-provisioning.workflow.ts`.
+  - [ ] Delete `src/shared/rules-engine/evaluator.ts` and `async-checkers.ts`.
+  - [ ] Delete `src/shared/data-driven/` (`entity-schema.ts`, `json-map.ts`, `list-transform.ts`, `adapter-decorators.ts`).
+  - [ ] Delete `src/features/auth/machines/auth-session.machine.ts`.
+  - [ ] Delete `src/infra/adapters/proxy/` (`traefik.adapter.ts`, `envoy.adapter.ts`, `proxy.interface.ts`).
+- [ ] **Clean Index Exports**:
+  - [ ] Remove deleted file re-exports from `src/index.ts` and `src/features/auth/index.ts`.
+- [ ] **Run Typecheck & Tests**:
+  - [ ] Verify `npm run typecheck` and `npm test` continue passing.
 
+---
+
+### Phase 1: Keycloak Environment & Realm Architecture Setup
+Deploy and configure Keycloak as the centralized Identity Provider.
+
+- [ ] **Docker Compose & Deployment**:
+  - [ ] Add `keycloak` service (Quarkus distribution) to `docker-compose.yml` backed by PostgreSQL.
+  - [ ] Configure environment variables: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`, `KC_DB=postgres`, `KC_HTTP_ENABLED=true`.
+- [ ] **Realm Configuration**:
+  - [ ] Create realm `llm-observability`.
+  - [ ] Create clients:
+    - [ ] `frontend-web` (Public client, Authorization Code Flow with PKCE, Redirect URIs: `http://localhost:3000/*`).
+    - [ ] `auth-service-admin` (Confidential client with Service Accounts enabled for Keycloak Admin REST API operations).
+- [ ] **Identity Federation & Policies**:
+  - [ ] Configure Social Identity Providers in Keycloak (Google, GitHub, GitLab) under Realm Identity Providers.
+  - [ ] Set up Password Policy in Keycloak (Minimum length, character classes, expire password, hash algorithm).
+  - [ ] Enable MFA (TOTP, WebAuthn Passkeys) in Keycloak Authentication Flows.
+- [ ] **Custom Claims & Mappers**:
+  - [ ] Add Realm / Client Token Mappers to inject user attributes into access tokens:
+    - [ ] `org_id` / `tenant_id`
+    - [ ] `role` / `permissions`
+    - [ ] `email_verified`
+
+---
+
+### Phase 2: Keycloak JWT Verification Middleware Implementation
+Replace custom session verification with standard OpenID Connect JWT validation.
+
+- [ ] **Keycloak JWT Verifier Adapter**:
+  - [ ] Implement `KeycloakJwtVerifier` using standard JWKS caching library (`jose` or `@chief-strategist-j/shared-infra`).
+  - [ ] Configure JWKS URL: `${KEYCLOAK_ISSUER_URL}/protocol/openid-connect/certs`.
+  - [ ] Validate standard claims: `iss` (matches Keycloak realm URL), `aud`, `exp`, `nbf`.
+  - [ ] Extract user identity (`sub`, `email`, `preferred_username`, `tenant_id`).
+- [ ] **Integrate with `AuthRestV1Router`**:
+  - [ ] Update `handleVerifySession` in `session.handler.ts` (or convert directly to route middleware) to validate Keycloak tokens.
+  - [ ] Eliminate internal session denylist check in Redis for user sessions (rely on short-lived JWTs [5m TTL] + Keycloak token revocation).
+
+---
+
+### Phase 3: Purge Redundant IAM Services & REST Handlers
+Remove custom IAM handlers and services that are now fully delegated to Keycloak.
+
+- [ ] **Delete Obsolete Domain Services (`src/features/auth/services/`)**:
+  - [ ] `oidc-provider.service.ts`
+  - [ ] `saml-provider.service.ts`
+  - [ ] `oauth.service.ts`
+  - [ ] `scim-provisioning.service.ts`
+  - [ ] `password.service.ts`
+  - [ ] `mfa.service.ts`
+  - [ ] `passkey.service.ts`
+  - [ ] `magic-link.service.ts`
+  - [ ] `key-rotation.service.ts`
+  - [ ] `refresh-token.service.ts`
+  - [ ] `login-rate-limiter.service.ts`
+  - [ ] `session-denylist.service.ts`
+- [ ] **Delete Obsolete REST Handlers (`src/api/rest/v1/handlers/`)**:
+  - [ ] `oidc.handler.ts`
+  - [ ] `saml.handler.ts`
+  - [ ] `oauth.handler.ts`
+  - [ ] `scim.handler.ts`
+  - [ ] `password.handler.ts`
+  - [ ] `mfa.handler.ts`
+  - [ ] `passkey.handler.ts`
+  - [ ] `magic-link.handler.ts`
+  - [ ] `email-verification.handler.ts`
+- [ ] **Delete Obsolete Infrastructure Adapters (`src/infra/adapters/`)**:
+  - [ ] `src/infra/adapters/mfa/totp-mfa.adapter.ts`
+  - [ ] `src/infra/adapters/security/pwned-passwords.adapter.ts`
+  - [ ] `src/infra/adapters/oauth/google-oauth.adapter.ts`
+  - [ ] `src/infra/adapters/oauth/github-oauth.adapter.ts`
+- [ ] **Prune `route.rules.ts` & `router.ts`**:
+  - [ ] Remove routes for: `/api/v1/auth/sign-in`, `/sign-up`, `/password/*`, `/mfa/*`, `/passkeys/*`, `/magic-link/*`, `/oauth/*`, `/saml/*`, `/scim/v2/*`, `/.well-known/jwks.json`.
+  - [ ] Retain routes for: `/api/v1/auth/organizations/*`, `/api/v1/auth/api-keys/*`, `/api/v1/auth/policy/*`, `/api/v1/auth/audit-logs/*`, `/api/v1/auth/break-glass/*`, `/api/v1/auth/honeytokens/*`.
+
+---
+
+### Phase 4: Database Schema Pruning & Adapter Consolidation
+Clean up database tables and remove the duplicate in-memory mock repository adapter.
+
+- [ ] **Consolidate Repository Adapters**:
+  - [ ] Retire `AlloyDBOmniAuthAdapter` (1,438 lines of in-memory Maps).
+  - [ ] Standardize strictly on `RealPostgresAuthAdapter` for both test and production (using lightweight transactional rollback or testcontainers for unit/integration tests).
+  - [ ] Remove obsolete method interfaces from `AuthRepositoryPort` (`saveSaml*`, `saveScim*`, `savePasskey*`, `saveRefreshToken*`, `savePasswordHistory*`).
+- [ ] **Create Database Rollback / Pruning Migration**:
+  - [ ] Drop obsolete tables:
+    - [ ] `auth_refresh_tokens`, `auth_refresh_token_families` (Migration 0010, 0012)
+    - [ ] `auth_password_history` (Migration 0022)
+    - [ ] `auth_passkeys` (Migration 0023)
+    - [ ] `auth_magic_links` (Migration 0025)
+    - [ ] `auth_saml_*` (Migration 0020)
+    - [ ] `auth_scim_*` (Migration 0018)
+    - [ ] `auth_oidc_*` (Migration 0019)
+    - [ ] `auth_recovery_codes`, `auth_mfa` (Migration 0009)
+    - [ ] `email_verifications` (Migration 0008)
+    - [ ] `token_denylist` (Migration 0005)
+  - [ ] Retain essential application tables:
+    - [ ] `organizations`, `organization_users` (Tenant mapping)
+    - [ ] `auth_users` (Application user profile metadata linked by Keycloak `sub`)
+    - [ ] `api_keys` (Internal API Key Subsystem)
+    - [ ] `auth_policies`, `auth_relations` (ReBAC Engine)
+    - [ ] `auth_audit_logs` (Audit logging)
+    - [ ] `auth_break_glass_sessions` (Break-glass emergency)
+    - [ ] `auth_honeytokens` (Canary detection)
+
+---
+
+### Phase 5: Keycloak Admin Integration & Verification
+Connect the auth service to Keycloak's Admin API for organization provisioning and user syncing.
+
+- [ ] **Keycloak Admin Client Integration**:
+  - [ ] Implement `KeycloakAdminAdapter` using `@keycloak/keycloak-admin-client`.
+  - [ ] Implement user invite & disable flows:
+    - [ ] `inviteUser`: Creates user in Keycloak with `sendEmail: true` and action `UPDATE_PASSWORD`.
+    - [ ] `blockUser` / `unblockUser`: Toggles `enabled: false / true` in Keycloak.
+    - [ ] `deleteUser`: Soft-deletes in application DB and deactivates in Keycloak.
+- [ ] **Tenant / Organization Provisioning Workflow**:
+  - [ ] When an organization is created in `@observability/auth`, create corresponding Keycloak User Group or Realm Role.
+- [ ] **Test Suite Migration**:
+  - [ ] Refactor integration tests to mock Keycloak JWKS tokens.
+  - [ ] Verify complete API test suite passes: `npm run typecheck` and `npm test`.
+
+---
+
+## 📈 3. Target Architecture Comparison
+
+| Metric | Before (Current Hand-Rolled IAM) | After (With Keycloak) |
+|---|---|---|
+| **Source Code Size** | ~192 files / ~25,000 LOC | ~40 files / ~5,000 LOC (**-80% code reduction**) |
+| **Security Surface Area** | Must maintain custom crypto, hashing, SAML XML parsing, and Passkey WebAuthn | Delegated to CNCF/RedHat hardened Keycloak container |
+| **Database Migrations** | 34 migrations across 25+ auth tables | ~8 tables focused purely on application tenancy & policies |
+| **Authentication Standards** | Incomplete custom OIDC/SAML/SCIM compliance | Full certified OpenID Connect, OAuth2, and SAML 2.0 compliance |
+| **Developer Maintenance** | High: bugs in password reset, token rotation, and MFA require in-house patches | Low: off-the-shelf Keycloak updates handle CVEs and compliance |
