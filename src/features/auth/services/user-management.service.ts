@@ -162,7 +162,18 @@ export class UserManagementDomainService {
 
   async deleteUser(userId: string): Promise<void> {
     const normalizedUserId = normalizeString(userId);
+    await this.repo.shredUserEncryptionKey(normalizedUserId);
     await this.repo.deleteUser(normalizedUserId);
+  }
+
+  async shredUserPii(userId: string): Promise<{ success: boolean; shreddedAt: string }> {
+    const normalizedUserId = normalizeString(userId);
+    await this.repo.shredUserEncryptionKey(normalizedUserId);
+    await this.repo.deleteUser(normalizedUserId);
+    return {
+      success: true,
+      shreddedAt: new Date().toISOString(),
+    };
   }
 
   async exportUserData(userId: string): Promise<UserDsarExportPayload> {

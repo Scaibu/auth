@@ -76,6 +76,7 @@ export const AUTH_ENDPOINTS = {
   WEBHOOK_SUBSCRIPTIONS: '/api/v1/auth/webhooks/subscriptions',
   WEBHOOK_SUBSCRIPTIONS_ITEM: '/api/v1/auth/webhooks/subscriptions/:id',
   WEBHOOK_DELIVERIES: '/api/v1/auth/webhooks/subscriptions/:id/deliveries',
+  USER_SHRED: '/api/v1/auth/users/:id/shred',
   HEALTH: '/health',
 } as const;
 

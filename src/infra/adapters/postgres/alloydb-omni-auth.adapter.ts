@@ -1255,6 +1255,37 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       .filter((deliv) => deliv.subscription_id === subscriptionId && deliv.org_id === orgId)
       .map((deliv) => ({ ...deliv }));
   }
+
+  private readonly mockUserEncryptionKeys = new Map<string, {
+    id: string;
+    user_id: string;
+    org_id: string;
+    kid: string;
+    encrypted_dek: string;
+    dek_status: 'ACTIVE' | 'SHREDDED';
+    shredded_at?: string;
+  }>();
+
+  async saveUserEncryptionKey(keyRecord: { id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string }): Promise<void> {
+    this.mockUserEncryptionKeys.set(keyRecord.user_id, {
+      ...keyRecord,
+      dek_status: 'ACTIVE',
+    });
+  }
+
+  async findUserEncryptionKey(userId: string): Promise<{ id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string; dek_status: 'ACTIVE' | 'SHREDDED'; shredded_at?: string } | null> {
+    const key = this.mockUserEncryptionKeys.get(userId);
+    return key ? { ...key } : null;
+  }
+
+  async shredUserEncryptionKey(userId: string): Promise<void> {
+    const key = this.mockUserEncryptionKeys.get(userId);
+    if (key) {
+      key.encrypted_dek = 'enc:v1:0000000000000000000000000000000000000000000000000000000000000000';
+      key.dek_status = 'SHREDDED';
+      key.shredded_at = new Date().toISOString();
+    }
+  }
 }
 
 

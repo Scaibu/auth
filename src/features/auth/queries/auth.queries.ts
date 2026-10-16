@@ -242,6 +242,18 @@ export const AUTH_QUERIES = {
     INSERT_DELIVERY: `INSERT INTO auth_webhook_deliveries (id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     LIST_DELIVERIES_BY_SUB: `SELECT id, public_id, subscription_id, org_id, event_type, nonce, response_status, execution_duration_ms, success, failure_reason, delivered_at_ms FROM auth_webhook_deliveries WHERE subscription_id = $1 AND org_id = $2 ORDER BY delivered_at_ms DESC LIMIT 100`,
   },
+  FLOW_USER_KEYS: {
+    INSERT_KEY: `INSERT INTO auth_user_encryption_keys (id, user_id, org_id, kid, encrypted_dek, dek_status, version, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 'ACTIVE', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (user_id) DO NOTHING`,
+    FIND_KEY_BY_USER_ID: `SELECT id, user_id, org_id, kid, encrypted_dek, dek_status, version, shredded_at, created_at, updated_at FROM auth_user_encryption_keys WHERE user_id = $1 LIMIT 1`,
+    SHRED_KEY_BY_USER_ID: `UPDATE auth_user_encryption_keys SET encrypted_dek = $2, dek_status = 'SHREDDED', shredded_at = CURRENT_TIMESTAMP, version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND dek_status = 'ACTIVE'`,
+    DELETE_KEY_BY_USER_ID: `DELETE FROM auth_user_encryption_keys WHERE user_id = $1`,
+  },
+  FLOW_CHECK_AUTH_USERS_KEY_SHREDDING_INVARIANTS: `
+    SELECT u.id, u.email, k.dek_status, k.shredded_at
+    FROM auth_users u
+    JOIN auth_user_encryption_keys k ON k.user_id = u.id
+    WHERE k.dek_status = 'SHREDDED' AND u.deleted_at IS NULL
+  `,
   FLOW_CHECK_AUTH_USERS_ENCRYPTION_INVARIANTS: `
     SELECT id, email, email_blind_index, email_encrypted
     FROM auth_users

@@ -160,9 +160,22 @@ export function createErrorResponse(
   if (
     rawMessage.includes('auth_users_name_enc_trimmed_ck') ||
     rawMessage.includes('auth_users_email_enc_trimmed_ck') ||
-    rawMessage.includes('auth_users_mfa_secret_enc_trimmed_ck')
+    rawMessage.includes('auth_users_mfa_secret_enc_trimmed_ck') ||
+    rawMessage.includes('auth_user_keys_dek_trimmed_ck')
   ) {
     const authErr = new ValidationError('Invalid encrypted payload: cannot be empty or contain untrimmed whitespace');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_user_keys_status_ck')) {
+    const authErr = new ValidationError('Invalid DEK status: must be ACTIVE or SHREDDED');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_user_keys_dek_prefix_ck')) {
+    const authErr = new ValidationError('Invalid DEK envelope format: missing enc:v1: serialization prefix');
+    return createErrorResponse(authErr, metaOptions);
+  }
+  if (rawMessage.includes('auth_user_keys_shred_state_ck')) {
+    const authErr = new ValidationError('Invalid DEK state: shredded_at timestamp must correspond to SHREDDED status');
     return createErrorResponse(authErr, metaOptions);
   }
 

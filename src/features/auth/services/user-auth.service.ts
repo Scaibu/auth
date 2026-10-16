@@ -51,6 +51,8 @@ import type { LoginRateLimiterService, LoginRateLimitResult } from './login-rate
 import {
   computeBlindIndex,
   encryptEnvelope,
+  generateUserDek,
+  encryptUserDek,
 } from '../../../shared/utils/envelope-encryption.util';
 import { AUTH_CONFIG } from '../../../config/env.config';
 import { resolveRules, type Rule } from '@chief-strategist-j/shared-infra/rules-engine';
@@ -139,12 +141,16 @@ export class UserAuthDomainService {
       key: Buffer.from(AUTH_CONFIG.encryption.masterKey, 'hex'),
     };
     const orgId = this.generateEntityId('org');
+    const userId = this.generateEntityId('usr');
+    const userDek = generateUserDek();
+    const encryptedUserDek = encryptUserDek(userDek, masterKey);
+
     const blindIndex = computeBlindIndex(email, AUTH_CONFIG.encryption.blindIndexKey);
     const emailEncrypted = encryptEnvelope(email, masterKey, { orgId, fieldName: 'email' });
     const nameEncrypted = encryptEnvelope(name, masterKey, { orgId, fieldName: 'name' });
 
     const userRecord: AuthUserRecord = {
-      id: this.generateEntityId('usr'),
+      id: userId,
       email,
       password_hash: passwordHash,
       name,
@@ -161,6 +167,13 @@ export class UserAuthDomainService {
     try {
       await this.repo.createOrganizationAndUser(userRecord);
       await this.repo.recordPasswordHistory(userRecord.id, passwordHash);
+      await this.repo.saveUserEncryptionKey({
+        id: this.generateEntityId('ukey'),
+        user_id: userRecord.id,
+        org_id: userRecord.org_id,
+        kid: masterKey.kid,
+        encrypted_dek: encryptedUserDek,
+      });
     } catch (err: unknown) {
       if (err instanceof Error && err.message.includes('Organization name already exists')) {
         throw new OrgAlreadyExistsError(orgName);

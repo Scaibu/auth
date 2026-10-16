@@ -110,7 +110,7 @@ import {
 } from './handlers/saml.handler';
 import { AUTH_ENDPOINTS, HTTP_METHODS } from '../../../shared/constants/endpoints';
 import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
-import { UnauthorizedError } from '../../../shared/errors/auth.errors';
+import { UnauthorizedError, ValidationError } from '../../../shared/errors/auth.errors';
 
 export interface RouteContext {
   service: AuthService;
@@ -568,6 +568,21 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresStepUp: true,
     successMessage: 'Retention purge completed successfully',
     handler: (ctx, session) => handlePurgeExpired(ctx, session),
+  },
+  {
+    name: 'user_shred_pii',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.USER_SHRED,
+    requiresAuth: true,
+    requiresStepUp: true,
+    successMessage: 'User PII and cryptographic DEK permanently shredded (GDPR Article 17)',
+    handler: async (ctx) => {
+      const targetUserId = ctx.params?.id ?? '';
+      if (!targetUserId) {
+        throw new ValidationError('User id parameter is required');
+      }
+      return ctx.service.shredUserPii(targetUserId);
+    },
   },
   {
     name: 'list_sessions',

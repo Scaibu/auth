@@ -289,6 +289,10 @@ export class AuthService {
     return this.userService.deleteUser(userId);
   }
 
+  async shredUserPii(userId: string): Promise<{ success: boolean; shreddedAt: string }> {
+    return this.userService.shredUserPii(userId);
+  }
+
   async signUp(input: SignUpInput): Promise<{ token: string; payload: AuthTokenPayload; user: AuthUserRecord }> {
     return this.authService.signUp(input);
   }

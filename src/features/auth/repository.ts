@@ -205,6 +205,9 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   deleteWebhookSubscription(id: string, orgId: string): Promise<void>;
   recordWebhookDelivery(delivery: WebhookDeliveryRecord): Promise<void>;
   listWebhookDeliveriesBySubscriptionId(subscriptionId: string, orgId: string): Promise<WebhookDeliveryRecord[]>;
+  saveUserEncryptionKey(keyRecord: { id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string }): Promise<void>;
+  findUserEncryptionKey(userId: string): Promise<{ id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string; dek_status: 'ACTIVE' | 'SHREDDED'; shredded_at?: string } | null>;
+  shredUserEncryptionKey(userId: string): Promise<void>;
 }
 
 

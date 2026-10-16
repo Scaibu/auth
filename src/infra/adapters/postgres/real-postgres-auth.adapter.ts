@@ -2152,6 +2152,57 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }));
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveUserEncryptionKey(keyRecord: { id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveUserEncryptionKey', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.FLOW_USER_KEYS.INSERT_KEY, [
+          keyRecord.id,
+          keyRecord.user_id,
+          keyRecord.org_id,
+          keyRecord.kid,
+          keyRecord.encrypted_dek,
+        ]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findUserEncryptionKey(userId: string): Promise<{ id: string; user_id: string; org_id: string; kid: string; encrypted_dek: string; dek_status: 'ACTIVE' | 'SHREDDED'; shredded_at?: string } | null> {
+    return withSpan('RealPostgresAuthAdapter.findUserEncryptionKey', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.FLOW_USER_KEYS.FIND_KEY_BY_USER_ID, [userId]);
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          org_id: row.org_id,
+          kid: row.kid,
+          encrypted_dek: row.encrypted_dek,
+          dek_status: row.dek_status,
+          shredded_at: row.shredded_at ? new Date(row.shredded_at).toISOString() : undefined,
+        };
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async shredUserEncryptionKey(userId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.shredUserEncryptionKey', async () => {
+      const client = await this.pool.connect();
+      try {
+        const randomNoise = `enc:v1:${Buffer.from(crypto.randomUUID()).toString('base64url')}`;
+        await client.query(this.queries.FLOW_USER_KEYS.SHRED_KEY_BY_USER_ID, [userId, randomNoise]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

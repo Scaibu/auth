@@ -318,3 +318,18 @@ export const WebhookDeliveryRecordSchema = z.object({
   delivered_at_ms: z.number().int().positive(),
 });
 export type WebhookDeliveryRecord = z.infer<typeof WebhookDeliveryRecordSchema>;
+
+export const UserEncryptionKeyRecordSchema = z.object({
+  id: z.string().min(1),
+  user_id: z.string().min(1),
+  org_id: z.string().min(1),
+  kid: z.string().min(1),
+  encrypted_dek: z.string().min(1),
+  dek_status: z.enum(['ACTIVE', 'SHREDDED']),
+  version: z.number().int().positive().default(1),
+  shredded_at: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+export type UserEncryptionKeyRecord = z.infer<typeof UserEncryptionKeyRecordSchema>;
+

@@ -39,7 +39,7 @@
 | **Session Management** | Standardized EdDSA (Ed25519) JWKS Key Rotation | RFC 8037 EdDSA | ⏳ **Pending** | v1.3 | **P3** |
 | **Access Control (RBAC/ABAC)** | Monitored Break-Glass Emergency Access Workflow | SOC 2 CC6.1 / CC6.2 | ⏳ **Pending** | v1.3 | **P3** |
 | **Security & Defense** | Field-Level PII Envelope Encryption (AES-256-GCM / KMS) | NIST SP 800-38D | ✅ **Completed (ADR 0035)** | v1.3 | **P3** |
-| **Security & Defense** | Cryptographic Shredding (GDPR Art. 17 User DEKs) | GDPR Article 17 | ⏳ **Pending** | v1.3 | **P3** |
+| **Security & Defense** | Cryptographic Shredding (GDPR Art. 17 User DEKs) | GDPR Article 17 | ✅ **Completed (ADR 0036)** | v1.3 | **P3** |
 | **Security & Defense** | Distributed Credential Stuffing & ASN Velocity Defense | Threat Intelligence | ⏳ **Pending** | v1.3 | **P3** |
 | **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ⏳ **Pending** | v1.3 | **P3** |
 | **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ⏳ **Pending** | v1.3 | **P3** |
