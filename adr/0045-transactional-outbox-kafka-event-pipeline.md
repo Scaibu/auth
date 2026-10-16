@@ -72,8 +72,8 @@ sequenceDiagram
     Client->>Service: POST /api/v1/auth/users/:id/block
     Service->>DB: UPDATE auth_users SET blocked=TRUE
     DB-->>Service: Commit OK
-    alt Failure Scenario (Process Crash / Kafka Unavailable)
-        Service--xKafka: safePublishEventAsync(publishUserBlocked) FAILS / LOST
+    alt Failure Scenario (Process Crash or Kafka Unavailable)
+        Service--xKafka: Event publish fails or drops
         Service-->>Client: 200 OK (User Blocked in DB)
         Note over DB,Downstream: Critical Divergence: DB updated, but Gateway & SIEM never notified!<br/>User continues to authenticate at edges.
     else Happy Path
@@ -216,18 +216,18 @@ sequenceDiagram
 
     Admin->>Router: POST /api/v1/auth/users/usr_123/block
     Note over Router: Extracts traceparent, request-id, tenant-id
-    Router->>Handler: handleBlockUser(service, "usr_123")
-    Handler->>Service: blockUser("usr_123", "admin_999")
-    Service->>Repo: blockUser("usr_123")
-    Service->>Repo: insertOutboxEvent({ topic: "auth.security-events.v1", eventName: "USER_BLOCKED", partitionKey: "usr_123", payload: {...} })
+    Router->>Handler: handleBlockUser(service, usr_123)
+    Handler->>Service: blockUser(usr_123, admin_999)
+    Service->>Repo: blockUser(usr_123)
+    Service->>Repo: insertOutboxEvent(USER_BLOCKED, usr_123, payload)
     Repo->>DB: BEGIN TRANSACTION
-    Repo->>DB: UPDATE auth_users SET blocked=TRUE, blocked_at=NOW() WHERE id='usr_123'
-    Repo->>DB: INSERT INTO auth_outbox (id, topic, event_name, partition_key, payload, status) VALUES (...)
+    Repo->>DB: UPDATE auth_users SET blocked=TRUE WHERE id=usr_123
+    Repo->>DB: INSERT INTO auth_outbox (...)
     Repo->>DB: COMMIT TRANSACTION
     DB-->>Repo: Commit Acknowledged
     Repo-->>Service: Success
     Service-->>Handler: void
-    Handler-->>Router: { success: true, message: "User usr_123 blocked successfully." }
+    Handler-->>Router: Return Success Response
     Router-->>Admin: HTTP 200 OK
 ```
 
@@ -245,15 +245,15 @@ sequenceDiagram
 
     loop Every 500ms
         Worker->>Pool: connect()
-        Worker->>DB: SELECT ... FROM auth_outbox WHERE status='PENDING' ORDER BY created_at ASC LIMIT 50 FOR UPDATE SKIP LOCKED
-        DB-->>Worker: [OutboxRecord_1, OutboxRecord_2]
+        Worker->>DB: SELECT FOR UPDATE SKIP LOCKED
+        DB-->>Worker: Return Pending Outbox Records
         loop For each OutboxRecord
             Worker->>Producer: publish(topic, eventName, payload, headers)
             Producer->>Tracer: injectTraceContext(headers)
             Producer->>Kafka: produceRecord(topic, partitionKey, value, headers)
-            Kafka-->>Producer: KafkaRecordMetadata (Offset: 48921, Partition: 2)
+            Kafka-->>Producer: KafkaRecordMetadata Acknowledged
             Producer-->>Worker: KafkaEvent published
-            Worker->>DB: UPDATE auth_outbox SET status='PUBLISHED', published_at=NOW() WHERE id=record.id
+            Worker->>DB: UPDATE auth_outbox SET status=PUBLISHED WHERE id=record.id
         end
         Worker->>Pool: release()
     end
@@ -270,18 +270,18 @@ sequenceDiagram
     participant Kafka as Kafka Broker Cluster
     participant DLQ as Dead Letter Queue (auth.events.dlq.v1)
 
-    Worker->>DB: SELECT FOR UPDATE SKIP LOCKED (Record_Fail)
-    DB-->>Worker: Record_Fail (retry_count: 4)
+    Worker->>DB: SELECT FOR UPDATE SKIP LOCKED
+    DB-->>Worker: Return Pending Record (retry_count: 4)
     Worker->>Producer: publish(topic, eventName, payload)
     Producer--xKafka: Network ETIMEDOUT / Broker Disconnected
     Producer-->>Worker: Throw KafkaPublishError
-    alt retry_count < 4
-        Worker->>DB: UPDATE auth_outbox SET retry_count = retry_count + 1, last_error = 'ETIMEDOUT' WHERE id=Record_Fail.id
-    else retry_count >= 4 (5th Failure)
-        Note over Worker,DLQ: Maximum Retry Threshold Exceeded!
-        Worker->>Producer: publish(DLQ_TOPIC, 'FAILED_EVENT', payload, errorHeaders)
-        Producer->>DLQ: Produce to Dead Letter Queue
-        Worker->>DB: UPDATE auth_outbox SET status = 'FAILED', last_error = 'Max retries exceeded; routed to DLQ' WHERE id=Record_Fail.id
+    alt retry_count is less than 4
+        Worker->>DB: Increment retry_count and save last_error
+    else retry_count is 4 or higher (Exceeded Retries)
+        Note over Worker,DLQ: Maximum Retry Threshold Exceeded
+        Worker->>Producer: publish to DLQ topic
+        Producer->>DLQ: Produce FAILED event to DLQ
+        Worker->>DB: Mark status as FAILED and record DLQ routing error
     end
 ```
 
@@ -301,15 +301,15 @@ sequenceDiagram
     participant Kafka as Kafka (auth.security-events.v1)
     participant SOC as SIEM / SOC Telemetry Ingestion
 
-    Attacker->>Gateway: GET /api/v1/auth/me (Authorization: Bearer ht_canary_abc123)
-    Note over Gateway: Token matches canonical canary prefix ht_canary_
-    Gateway->>HoneyService: inspectAndTrip("ht_canary_abc123", { ip: "198.51.100.42", userAgent: "Scanner/2.0" })
-    HoneyService->>Redis: SET denylist:ip:198.51.100.42 EX 86400 (Instant Edge Block)
-    HoneyService->>Repo: recordHoneytokenTrip("canary_001", metadata)
-    HoneyService->>Repo: insertOutboxEvent({ topic: "auth.security-events.v1", eventName: "HONEYTOKEN_TRIPPED", payload: { canary_id: "canary_001", attacker_ip: "198.51.100.42" } })
-    Repo->>DB: BEGIN -> UPDATE auth_honeytokens -> INSERT INTO auth_outbox -> COMMIT
-    HoneyService-->>Gateway: { isHoneytoken: true, tripped: true }
-    Gateway-->>Attacker: HTTP 401 Unauthorized (Silent Rejection)
+    Attacker->>Gateway: GET /api/v1/auth/me (Authorization: Canary Token)
+    Note over Gateway: Token matches canonical canary prefix
+    Gateway->>HoneyService: inspectAndTrip(canaryToken, metadata)
+    HoneyService->>Redis: SET denylist key for attacker IP
+    HoneyService->>Repo: recordHoneytokenTrip(canaryId, metadata)
+    HoneyService->>Repo: insertOutboxEvent(HONEYTOKEN_TRIPPED)
+    Repo->>DB: Atomically trip honeytoken and stage outbox event
+    HoneyService-->>Gateway: Return Honeytoken Tripped
+    Gateway-->>Attacker: HTTP 401 Unauthorized
     
     Note over Relay,Kafka: Asynchronous Guaranteed Outbox Dispatch
     Relay->>Outbox: Poll PENDING HONEYTOKEN_TRIPPED
