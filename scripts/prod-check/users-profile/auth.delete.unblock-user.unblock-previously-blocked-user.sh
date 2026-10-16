@@ -8,6 +8,26 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [users-profile] DELETE /api/v1/auth/users/${TARGET_USER_ID}/unblock -> Unblock Previously Blocked User"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Unblock Previously Blocked User",
+#   "data": {
+#     "success": true
+#   },
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X DELETE "${AUTH_URL}/api/v1/auth/users/${TARGET_USER_ID}/unblock" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

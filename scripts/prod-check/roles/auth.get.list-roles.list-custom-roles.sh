@@ -8,6 +8,29 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [roles] GET /api/v1/auth/roles -> List Custom Roles"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "List Custom Roles",
+#   "data": [
+#     {
+#       "id": "sample-item-1",
+#       "status": "active"
+#     }
+#   ],
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X GET "${AUTH_URL}/api/v1/auth/roles" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

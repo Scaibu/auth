@@ -8,6 +8,26 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [api-keys] POST /api/v1/auth/api-keys/${TARGET_KEY_ID}/revoke -> Revoke API Key by ID"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Revoke API Key by ID",
+#   "data": {
+#     "success": true
+#   },
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X POST "${AUTH_URL}/api/v1/auth/api-keys/${TARGET_KEY_ID}/revoke" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

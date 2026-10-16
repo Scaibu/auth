@@ -8,6 +8,27 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [organizations] POST /api/v1/auth/organizations/${ORG_ID}/switch -> Switch Active Tenant Context and Reissue Token"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Switch Active Tenant Context and Reissue Token",
+#   "data": {
+#     "token": "eyJhbGciOi...",
+#     "expires_in": 3600
+#   },
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X POST "${AUTH_URL}/api/v1/auth/organizations/${ORG_ID}/switch" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

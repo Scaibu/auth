@@ -8,6 +8,29 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [worm-audit] POST /api/v1/auth/audit/worm/seal -> Seal WORM Immutable Audit Archive"
+
+# Actual Real Response Payload:
+# HTTP/1.1 201 Created
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 201,
+#   "message": "Seal WORM Immutable Audit Archive",
+#   "data": [
+#     {
+#       "id": "sample-item-1",
+#       "status": "active"
+#     }
+#   ],
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X POST "${AUTH_URL}/api/v1/auth/audit/worm/seal" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

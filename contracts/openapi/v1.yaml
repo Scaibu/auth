@@ -1802,6 +1802,335 @@ paths:
         '404':
           description: Subscription not found
 
+  /:
+    get:
+      summary: Root health check
+      responses:
+        '200':
+          description: Auth Service API v1 is live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /health:
+    get:
+      summary: General health check
+      responses:
+        '200':
+          description: Auth service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/health:
+    get:
+      summary: V1 subsystem health check
+      responses:
+        '200':
+          description: Auth service v1 subsystem is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /openapi.yaml:
+    get:
+      summary: Retrieve raw OpenAPI 3.0 specification in text/yaml
+      responses:
+        '200':
+          description: Raw YAML specification
+          content:
+            text/yaml:
+              schema:
+                type: string
+
+  /docs:
+    get:
+      summary: Interactive Swagger UI documentation
+      responses:
+        '200':
+          description: Swagger UI viewer interface
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/auth/users/{id}/shred:
+    delete:
+      summary: Permanently shred user PII and cryptographic DEKs (GDPR Art. 17)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: X-Reauth-Token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User PII permanently shredded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+        '401':
+          description: Step-up authentication required
+
+  /api/v1/auth/admin/blocked-domains:
+    get:
+      summary: List all blocked email domains
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Blocked domains retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    post:
+      summary: Add an email domain to blocked list
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain:
+                  type: string
+      responses:
+        '201':
+          description: Domain blocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/admin/blocked-domains/{domain}:
+    delete:
+      summary: Remove a blocked domain rule
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: domain
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Blocked domain removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/break-glass/activate:
+    post:
+      summary: Activate emergency break-glass session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: X-Reauth-Token
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, ticket_id]
+              properties:
+                reason:
+                  type: string
+                ticket_id:
+                  type: string
+      responses:
+        '200':
+          description: Break-glass session activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/break-glass/{id}/terminate:
+    post:
+      summary: Terminate an active break-glass emergency session
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Break-glass session terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/break-glass/active:
+    get:
+      summary: List all active break-glass emergency sessions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Active break-glass sessions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/honeytokens:
+    get:
+      summary: List deployed honeytoken canary secrets
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Active honeytokens list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+    post:
+      summary: Generate a decoy honeytoken canary credential
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                deployed_location:
+                  type: string
+      responses:
+        '201':
+          description: Honeytoken canary secret generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/honeytokens/{id}:
+    delete:
+      summary: Revoke and deactivate a honeytoken canary secret
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Honeytoken canary revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/audit/worm/seal:
+    post:
+      summary: Cryptographically seal audit logs into immutable WORM archive
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [segment_start_ms, segment_end_ms]
+              properties:
+                segment_start_ms:
+                  type: integer
+                segment_end_ms:
+                  type: integer
+                retention_years:
+                  type: integer
+                  default: 7
+      responses:
+        '201':
+          description: WORM archive segment sealed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/audit/worm/archives:
+    get:
+      summary: List sealed immutable WORM audit log archives
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of WORM audit archives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/audit/worm/archives/{id}/verify:
+    get:
+      summary: Verify Merkle tree cryptographic proof of WORM audit archive
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cryptographic proof of Merkle integrity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
+  /api/v1/auth/events/keycloak:
+    post:
+      summary: Ingest and process Keycloak administrative lifecycle events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Keycloak event consumed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardApiResponse'
+
 components:
 
   securitySchemes:

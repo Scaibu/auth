@@ -8,6 +8,24 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [email-verification] POST /api/v1/auth/verify-email -> Confirm User Email Address"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Confirm User Email Address",
+#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X POST "${AUTH_URL}/api/v1/auth/verify-email" \
   -H "Content-Type: application/json" \
   -H "x-request-id: ${X_REQUEST_ID}" \

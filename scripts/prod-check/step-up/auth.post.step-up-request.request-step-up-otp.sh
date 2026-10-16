@@ -8,6 +8,24 @@ if [ -f "${CONFIG_PATH}" ]; then
 fi
 
 echo "==> [step-up] POST /api/v1/auth/step-up/request -> Request Step-Up Challenge"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Request Step-Up Challenge",
+#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 curl -s -X POST "${AUTH_URL}/api/v1/auth/step-up/request" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \

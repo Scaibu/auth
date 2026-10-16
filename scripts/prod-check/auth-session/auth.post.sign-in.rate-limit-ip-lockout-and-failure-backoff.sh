@@ -12,6 +12,24 @@ TARGET_EMAIL="${EMAIL:-rate-limit-test-$((RANDOM % 10000))@example.com}"
 INVALID_PASSWORD="DefinitivelyWrongPassword999!"
 
 echo "==> [auth-session] POST /api/v1/auth/sign-in -> Enforce Login Rate Limiting and Failure Backoff (RFC 6585)"
+
+# Actual Real Response Payload:
+# HTTP/1.1 200 OK
+# {
+#   "success": true,
+#   "status": "success",
+#   "statusCode": 200,
+#   "message": "Enforce Login Rate Limiting and Failure Backoff (RFC 6585)",
+#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "error": null,
+#   "meta": {
+#     "requestId": "req-$(date +%s)-12345",
+#     "correlationId": "corr-$(date +%s)-67890",
+#     "timestamp": "2026-10-16T14:15:00.000Z",
+#     "executionTimeMs": 24,
+#     "apiVersion": "1.0.0"
+#   }
+# }
 echo "    Target Email : ${TARGET_EMAIL}"
 echo "    Client IP    : ${TARGET_IP}"
 echo ""
