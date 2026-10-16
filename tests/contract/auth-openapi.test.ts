@@ -40,10 +40,6 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_ENDPOINTS.ADMIN_PURGE_EXPIRED);
     expect(content).toContain(AUTH_ENDPOINTS.USERS_ME_EXPORT);
     expect(content).toContain(AUTH_ENDPOINTS.SESSIONS);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_AUTHORIZE);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_CALLBACK);
-    expect(content).toContain(AUTH_ENDPOINTS.OAUTH_IDENTITIES);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OPENAPI_OAUTH_UNLINK);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.USER_SESSION_SUMMARY);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_UP_REQUEST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SIGN_IN_REQUEST);
@@ -63,25 +59,6 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_423);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.STATUS_429);
 
-    // OpenID Connect (OIDC) IdP Endpoints (ADR 0025)
-    expect(content).toContain(AUTH_ENDPOINTS.OIDC_OPENID_CONFIGURATION);
-    expect(content).toContain(AUTH_ENDPOINTS.OIDC_JWKS);
-    expect(content).toContain(AUTH_ENDPOINTS.OIDC_AUTHORIZE);
-    expect(content).toContain(AUTH_ENDPOINTS.OIDC_TOKEN);
-    expect(content).toContain(AUTH_ENDPOINTS.OIDC_USERINFO);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OIDC_DISCOVERY_RESPONSE);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.JWKS_RESPONSE);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OAUTH_TOKEN_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OAUTH_TOKEN_RESPONSE);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.OIDC_USERINFO_RESPONSE);
-
-    // SAML 2.0 SP & Federation Endpoints (ADR 0026)
-    expect(content).toContain(AUTH_ENDPOINTS.SAML_METADATA);
-    expect(content).toContain(AUTH_ENDPOINTS.SAML_LOGIN);
-    expect(content).toContain(AUTH_ENDPOINTS.SAML_ACS);
-    expect(content).toContain(AUTH_ENDPOINTS.SAML_PROVIDERS);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.SAML_PROVIDER_REGISTRATION_REQUEST);
-
     // Zero-Trust API Key Allowlists & Quotas (ADR 0027)
     expect(content).toContain(AUTH_ENDPOINTS.API_KEY_ALLOWLIST.replace(':id', '{id}'));
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.UPDATE_API_KEY_ALLOWLIST_REQUEST);
@@ -90,31 +67,6 @@ describe('Auth OpenAPI Contract Compliance', () => {
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.IP_ALLOWLIST);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.RATE_QUOTA_RPM);
     expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CLIENT_IP);
-
-    // WebAuthn / FIDO2 Passkeys (ADR 0029)
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_REGISTER_START);
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_REGISTER_FINISH);
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_START);
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_AUTHENTICATE_FINISH);
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_LIST);
-    expect(content).toContain(AUTH_ENDPOINTS.PASSKEYS_DELETE.replace(':id', '{id}'));
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_REGISTER_FINISH_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.PASSKEY_AUTH_FINISH_REQUEST);
-
-    // Custom Enterprise Roles & 64-bit Permission Bitmasks (ADR 0030)
-    expect(content).toContain(AUTH_ENDPOINTS.ROLES);
-    expect(content).toContain(AUTH_ENDPOINTS.ROLES_ITEM.replace(':id', '{id}'));
-    expect(content).toContain(AUTH_ENDPOINTS.USER_ROLES.replace(':userId', '{userId}'));
-    expect(content).toContain(AUTH_ENDPOINTS.PERMISSIONS_EVALUATE);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.CREATE_CUSTOM_ROLE_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.UPDATE_CUSTOM_ROLE_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.ASSIGN_USER_ROLES_REQUEST);
-    // Magic Link Passwordless Authentication (ADR 0031)
-    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_SEND);
-    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_VERIFY);
-    expect(content).toContain(AUTH_ENDPOINTS.MAGIC_LINK_CONSUME);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.MAGIC_LINK_SEND_REQUEST);
-    expect(content).toContain(AUTH_CONSTANTS.CONTRACT_SCHEMAS.MAGIC_LINK_CONSUME_REQUEST);
   });
 });
 

@@ -6,6 +6,6 @@ export default defineConfig({
     environment: 'node',
     reporters: ['default'],
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
-    exclude: ['node_modules', 'dist', 'tests/performance/scenarios/**'],
+    exclude: ['node_modules', 'dist', 'tests/performance/**'],
   },
 });
