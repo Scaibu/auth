@@ -46,10 +46,15 @@ const REVOKED_KEY_CACHE_PREFIX = 'auth:revoked_api_key:';
 const REVOKED_KEY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const RATE_BUCKET_TTL_MS = AUTH_CONSTANTS.API_KEY_CIDR.RATE_BUCKET_TTL_SECONDS * 1000;
 
+import { randomUUID } from 'crypto';
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class ApiKeyDomainService {
   constructor(
     private readonly repo: AuthRepositoryPort,
     private readonly cache?: ICachePort,
+    private readonly eventProducer?: AuthEventProducer,
   ) {}
 
   async generateApiKey(input: CreateApiKeyInput): Promise<{ rawKey: string; keyRecord: ApiKeyRecord }> {
@@ -103,6 +108,28 @@ export class ApiKeyDomainService {
     };
 
     await this.repo.saveApiKey(keyRecord);
+
+    const payload = {
+      keyId,
+      orgId,
+      keyType: keyRecord.key_type,
+      name: keyRecord.name,
+      permissions: keyRecord.permissions,
+      expiresAtMs: keyRecord.expires_at_ms ?? undefined,
+      timestamp: new Date().toISOString(),
+    };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+        eventName: 'API_KEY_CREATED',
+        partitionKey: orgId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishApiKeyCreated(payload).catch(() => {});
+    }
+
     return { rawKey, keyRecord };
   }
 
@@ -176,13 +203,30 @@ export class ApiKeyDomainService {
     return { valid: true, record, authorized };
   }
 
-  async revokeApiKey(keyId: string): Promise<void> {
+  async revokeApiKey(keyId: string, revokedBy?: string): Promise<void> {
     const normalizedKeyId = normalizeString(keyId);
     await this.repo.revokeApiKey(normalizedKeyId);
 
     if (this.cache) {
       const cacheKey = `${REVOKED_KEY_CACHE_PREFIX}${normalizedKeyId}`;
       await this.cache.set(cacheKey, 'revoked', REVOKED_KEY_CACHE_TTL_MS);
+    }
+
+    const payload = {
+      keyId: normalizedKeyId,
+      revokedBy,
+      timestamp: new Date().toISOString(),
+    };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'API_KEY_REVOKED',
+        partitionKey: normalizedKeyId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishApiKeyRevoked(payload).catch(() => {});
     }
   }
 

@@ -247,4 +247,14 @@ export interface AuthRepositoryPort {
     sealed_by_user_id: string;
     created_at_ms: number;
   }>>;
+
+  // ── Transactional Outbox ──────────────────────────────────────────────────
+  insertOutboxEvent(event: {
+    id: string;
+    topic: string;
+    eventName: string;
+    partitionKey: string;
+    payload: Record<string, unknown>;
+    headers?: Record<string, string>;
+  }): Promise<void>;
 }

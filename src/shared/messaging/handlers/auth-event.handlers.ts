@@ -2,17 +2,8 @@ import { KafkaEvent } from '@chief-strategist-j/shared-infra/messaging';
 import { BaseTracedKafkaHandler } from './base-traced-handler';
 import { AuthReadProjectionStore } from '../cqrs/projection.store';
 
-export interface UserSignedInPayload {
-  userId: string;
-  email: string;
-  orgId: string;
-}
-
-export interface UserSignedUpPayload {
-  userId: string;
-  email: string;
-  orgId: string;
-}
+import { UserSignedInPayload, UserSignedUpPayload } from '../types/auth-event.types';
+export type { UserSignedInPayload, UserSignedUpPayload };
 
 export class UserSignedInHandler extends BaseTracedKafkaHandler<UserSignedInPayload> {
   public readonly eventName = 'USER_SIGNED_IN';

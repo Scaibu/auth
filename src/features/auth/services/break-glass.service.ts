@@ -19,8 +19,14 @@ export interface BreakGlassActivationResult {
   plaintextSecret: string;
 }
 
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class BreakGlassService {
-  constructor(private readonly repo: AuthRepositoryPort) {}
+  constructor(
+    private readonly repo: AuthRepositoryPort,
+    private readonly eventProducer?: AuthEventProducer,
+  ) {}
 
   private isNonEmptyString(val: unknown): val is string {
     return typeof val === 'string' && val.trim().length > 0;
@@ -115,6 +121,27 @@ export class BreakGlassService {
         user_agent: 'BreakGlassService/1.0.0',
         timestamp_ms: now.getTime(),
       });
+
+      const actPayload = {
+        sessionId: session.id,
+        operatorUserId: userId,
+        targetOrgId: orgId,
+        ticketId: incidentTicketId.trim(),
+        reason: trimmedJustification,
+        expiresAt: expiresAt.toISOString(),
+        timestamp: now.toISOString(),
+      };
+      if (typeof this.repo.insertOutboxEvent === 'function') {
+        await this.repo.insertOutboxEvent({
+          id: `outbox_${randomBytes(16).toString('hex')}`,
+          topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+          eventName: 'BREAK_GLASS_ACTIVATED',
+          partitionKey: orgId,
+          payload: actPayload,
+        }).catch(() => {});
+      } else if (this.eventProducer) {
+        await this.eventProducer.publishBreakGlassActivated(actPayload).catch(() => {});
+      }
 
       return {
         session,
@@ -214,6 +241,25 @@ export class BreakGlassService {
         user_agent: 'BreakGlassService/1.0.0',
         timestamp_ms: Date.now(),
       });
+
+      const termPayload = {
+        sessionId,
+        operatorUserId: session.user_id,
+        targetOrgId: session.org_id,
+        terminatedBy,
+        timestamp: terminatedAt,
+      };
+      if (typeof this.repo.insertOutboxEvent === 'function') {
+        await this.repo.insertOutboxEvent({
+          id: `outbox_${randomBytes(16).toString('hex')}`,
+          topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+          eventName: 'BREAK_GLASS_TERMINATED',
+          partitionKey: session.org_id,
+          payload: termPayload,
+        }).catch(() => {});
+      } else if (this.eventProducer) {
+        await this.eventProducer.publishBreakGlassTerminated(termPayload).catch(() => {});
+      }
 
       const updated = await this.repo.findBreakGlassSessionById(sessionId);
       return updated ?? {

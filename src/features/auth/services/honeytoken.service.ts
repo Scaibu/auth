@@ -138,16 +138,36 @@ export class HoneytokenService {
         }
       }
 
-      if (this.eventProducer) {
+      const tripPayload = {
+        canary_id: canary.id,
+        canary_name: canary.name,
+        org_id: canary.org_id,
+        attacker_ip: metadata.ip,
+        attacker_user_agent: metadata.userAgent,
+        tokenId: canary.id,
+        tokenPrefix: canary.token_prefix,
+        ipAddress: metadata.ip || 'unknown',
+        userAgent: metadata.userAgent || 'unknown',
+        actionTaken: 'IP_BLOCKED_AND_ALERT_DISPATCHED',
+        timestamp: new Date().toISOString(),
+        timestamp_ms: nowMs,
+      };
+
+      if (typeof this.repo.insertOutboxEvent === 'function') {
+        await this.repo.insertOutboxEvent({
+          id: `outbox_${crypto.randomBytes(16).toString('hex')}`,
+          topic: AUTH_CONSTANTS.HONEYTOKEN.KAFKA_TOPIC_TRIPPED,
+          eventName: 'HONEYTOKEN_TRIPPED',
+          partitionKey: canary.org_id,
+          payload: tripPayload,
+        }).catch(() => {});
+      } else if (this.eventProducer) {
         try {
-          await this.eventProducer.emit(AUTH_CONSTANTS.HONEYTOKEN.KAFKA_TOPIC_TRIPPED, {
-            canary_id: canary.id,
-            canary_name: canary.name,
-            org_id: canary.org_id,
-            attacker_ip: metadata.ip,
-            attacker_user_agent: metadata.userAgent,
-            timestamp_ms: nowMs,
-          });
+          if (typeof this.eventProducer.emit === 'function') {
+            await this.eventProducer.emit(AUTH_CONSTANTS.HONEYTOKEN.KAFKA_TOPIC_TRIPPED, tripPayload);
+          } else if (typeof this.eventProducer.publishHoneytokenTripped === 'function') {
+            await this.eventProducer.publishHoneytokenTripped(tripPayload);
+          }
         } catch {
         }
       }

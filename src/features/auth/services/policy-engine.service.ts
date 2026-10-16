@@ -6,10 +6,14 @@ import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { ValidationError } from '../../../shared/errors/auth.errors';
 import { withSpan } from '../../../infra/tracing/tracer';
 
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class PolicyEngineService {
   constructor(
     private readonly policyEngine: PolicyEnginePort,
     private readonly repository: AuthRepositoryPort,
+    private readonly eventProducer?: AuthEventProducer,
   ) {}
 
   public async evaluatePolicy(
@@ -93,6 +97,26 @@ export class PolicyEngineService {
         timestamp_ms: Date.now(),
       });
 
+      const relCreatedPayload = {
+        namespace: payload.object_type,
+        objectId: payload.object_id,
+        relation: payload.relation,
+        subjectId: payload.subject_id,
+        orgId,
+        timestamp: new Date().toISOString(),
+      };
+      if (typeof this.repository.insertOutboxEvent === 'function') {
+        await this.repository.insertOutboxEvent({
+          id: `outbox_${randomBytes(16).toString('hex')}`,
+          topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+          eventName: 'RELATION_TUPLE_CREATED',
+          partitionKey: orgId,
+          payload: relCreatedPayload,
+        }).catch(() => {});
+      } else if (this.eventProducer) {
+        await this.eventProducer.publishRelationTupleCreated(relCreatedPayload).catch(() => {});
+      }
+
       return created;
     });
   }
@@ -130,6 +154,26 @@ export class PolicyEngineService {
           user_agent: 'PolicyEngineService',
           timestamp_ms: Date.now(),
         });
+
+        const relRevokedPayload = {
+          namespace: payload.object_type,
+          objectId: payload.object_id,
+          relation: payload.relation,
+          subjectId: payload.subject_id,
+          orgId,
+          timestamp: new Date().toISOString(),
+        };
+        if (typeof this.repository.insertOutboxEvent === 'function') {
+          await this.repository.insertOutboxEvent({
+            id: `outbox_${randomBytes(16).toString('hex')}`,
+            topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+            eventName: 'RELATION_TUPLE_REVOKED',
+            partitionKey: orgId,
+            payload: relRevokedPayload,
+          }).catch(() => {});
+        } else if (this.eventProducer) {
+          await this.eventProducer.publishRelationTupleRevoked(relRevokedPayload).catch(() => {});
+        }
       }
 
       return deleted;

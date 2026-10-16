@@ -47,6 +47,10 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
     };
   }
 
+  public getPool(): Pool {
+    return this.pool;
+  }
+
   public async close(): Promise<void> {
     await this.pool.end();
   }
@@ -1699,7 +1703,35 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       };
     }, { kind: SpanKind.CLIENT });
   }
+
+  async insertOutboxEvent(event: {
+    id: string;
+    topic: string;
+    eventName: string;
+    partitionKey: string;
+    payload: Record<string, unknown>;
+    headers?: Record<string, string>;
+  }): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(
+        `INSERT INTO auth_outbox (id, topic, event_name, partition_key, headers, payload, status, retry_count, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', 0, NOW())`,
+        [
+          event.id,
+          event.topic,
+          event.eventName,
+          event.partitionKey,
+          JSON.stringify(event.headers ?? {}),
+          JSON.stringify(event.payload),
+        ]
+      );
+    } finally {
+      client.release();
+    }
+  }
 }
+
 
 
 

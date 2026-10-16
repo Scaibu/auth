@@ -101,12 +101,12 @@ export class AuthService {
     this.cache = cache;
     this.customRoleService = new CustomRoleService(repo);
     this.webhookService = new WebhookService(repo, AUTH_CONFIG.webhook);
-    this.breakGlassService = new BreakGlassService(repo);
+    this.breakGlassService = new BreakGlassService(repo, eventProducer);
     this.honeytokenService = new HoneytokenService(repo, cache, eventProducer);
-    this.wormAuditService = new WormAuditDomainService(repo);
+    this.wormAuditService = new WormAuditDomainService(repo, eventProducer);
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);
-    this.policyEngineService = new PolicyEngineService(policyEngine, repo);
+    this.policyEngineService = new PolicyEngineService(policyEngine, repo, eventProducer);
 
     const notificationService = mailer
       ? new NotificationDomainService(mailer, notificationConfig ?? { from: 'noreply@auth.local' })
@@ -115,8 +115,8 @@ export class AuthService {
     const resolver = dnsResolver ?? new NodeDnsAdapter();
     this.domainClaimService = new DomainClaimService(repo, resolver);
 
-    this.orgService = new OrganizationDomainService(repo);
-    this.userService = new UserManagementDomainService(repo, notificationService);
+    this.orgService = new OrganizationDomainService(repo, eventProducer);
+    this.userService = new UserManagementDomainService(repo, notificationService, eventProducer);
     this.authService = new UserAuthDomainService(
       repo,
       eventProducer,
@@ -124,7 +124,7 @@ export class AuthService {
       notificationService,
       geoIpPort,
     );
-    this.apiKeyService = new ApiKeyDomainService(repo, cache);
+    this.apiKeyService = new ApiKeyDomainService(repo, cache, eventProducer);
     this.auditLogService = new AuditLogDomainService(repo);
     this.stepUpService = new StepUpDomainService(repo);
     this.keycloakApi = new KeycloakApiAdapter();

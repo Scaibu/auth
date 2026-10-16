@@ -43,10 +43,15 @@ import {
   computeBlindIndex,
 } from '../../../shared/utils/envelope-encryption.util';
 
+import { randomUUID } from 'crypto';
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class UserManagementDomainService {
   constructor(
     private readonly repo: AuthRepositoryPort,
     private readonly notificationService?: NotificationDomainService,
+    private readonly eventProducer?: AuthEventProducer,
   ) {}
 
   async listUsers(orgId: string): Promise<AuthUserRecord[]> {
@@ -204,29 +209,84 @@ export class UserManagementDomainService {
     return userRecord;
   }
 
-  async blockUser(userId: string): Promise<void> {
+  async blockUser(userId: string, blockedBy?: string): Promise<void> {
     const normalizedUserId = normalizeString(userId);
+    const existing = await this.repo.findUserById(normalizedUserId);
     await this.repo.blockUser(normalizedUserId);
+    const orgId = existing?.org_id ?? 'unknown_org';
+    const payload = { userId: normalizedUserId, orgId, blockedBy, timestamp: new Date().toISOString() };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'USER_BLOCKED',
+        partitionKey: normalizedUserId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishUserBlocked(payload).catch(() => {});
+    }
   }
 
-  async unblockUser(userId: string): Promise<void> {
+  async unblockUser(userId: string, unblockedBy?: string): Promise<void> {
     const normalizedUserId = normalizeString(userId);
+    const existing = await this.repo.findUserById(normalizedUserId);
     await this.repo.unblockUser(normalizedUserId);
+    const orgId = existing?.org_id ?? 'unknown_org';
+    const payload = { userId: normalizedUserId, orgId, unblockedBy, timestamp: new Date().toISOString() };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'USER_UNBLOCKED',
+        partitionKey: normalizedUserId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishUserUnblocked(payload).catch(() => {});
+    }
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(userId: string, deletedBy?: string): Promise<void> {
     const normalizedUserId = normalizeString(userId);
+    const existing = await this.repo.findUserById(normalizedUserId);
     await this.repo.shredUserEncryptionKey(normalizedUserId);
     await this.repo.deleteUser(normalizedUserId);
+    const orgId = existing?.org_id ?? 'unknown_org';
+    const payload = { userId: normalizedUserId, orgId, deletedBy, timestamp: new Date().toISOString() };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'USER_DELETED',
+        partitionKey: normalizedUserId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishUserDeleted(payload).catch(() => {});
+    }
   }
 
   async shredUserPii(userId: string): Promise<{ success: boolean; shreddedAt: string }> {
     const normalizedUserId = normalizeString(userId);
     await this.repo.shredUserEncryptionKey(normalizedUserId);
     await this.repo.deleteUser(normalizedUserId);
+    const shreddedAt = new Date().toISOString();
+    const payload = { userId: normalizedUserId, shreddedAt, timestamp: shreddedAt };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'USER_PII_SHREDDED',
+        partitionKey: normalizedUserId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishUserPiiShredded(payload).catch(() => {});
+    }
     return {
       success: true,
-      shreddedAt: new Date().toISOString(),
+      shreddedAt,
     };
   }
 

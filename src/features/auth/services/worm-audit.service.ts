@@ -31,8 +31,14 @@ import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { withSpan } from '@chief-strategist-j/shared-infra';
 import { ValidationError, NotFoundError } from '../../../shared/errors/auth.errors';
 
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class WormAuditDomainService {
-  constructor(private readonly repo: AuthRepositoryPort) {}
+  constructor(
+    private readonly repo: AuthRepositoryPort,
+    private readonly eventProducer?: AuthEventProducer,
+  ) {}
 
   public computeLeafHash(log: AuditLogRecord): string {
     const canonical = JSON.stringify({
@@ -132,6 +138,26 @@ export class WormAuditDomainService {
       };
 
       await this.repo.saveWormAuditArchive(record);
+
+      const wormPayload = {
+        archiveId,
+        merkleRoot,
+        segmentStartMs: input.segment_start_ms,
+        segmentEndMs: input.segment_end_ms,
+        recordCount: logs.length,
+        timestamp: new Date().toISOString(),
+      };
+      if (typeof this.repo.insertOutboxEvent === 'function') {
+        await this.repo.insertOutboxEvent({
+          id: `outbox_${crypto.randomBytes(16).toString('hex')}`,
+          topic: AUTH_KAFKA_TOPICS.AUDIT_EVENTS,
+          eventName: 'WORM_AUDIT_SEALED',
+          partitionKey: archiveId,
+          payload: wormPayload,
+        }).catch(() => {});
+      } else if (this.eventProducer) {
+        await this.eventProducer.publishWormAuditSealed(wormPayload).catch(() => {});
+      }
 
       span.setAttribute('worm.archive_id', archiveId);
       span.setAttribute('worm.record_count', logs.length);

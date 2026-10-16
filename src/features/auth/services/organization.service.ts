@@ -25,8 +25,15 @@ import { AUTH_CONSTANTS } from '../../../shared/constants/auth.constants';
 import { normalizeString } from '../../../shared/utils/string.util';
 import { trace } from '@chief-strategist-j/shared-infra';
 
+import { randomUUID } from 'crypto';
+import type { AuthEventProducer } from '../../../shared/messaging/producers/auth-event.producer';
+import { AUTH_KAFKA_TOPICS } from '../../../shared/messaging/topics/auth-topics';
+
 export class OrganizationDomainService {
-  constructor(private readonly repo: AuthRepositoryPort) {}
+  constructor(
+    private readonly repo: AuthRepositoryPort,
+    private readonly eventProducer?: AuthEventProducer,
+  ) {}
 
   async listOrganizations(userId: string): Promise<OrganizationRecord[]> {
     const normalizedUserId = normalizeString(userId);
@@ -60,6 +67,19 @@ export class OrganizationDomainService {
       throw err;
     }
 
+    const payload = { orgId, orgName, slug, creatorUserId, timestamp: new Date().toISOString() };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+        eventName: 'ORGANIZATION_CREATED',
+        partitionKey: orgId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishOrganizationCreated(payload).catch(() => {});
+    }
+
     return { id: orgId, name: orgName, slug };
   }
 
@@ -69,12 +89,44 @@ export class OrganizationDomainService {
     await this.repo.updateOrganization(normalizedOrgId, validated);
     const updated = await this.repo.getOrganizationById(normalizedOrgId);
     if (!updated) throw new ValidationError('Organization not found');
+
+    const payload = {
+      orgId: normalizedOrgId,
+      orgName: updated.name,
+      slug: updated.slug,
+      timestamp: new Date().toISOString(),
+    };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+        eventName: 'ORGANIZATION_UPDATED',
+        partitionKey: normalizedOrgId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishOrganizationUpdated(payload).catch(() => {});
+    }
+
     return updated;
   }
 
-  async deleteOrganization(orgId: string): Promise<void> {
+  async deleteOrganization(orgId: string, deletedBy?: string): Promise<void> {
     const normalizedOrgId = normalizeString(orgId);
     await this.repo.deleteOrganization(normalizedOrgId);
+
+    const payload = { orgId: normalizedOrgId, deletedBy, timestamp: new Date().toISOString() };
+    if (typeof this.repo.insertOutboxEvent === 'function') {
+      await this.repo.insertOutboxEvent({
+        id: `outbox_${randomUUID()}`,
+        topic: AUTH_KAFKA_TOPICS.SECURITY_EVENTS,
+        eventName: 'ORGANIZATION_DELETED',
+        partitionKey: normalizedOrgId,
+        payload,
+      }).catch(() => {});
+    } else if (this.eventProducer) {
+      await this.eventProducer.publishOrganizationDeleted(payload).catch(() => {});
+    }
   }
 
   async switchOrganization(
@@ -116,6 +168,24 @@ export class OrganizationDomainService {
         user_agent: 'server',
         timestamp_ms: Date.now(),
       });
+
+      const switchPayload = {
+        userId: user.id,
+        targetOrgId: target.id,
+        previousOrgId: oldPayload.org?.org_id,
+        timestamp: new Date().toISOString(),
+      };
+      if (typeof this.repo.insertOutboxEvent === 'function') {
+        await this.repo.insertOutboxEvent({
+          id: `outbox_${randomUUID()}`,
+          topic: AUTH_KAFKA_TOPICS.AUTH_EVENTS,
+          eventName: 'ORGANIZATION_SWITCHED',
+          partitionKey: target.id,
+          payload: switchPayload,
+        });
+      } else if (this.eventProducer) {
+        await this.eventProducer.publishOrganizationSwitched(switchPayload);
+      }
     });
 
     return { token, payload: newPayload };

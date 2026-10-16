@@ -11,6 +11,7 @@ import type { ICachePort } from './shared/ports/cache.interface';
 import { createMailer } from './infra/adapters/mailer/mailer.factory';
 import { PurgeRetentionWorker } from './infra/workers/purge-retention.worker';
 import { DnsVerificationWorker } from './infra/workers/dns-verification.worker';
+import { OutboxRelayWorker } from './shared/messaging/outbox/outbox-relay.worker';
 import { NodeDnsAdapter } from './infra/adapters/dns/node-dns.adapter';
 import { createGeoIpAdapter } from './infra/adapters/geo';
 
@@ -64,6 +65,13 @@ export const dnsVerificationWorker = new DnsVerificationWorker(
   { enabled: process.env.NODE_ENV !== 'test' }
 );
 dnsVerificationWorker.start();
+
+export const outboxRelayWorker = (repositoryAdapter instanceof RealPostgresAuthAdapter)
+  ? new OutboxRelayWorker(repositoryAdapter.getPool(), authEventProducer)
+  : null;
+if (process.env.NODE_ENV !== 'test' && outboxRelayWorker) {
+  outboxRelayWorker.start();
+}
 
 const mailerAdapter = createMailer(AUTH_CONFIG.mailer);
 export const geoIpAdapter = createGeoIpAdapter(AUTH_CONFIG.geoIp);

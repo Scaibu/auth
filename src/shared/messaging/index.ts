@@ -8,3 +8,5 @@ export * from './handlers/auth-event.handlers';
 export * from './cqrs/command.types';
 export * from './cqrs/projection.store';
 export * from './cqrs/query.selectors';
+export * from './types/auth-event.types';
+export * from './outbox/outbox-relay.worker';

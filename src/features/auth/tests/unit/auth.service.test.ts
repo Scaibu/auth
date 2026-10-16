@@ -85,6 +85,7 @@ describe('AuthService Feature Unit Test', () => {
       saveWormAuditArchive: vi.fn(),
       findWormAuditArchiveById: vi.fn(),
       listWormAuditArchives: vi.fn(),
+      insertOutboxEvent: vi.fn(),
     } satisfies AuthRepositoryPort;
 
     const service = new AuthService(mockRepo as any);
