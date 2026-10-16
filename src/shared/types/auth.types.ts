@@ -363,3 +363,20 @@ export const ClientCertificateInfoSchema = z.object({
 });
 export type ClientCertificateInfo = z.infer<typeof ClientCertificateInfoSchema>;
 
+export const HoneytokenRecordSchema = z.object({
+  id: z.string().min(1),
+  token_hash: z.string().min(1),
+  token_prefix: z.string().min(1),
+  name: z.string().min(1),
+  org_id: z.string().min(1),
+  deployed_location: z.string().nullable().optional(),
+  tripwire_count: z.number().int().nonnegative(),
+  last_tripped_at_ms: z.number().int().nullable().optional(),
+  last_tripped_ip: z.string().nullable().optional(),
+  last_tripped_user_agent: z.string().nullable().optional(),
+  status: z.enum(['ACTIVE', 'TRIPPED', 'REVOKED']),
+  created_at_ms: z.number().int().positive(),
+  deleted_at: z.string().nullable().optional(),
+});
+export type HoneytokenRecord = z.infer<typeof HoneytokenRecordSchema>;
+

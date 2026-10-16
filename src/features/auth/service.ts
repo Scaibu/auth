@@ -84,6 +84,7 @@ import { CustomRoleService } from './services/custom-role.service';
 import { MagicLinkService } from './services/magic-link.service';
 import { WebhookService, type CreateWebhookSubscriptionInput, type WebhookSubscriptionCreationResult } from './services/webhook.service';
 import { BreakGlassService, type ActivateBreakGlassParams, type BreakGlassActivationResult } from './services/break-glass.service';
+import { HoneytokenService, type CreateHoneytokenInput, type HoneytokenTripResult } from './services/honeytoken.service';
 import type { BreakGlassSessionRecord } from '../../shared/types/auth.types';
 import type { CustomRoleRecord, PermissionEvaluationResult, MagicLinkVerifyResult, WebhookSubscriptionRecord, WebhookDeliveryRecord } from '../../shared/types/auth.types';
 
@@ -109,6 +110,7 @@ export class AuthService {
   private readonly magicLinkService: MagicLinkService;
   private readonly webhookService: WebhookService;
   private readonly breakGlassService: BreakGlassService;
+  public readonly honeytokenService: HoneytokenService;
 
   constructor(
     repo: AuthRepositoryPort,
@@ -133,6 +135,7 @@ export class AuthService {
     this.magicLinkService = new MagicLinkService(repo);
     this.webhookService = new WebhookService(repo, AUTH_CONFIG.webhook);
     this.breakGlassService = new BreakGlassService(repo);
+    this.honeytokenService = new HoneytokenService(repo, cache, eventProducer);
 
 
     const policyEngine = policyEnginePort ?? new NativePolicyEngineAdapter(repo);

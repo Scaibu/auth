@@ -41,7 +41,7 @@
 | **Security & Defense** | Field-Level PII Envelope Encryption (AES-256-GCM / KMS) | NIST SP 800-38D | ✅ **Completed (ADR 0035)** | v1.3 | **P3** |
 | **Security & Defense** | Distributed Credential Stuffing & ASN Velocity Defense | Threat Intelligence | ✅ **Completed (ADR 0037)** | v1.3 | **P3** |
 | **Security & Defense** | Mutual TLS (mTLS) Zero-Trust Microservice Authentication | RFC 8705 / TLS 1.3 | ✅ **Completed (ADR 0040)** | v1.3 | **P3** |
-| **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ⏳ **Pending** | v1.3 | **P3** |
+| **Security & Defense** | Honeytokens & Active Canary Secret Scanning | Deception Technology | ✅ **Completed (ADR 0041)** | v1.3 | **P3** |
 | **Audit & Compliance** | Immutable WORM Audit Archive (S3 Object Lock / Glacier) | SEC Rule 17a-4(f) | ⏳ **Pending** | v1.3 | **P3** |
 | **Developer Experience** | Database Seed Script (`npm run db:seed`) | Developer Fixtures | ✅ **Completed** | v1.1 | **P1** |
 
@@ -49,16 +49,14 @@
 
 ## 🎯 2. Active Roadmap Focus & Immediate Backlog
 
-### 2.1 Next Recommended Feature: Honeytokens & Active Canary Secret Scanning [P3]
-- **Objective**: Deception technology issuing decoy API keys, bearer tokens, and credentials embedded into source code and documentation.
+### 2.1 Next Recommended Feature: Immutable WORM Audit Archive (SEC Rule 17a-4(f) / S3 Object Lock) [P3]
+- **Objective**: Cryptographically verifiable, write-once-read-many (WORM) audit retention offloaded to tamper-proof cold storage.
 - **Specification**:
-  - `POST /api/v1/auth/honeytokens`: Provisions monitored canary secrets with embedded tripwires.
-  - Any invocation immediately dispatches critical SIEM alerts, blacklists caller IP via Redis/network rules, and captures forensic request payload metadata.
+  - Offloads immutable audit log segments to Amazon S3 Object Lock (Compliance Mode) / Glacier Vault Lock.
+  - Generates Merkle tree proofs of append-only audit log integrity to fulfill regulatory compliance.
 
 ### 2.2 Secondary Fast-Follows
-1. **Immutable WORM Audit Archive (S3 Object Lock / Glacier / SEC Rule 17a-4(f)) [P3]**:
-   - Cryptographically verifiable, write-once-read-many (WORM) audit retention offloaded to tamper-proof cold storage.
-2. **Prometheus Alert Rules for Authentication [P2]**:
+1. **Prometheus Alert Rules for Authentication [P2]**:
    - Alert definitions for abnormal authentication latency (p95 > 300ms), elevated lockout rates, and brute-force velocity.
 
 ---

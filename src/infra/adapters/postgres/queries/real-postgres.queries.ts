@@ -51,6 +51,44 @@ export const REAL_POSTGRES_QUERIES = {
     CONSUME_REQUEST: `DELETE FROM auth_saml_requests WHERE relay_state = $1 RETURNING *`,
     RECORD_ASSERTION_ID: `INSERT INTO auth_saml_assertion_replay (assertion_id, expires_at_ms, created_at_ms) VALUES ($1, $2, $3)`,
   },
+  HONEYTOKEN: {
+    INSERT: `
+      INSERT INTO auth_honeytokens (
+        id, token_hash, token_prefix, name, org_id, deployed_location, tripwire_count, status, created_at_ms
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `,
+    FIND_BY_HASH: `
+      SELECT id, token_hash, token_prefix, name, org_id, deployed_location, tripwire_count,
+             last_tripped_at_ms, last_tripped_ip, last_tripped_user_agent, status, created_at_ms
+      FROM auth_honeytokens
+      WHERE token_hash = $1 AND deleted_at IS NULL
+      LIMIT 1
+    `,
+    RECORD_TRIP: `
+      UPDATE auth_honeytokens
+      SET tripwire_count = tripwire_count + 1,
+          last_tripped_at_ms = $2,
+          last_tripped_ip = $3,
+          last_tripped_user_agent = $4,
+          status = 'TRIPPED',
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND deleted_at IS NULL
+    `,
+    LIST_BY_ORG: `
+      SELECT id, token_hash, token_prefix, name, org_id, deployed_location, tripwire_count,
+             last_tripped_at_ms, last_tripped_ip, last_tripped_user_agent, status, created_at_ms
+      FROM auth_honeytokens
+      WHERE org_id = $1 AND deleted_at IS NULL
+      ORDER BY created_at_ms DESC
+    `,
+    REVOKE: `
+      UPDATE auth_honeytokens
+      SET status = 'REVOKED',
+          deleted_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL
+    `,
+  },
 } as const;
 
 export { AUTH_QUERIES };
+

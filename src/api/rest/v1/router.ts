@@ -117,6 +117,19 @@ export class AuthRestV1Router {
         const authHeader = headers?.[AUTH_CONSTANTS.HEADERS.AUTHORIZATION] ?? headers?.[AUTH_CONSTANTS.HEADERS.AUTHORIZATION_CAMEL];
         let session: any = undefined;
 
+        if (authHeader) {
+          const rawToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+          if (rawToken.startsWith(AUTH_CONSTANTS.HONEYTOKEN.DEFAULT_PREFIX)) {
+            const clientIp = headers?.[AUTH_CONSTANTS.HEADERS.FORWARDED_FOR]?.split(',')[0]?.trim() || '127.0.0.1';
+            const userAgent = headers?.[AUTH_CONSTANTS.HEADERS.USER_AGENT] || 'unknown';
+            await this.service.honeytokenService.inspectAndTrip(rawToken, {
+              ip: clientIp,
+              userAgent,
+            });
+            throw new UnauthorizedError('Invalid credentials');
+          }
+        }
+
         if (rule.requiresAuth || authHeader) {
           try {
             session = await handleVerifySession(this.service, authHeader);

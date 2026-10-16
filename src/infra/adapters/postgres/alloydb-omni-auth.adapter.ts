@@ -1386,6 +1386,50 @@ export class AlloyDBOmniAuthAdapter implements AuthRepositoryPort {
       s.updated_at = new Date().toISOString();
     }
   }
+
+  private readonly mockHoneytokens = new Map<string, any>();
+
+  async saveHoneytoken(honeytoken: any): Promise<void> {
+    this.mockHoneytokens.set(honeytoken.id, { ...honeytoken });
+  }
+
+  async findHoneytokenByHash(tokenHash: string): Promise<any | null> {
+    for (const ht of this.mockHoneytokens.values()) {
+      if (ht.token_hash === tokenHash && !ht.deleted_at) {
+        return { ...ht };
+      }
+    }
+    return null;
+  }
+
+  async recordHoneytokenTrip(id: string, metadata: { ip: string; userAgent: string; timestampMs: number }): Promise<void> {
+    const ht = this.mockHoneytokens.get(id);
+    if (ht) {
+      ht.tripwire_count = (ht.tripwire_count || 0) + 1;
+      ht.last_tripped_at_ms = metadata.timestampMs;
+      ht.last_tripped_ip = metadata.ip;
+      ht.last_tripped_user_agent = metadata.userAgent;
+      ht.status = 'TRIPPED';
+    }
+  }
+
+  async listHoneytokensByOrgId(orgId: string): Promise<any[]> {
+    const list: any[] = [];
+    for (const ht of this.mockHoneytokens.values()) {
+      if (ht.org_id === orgId && !ht.deleted_at) {
+        list.push({ ...ht });
+      }
+    }
+    return list.sort((a, b) => b.created_at_ms - a.created_at_ms);
+  }
+
+  async revokeHoneytoken(id: string, orgId: string): Promise<void> {
+    const ht = this.mockHoneytokens.get(id);
+    if (ht && ht.org_id === orgId) {
+      ht.status = 'REVOKED';
+      ht.deleted_at = new Date().toISOString();
+    }
+  }
 }
 
 

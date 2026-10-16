@@ -2430,6 +2430,145 @@ export class RealPostgresAuthAdapter implements AuthRepositoryPort {
       }
     }, { kind: SpanKind.CLIENT });
   }
+
+  async saveHoneytoken(honeytoken: {
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.saveHoneytoken', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.HONEYTOKEN.INSERT, [
+          honeytoken.id,
+          honeytoken.token_hash,
+          honeytoken.token_prefix,
+          honeytoken.name,
+          honeytoken.org_id,
+          honeytoken.deployed_location || null,
+          honeytoken.tripwire_count,
+          honeytoken.status,
+          honeytoken.created_at_ms,
+        ]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async findHoneytokenByHash(tokenHash: string): Promise<{
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  } | null> {
+    return await withSpan('RealPostgresAuthAdapter.findHoneytokenByHash', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.HONEYTOKEN.FIND_BY_HASH, [tokenHash]);
+        if (res.rows.length === 0) return null;
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          token_hash: row.token_hash,
+          token_prefix: row.token_prefix,
+          name: row.name,
+          org_id: row.org_id,
+          deployed_location: row.deployed_location,
+          tripwire_count: Number(row.tripwire_count),
+          last_tripped_at_ms: row.last_tripped_at_ms ? Number(row.last_tripped_at_ms) : null,
+          last_tripped_ip: row.last_tripped_ip,
+          last_tripped_user_agent: row.last_tripped_user_agent,
+          status: row.status,
+          created_at_ms: Number(row.created_at_ms),
+        };
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async recordHoneytokenTrip(id: string, metadata: { ip: string; userAgent: string; timestampMs: number }): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.recordHoneytokenTrip', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.HONEYTOKEN.RECORD_TRIP, [
+          id,
+          metadata.timestampMs,
+          metadata.ip,
+          metadata.userAgent,
+        ]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async listHoneytokensByOrgId(orgId: string): Promise<Array<{
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  }>> {
+    return await withSpan('RealPostgresAuthAdapter.listHoneytokensByOrgId', async () => {
+      const client = await this.pool.connect();
+      try {
+        const res = await client.query(this.queries.HONEYTOKEN.LIST_BY_ORG, [orgId]);
+        return res.rows.map((row) => ({
+          id: row.id,
+          token_hash: row.token_hash,
+          token_prefix: row.token_prefix,
+          name: row.name,
+          org_id: row.org_id,
+          deployed_location: row.deployed_location,
+          tripwire_count: Number(row.tripwire_count),
+          last_tripped_at_ms: row.last_tripped_at_ms ? Number(row.last_tripped_at_ms) : null,
+          last_tripped_ip: row.last_tripped_ip,
+          last_tripped_user_agent: row.last_tripped_user_agent,
+          status: row.status,
+          created_at_ms: Number(row.created_at_ms),
+        }));
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
+
+  async revokeHoneytoken(id: string, orgId: string): Promise<void> {
+    await withSpan('RealPostgresAuthAdapter.revokeHoneytoken', async () => {
+      const client = await this.pool.connect();
+      try {
+        await client.query(this.queries.HONEYTOKEN.REVOKE, [id, orgId]);
+      } finally {
+        client.release();
+      }
+    }, { kind: SpanKind.CLIENT });
+  }
 }
 
 

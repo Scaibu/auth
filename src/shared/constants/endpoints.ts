@@ -81,8 +81,11 @@ export const AUTH_ENDPOINTS = {
   BREAK_GLASS_ACTIVATE: '/api/v1/auth/break-glass/activate',
   BREAK_GLASS_TERMINATE: '/api/v1/auth/break-glass/:id/terminate',
   BREAK_GLASS_ACTIVE: '/api/v1/auth/break-glass/active',
+  HONEYTOKENS: '/api/v1/auth/honeytokens',
+  HONEYTOKEN_REVOKE: '/api/v1/auth/honeytokens/:id',
   HEALTH: '/health',
 } as const;
+
 
 
 export const HTTP_METHODS = {

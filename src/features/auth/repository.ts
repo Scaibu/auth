@@ -217,6 +217,50 @@ export interface AuthRepositoryPort extends SamlRepositoryPort {
   findBreakGlassSessionByHash(tokenHash: string): Promise<BreakGlassSessionRecord | null>;
   listActiveBreakGlassSessions(orgId?: string): Promise<BreakGlassSessionRecord[]>;
   terminateBreakGlassSession(id: string, terminatedBy: string, reason: string, terminatedAt: string): Promise<void>;
+  saveHoneytoken(honeytoken: {
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  }): Promise<void>;
+  findHoneytokenByHash(tokenHash: string): Promise<{
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  } | null>;
+  recordHoneytokenTrip(id: string, metadata: { ip: string; userAgent: string; timestampMs: number }): Promise<void>;
+  listHoneytokensByOrgId(orgId: string): Promise<Array<{
+    id: string;
+    token_hash: string;
+    token_prefix: string;
+    name: string;
+    org_id: string;
+    deployed_location?: string | null;
+    tripwire_count: number;
+    last_tripped_at_ms?: number | null;
+    last_tripped_ip?: string | null;
+    last_tripped_user_agent?: string | null;
+    status: 'ACTIVE' | 'TRIPPED' | 'REVOKED';
+    created_at_ms: number;
+  }>>;
+  revokeHoneytoken(id: string, orgId: string): Promise<void>;
 }
 
 

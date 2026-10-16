@@ -300,6 +300,12 @@ export const ConsumeMagicLinkInputSchema = z.object({
   token: z.string().min(32, 'Valid token is required').max(128),
 });
 
+export const CreateHoneytokenInputSchema = z.object({
+  name: z.string().min(1, 'Honeytoken name is required').max(255).transform((v) => v.trim()),
+  deployed_location: z.string().max(255).optional().transform((v) => v ? v.trim() : undefined),
+});
+export type CreateHoneytokenSchemaInput = z.infer<typeof CreateHoneytokenInputSchema>;
+
 export const AUTH_JSON_MAPPING = {
   fromApi: [
     { op: 'rename', from: 'emailAddress', to: 'email' },

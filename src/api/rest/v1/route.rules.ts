@@ -87,6 +87,11 @@ import {
   handleListActiveBreakGlassSessions,
 } from './handlers/break-glass.handler';
 import {
+  handleCreateHoneytoken,
+  handleListHoneytokens,
+  handleRevokeHoneytoken,
+} from './handlers/honeytoken.handler';
+import {
   handleGetServiceProviderConfig,
   handleCreateScimUser,
   handleGetScimUser,
@@ -1126,6 +1131,31 @@ export const ROUTE_RULES: RouteRule[] = [
     requiresAuth: true,
     successMessage: 'Active emergency break-glass sessions retrieved successfully',
     handler: (ctx, session) => handleListActiveBreakGlassSessions(ctx.service, session),
+  },
+  {
+    name: 'honeytoken_create',
+    method: HTTP_METHODS.POST,
+    pattern: AUTH_ENDPOINTS.HONEYTOKENS,
+    requiresAuth: true,
+    successStatus: 201,
+    successMessage: 'Honeytoken canary secret created successfully',
+    handler: (ctx, session) => handleCreateHoneytoken(ctx.service, ctx.body, session),
+  },
+  {
+    name: 'honeytoken_list',
+    method: HTTP_METHODS.GET,
+    pattern: AUTH_ENDPOINTS.HONEYTOKENS,
+    requiresAuth: true,
+    successMessage: 'Honeytokens retrieved successfully',
+    handler: (ctx, session) => handleListHoneytokens(ctx.service, session),
+  },
+  {
+    name: 'honeytoken_revoke',
+    method: HTTP_METHODS.DELETE,
+    pattern: AUTH_ENDPOINTS.HONEYTOKEN_REVOKE,
+    requiresAuth: true,
+    successMessage: 'Honeytoken revoked successfully',
+    handler: (ctx, session) => handleRevokeHoneytoken(ctx.service, ctx.params.id ?? '', session),
   },
 ];
 
