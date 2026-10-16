@@ -16,7 +16,10 @@ echo "==> [organizations] GET /api/v1/auth/organizations/${ORG_ID} -> Get Organi
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Get Organization Details By ID",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

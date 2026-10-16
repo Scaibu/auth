@@ -16,7 +16,10 @@ echo "==> [roles] POST /api/v1/auth/users/${TARGET_USER_ID}/roles -> Assign Cust
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Assign Custom Roles to User",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

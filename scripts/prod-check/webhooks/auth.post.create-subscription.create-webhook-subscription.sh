@@ -16,7 +16,10 @@ echo "==> [webhooks] POST /api/v1/auth/webhooks/subscriptions -> Create Webhook 
 #   "status": "success",
 #   "statusCode": 201,
 #   "message": "Create Webhook Subscription",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

@@ -21,7 +21,10 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys -> Generate 3-Tier Scoped API Ke
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Generate 3-Tier Scoped API Key",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

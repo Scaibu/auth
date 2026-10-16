@@ -16,7 +16,10 @@ echo "==> [users-profile] PATCH /api/v1/auth/users/${TARGET_USER_ID}/permissions
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Update User Permission Entitlements",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

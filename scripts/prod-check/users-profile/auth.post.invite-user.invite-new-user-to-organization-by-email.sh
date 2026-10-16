@@ -16,7 +16,10 @@ echo "==> [users-profile] POST /api/v1/auth/users/invite -> Invite New User to O
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Invite New User to Organization by Email",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

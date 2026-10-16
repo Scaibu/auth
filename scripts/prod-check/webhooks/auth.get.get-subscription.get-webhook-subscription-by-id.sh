@@ -16,7 +16,10 @@ echo "==> [webhooks] GET /api/v1/auth/webhooks/subscriptions/${WEBHOOK_SUBSCRIPT
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Get Webhook Subscription",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

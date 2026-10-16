@@ -16,7 +16,10 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys/verify -> Verify API Key and Che
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Verify API Key and Check Permission Entitlement",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

@@ -16,7 +16,10 @@ echo "==> [roles] POST /api/v1/auth/roles -> Create Custom Role"
 #   "status": "success",
 #   "statusCode": 201,
 #   "message": "Create Custom Role",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

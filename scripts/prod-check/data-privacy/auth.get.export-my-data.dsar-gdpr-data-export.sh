@@ -16,7 +16,10 @@ echo "==> [data-privacy] GET /api/v1/auth/users/me/export -> DSAR GDPR Data Expo
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "DSAR GDPR Data Export",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

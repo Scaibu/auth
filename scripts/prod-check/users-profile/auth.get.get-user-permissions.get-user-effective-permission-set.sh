@@ -16,7 +16,10 @@ echo "==> [users-profile] GET /api/v1/auth/users/${TARGET_USER_ID}/permissions -
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Get User Effective Permission Set",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

@@ -16,7 +16,10 @@ echo "==> [password] POST /api/v1/auth/change-password -> Change Password for Au
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Change Password for Authenticated User",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

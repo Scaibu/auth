@@ -16,7 +16,10 @@ echo "==> [email-verification] POST /api/v1/auth/verify-email -> Confirm User Em
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Confirm User Email Address",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

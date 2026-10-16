@@ -16,7 +16,10 @@ echo "==> [roles] GET /api/v1/auth/roles/${ROLE_ID} -> Get Custom Role by ID"
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Get Custom Role by ID",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

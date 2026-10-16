@@ -16,7 +16,10 @@ echo "==> [roles] POST /api/v1/auth/permissions/evaluate -> Evaluate User Permis
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Evaluate User Permissions",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

@@ -16,7 +16,10 @@ echo "==> [step-up] POST /api/v1/auth/step-up/request -> Request Step-Up Challen
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Request Step-Up Challenge",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

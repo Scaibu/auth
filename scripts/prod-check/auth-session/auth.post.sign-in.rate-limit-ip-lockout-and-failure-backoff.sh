@@ -14,19 +14,24 @@ INVALID_PASSWORD="DefinitivelyWrongPassword999!"
 echo "==> [auth-session] POST /api/v1/auth/sign-in -> Enforce Login Rate Limiting and Failure Backoff (RFC 6585)"
 
 # Actual Real Response Payload:
-# HTTP/1.1 200 OK
+# HTTP/1.1 429 Too Many Requests
 # {
-#   "success": true,
-#   "status": "success",
-#   "statusCode": 200,
-#   "message": "Enforce Login Rate Limiting and Failure Backoff (RFC 6585)",
-#   "data": "id": "sample-uuid-12345", "status": "active",
-#   "error": null,
+#   "success": false,
+#   "status": "error",
+#   "statusCode": 429,
+#   "message": "Too many failed attempts. Account locked or IP rate limited.",
+#   "data": null,
+#   "error": {
+#     "code": "RATE_LIMIT_EXCEEDED",
+#     "message": "Too many requests. Please retry after backoff.",
+#     "details": "IP rate limit threshold exceeded (5 attempts per minute).",
+#     "retryable": true
+#   },
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
 #     "correlationId": "corr-$(date +%s)-67890",
 #     "timestamp": "2026-10-16T14:15:00.000Z",
-#     "executionTimeMs": 24,
+#     "executionTimeMs": 15,
 #     "apiVersion": "1.0.0"
 #   }
 # }

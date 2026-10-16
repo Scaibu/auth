@@ -16,7 +16,10 @@ echo "==> [users-profile] POST /api/v1/auth/users -> Create New User with Role a
 #   "status": "success",
 #   "statusCode": 201,
 #   "message": "Create New User with Role and Permissions",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

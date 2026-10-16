@@ -16,7 +16,10 @@ echo "==> [users-profile] POST /api/v1/auth/users/${TARGET_USER_ID}/block -> Blo
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Block User Access and Record Block Timestamp",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

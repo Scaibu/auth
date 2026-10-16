@@ -16,7 +16,10 @@ echo "==> [keycloak-events] POST /api/v1/auth/events/keycloak -> Ingest Keycloak
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Ingest Keycloak Lifecycle Event",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

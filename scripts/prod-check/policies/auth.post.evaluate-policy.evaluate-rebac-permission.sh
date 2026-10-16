@@ -16,7 +16,10 @@ echo "==> [policies] POST /api/v1/auth/policies/evaluate -> Evaluate ReBAC Acces
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Evaluate ReBAC Access Decision",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

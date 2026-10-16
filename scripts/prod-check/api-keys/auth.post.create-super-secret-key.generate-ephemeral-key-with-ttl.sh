@@ -20,7 +20,10 @@ echo "==> [api-keys] POST /api/v1/auth/api-keys -> Generate Ephemeral Super Secr
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Generate Ephemeral Super Secret Key with Mandatory TTL",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

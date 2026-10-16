@@ -16,7 +16,10 @@ echo "==> [mfa] POST /api/v1/auth/mfa/challenge -> Challenge MFA Code"
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Challenge MFA Code",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

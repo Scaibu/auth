@@ -16,7 +16,10 @@ echo "==> [organizations] PATCH /api/v1/auth/organizations/${ORG_ID} -> Update O
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Update Organization Name and Slug",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

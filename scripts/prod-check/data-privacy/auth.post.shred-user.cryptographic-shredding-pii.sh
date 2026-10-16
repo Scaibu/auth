@@ -16,7 +16,10 @@ echo "==> [data-privacy] POST /api/v1/auth/users/${TARGET_USER_ID}/shred -> Cryp
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Cryptographic Shredding of User PII",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

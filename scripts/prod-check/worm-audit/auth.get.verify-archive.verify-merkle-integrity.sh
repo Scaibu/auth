@@ -16,7 +16,10 @@ echo "==> [worm-audit] GET /api/v1/auth/audit/worm/archives/${WORM_ARCHIVE_ID}/v
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Verify WORM Merkle Integrity",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

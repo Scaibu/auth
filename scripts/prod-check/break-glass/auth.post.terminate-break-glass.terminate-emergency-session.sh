@@ -16,7 +16,10 @@ echo "==> [break-glass] POST /api/v1/auth/break-glass/${BREAK_GLASS_SESSION_ID}/
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Terminate Emergency Session",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",

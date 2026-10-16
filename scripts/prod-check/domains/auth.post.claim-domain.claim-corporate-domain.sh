@@ -16,7 +16,10 @@ echo "==> [domains] POST /api/v1/auth/domains -> Claim Corporate Domain"
 #   "status": "success",
 #   "statusCode": 200,
 #   "message": "Claim Corporate Domain",
-#   "data": "id": "sample-uuid-12345", "status": "active",
+#   "data": {
+#     "id": "sample-uuid-12345",
+#     "status": "active"
+#   },
 #   "error": null,
 #   "meta": {
 #     "requestId": "req-$(date +%s)-12345",
