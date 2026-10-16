@@ -1,0 +1,2 @@
+-- Rollback Migration 0036: Re-creation stub (Keycloak owns the data model).
+-- Tables pruned under Migration 0036 are permanently delegated to Keycloak IdP.

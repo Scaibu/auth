@@ -13,7 +13,6 @@ import {
 } from '../../../../features/auth/schema/auth.schema';
 import { extractClientContext } from '../../../../shared/utils/request-context.util';
 import { validateSchema } from '../../../../shared/utils/validation.util';
-import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
 import { ValidationError } from '../../../../shared/errors/auth.errors';
 
 export async function handleListOrganizations(service: AuthService, userId: string): Promise<unknown> {
@@ -107,12 +106,7 @@ export async function handleSignUp(service: AuthService, body: unknown): Promise
 export async function handleSignIn(service: AuthService, body: unknown, headers?: Record<string, string>): Promise<unknown> {
   const input = validateSchema(SignInInputSchema, body);
   const { ipAddress, userAgent } = extractClientContext(headers);
-  const result: any = await service.signIn({ ...input, ip_address: ipAddress, user_agent: userAgent });
-  if (result && result.user && result.user.id) {
-    const refreshToken = await service.issueInitialRefreshToken(result.user.id, ipAddress, userAgent);
-    return { ...result, refreshToken };
-  }
-  return result;
+  return service.signIn({ ...input, ip_address: ipAddress, user_agent: userAgent });
 }
 
 export async function handleResolveChallenge(
@@ -127,9 +121,7 @@ export async function handleResolveChallenge(
     throw new ValidationError('challenge_token and verification_code are required');
   }
   const { ipAddress, userAgent } = extractClientContext(headers);
-  const result = await service.resolveRiskChallenge(challengeToken, verificationCode, ipAddress, userAgent);
-  const refreshToken = await service.issueInitialRefreshToken(result.user.id, ipAddress, userAgent);
-  return { ...result, refreshToken };
+  return service.resolveRiskChallenge(challengeToken, verificationCode, ipAddress, userAgent);
 }
 
 export async function handleSignOut(service: AuthService, authHeader?: string): Promise<void> {
@@ -137,19 +129,8 @@ export async function handleSignOut(service: AuthService, authHeader?: string): 
   return service.signOut(token);
 }
 
-export async function handleRefreshToken(service: AuthService, body: unknown, headers?: Record<string, string>): Promise<unknown> {
-  const rawBody = (body && typeof body === 'object') ? (body as Record<string, unknown>) : {};
-  const rawToken =
-    (typeof rawBody.refreshToken === 'string' && rawBody.refreshToken.trim()) ||
-    headers?.[AUTH_CONSTANTS.HEADERS.REFRESH_TOKEN] ||
-    headers?.[AUTH_CONSTANTS.HEADERS.REFRESH_TOKEN_CAMEL];
-
-  if (!rawToken) {
-    throw new ValidationError('Refresh token is required');
-  }
-
-  const { ipAddress, userAgent } = extractClientContext(headers);
-  return service.rotateRefreshToken(rawToken, ipAddress, userAgent);
+export async function handleRefreshToken(_service: AuthService, _body: unknown, _headers?: Record<string, string>): Promise<unknown> {
+  throw new ValidationError('Refresh token rotation is managed by Keycloak');
 }
 
 export async function handleListApiKeys(service: AuthService, orgId: string): Promise<unknown> {

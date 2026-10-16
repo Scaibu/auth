@@ -4,6 +4,7 @@ import { AuthService } from '../../src/features/auth/service';
 import { AuthRestV1Router } from '../../src/api/rest/v1/router';
 import type { DnsResolverPort } from '../../src/features/auth/ports/dns-resolver.port';
 import { AUTH_CONSTANTS } from '../../src/shared/constants/auth.constants';
+import { createToken } from '../../src/shared/utils/jwt.util';
 
 class MockDnsAdapter implements DnsResolverPort {
   private readonly records = new Map<string, string[][]>();
@@ -42,17 +43,16 @@ describe('Organization Domain Claiming & Verified Auto-Join (ADR 0021)', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
-      undefined,
       mockDns,
     );
     router = new AuthRestV1Router(service);
 
-    const loginRes = await router.route('POST', '/api/v1/auth/sign-in', {
-      email: adminEmail,
-      password: 'password123',
+    const adminUser = await repo.findUserByEmail(adminEmail);
+    adminToken = createToken(adminUser!.id, adminUser!.email, {
+      org_id: adminUser!.org_id,
+      org_name: adminUser!.org_name,
+      role: adminUser!.role,
     });
-    adminToken = (loginRes.payload.data as any).token;
     adminHeaders = { authorization: `Bearer ${adminToken}` };
   });
 
@@ -123,32 +123,7 @@ describe('Organization Domain Claiming & Verified Auto-Join (ADR 0021)', () => {
     });
   });
 
-  describe('SSO & Registration Auto-Join Integration', () => {
-    it('should auto-join employee into claimed corporate organization upon OAuth login', async () => {
-      const claimRes = await router.route('POST', '/api/v1/auth/domains', {
-        domain: 'blute.co.in',
-        default_role: 'member',
-      }, adminHeaders);
-      const { domain_id, verification_record, verification_token } = claimRes.payload.data as any;
 
-      mockDns.setTxt(verification_record, [verification_token]);
-      await router.route('POST', `/api/v1/auth/domains/${domain_id}/verify`, undefined, adminHeaders);
-
-      const authRes = await router.route('GET', '/api/v1/auth/oauth/google/authorize');
-      const { state } = authRes.payload.data as any;
-
-      const callbackRes = await router.route('POST', '/api/v1/auth/oauth/google/callback', {
-        code: 'mock_corpuser123:alex@blute.co.in',
-        state,
-      });
-
-      expect(callbackRes.statusCode).toBe(200);
-      const user = (callbackRes.payload.data as any).user;
-      expect(user.email).toBe('alex@blute.co.in');
-      expect(user.org_id).toBe(AUTH_CONSTANTS.DEFAULT_ORG_ID);
-      expect(user.role).toBe('member');
-    });
-  });
 
   describe('Domain Settings & Lifecycle Management', () => {
     it('should list and delete claimed domain', async () => {

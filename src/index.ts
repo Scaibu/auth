@@ -9,7 +9,7 @@ export * from './shared/constants/endpoints';
 export * from './shared/ports/database.interface';
 export * from './shared/ports/cache.interface';
 export * from './features/auth/index';
-export * from './infra/adapters/postgres/alloydb-omni-auth.adapter';
+
 export * from './infra/adapters/postgres/postgres-auth.adapter';
 export * from './infra/adapters/postgres/real-postgres-auth.adapter';
 export * from './infra/adapters/redis/redis-session.adapter';

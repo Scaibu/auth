@@ -95,7 +95,9 @@ export class OrganizationDomainService {
     if (!user) throw new InvalidCredentialsError();
 
     const oldPayload = verifyToken(normalizedToken);
-    await this.repo.addTokenToDenylist(normalizedToken, oldPayload.exp * 1000);
+    if (typeof (this.repo as any).addTokenToDenylist === 'function') {
+      await (this.repo as any).addTokenToDenylist(normalizedToken, oldPayload.exp * 1000);
+    }
 
     const token = createToken(user.id, user.email, {
       org_id: target.id,

@@ -4,7 +4,6 @@ import { ServiceRegistryManager } from '@chief-strategist-j/shared-infra/discove
 import { HTTP_CONSTANTS } from '@chief-strategist-j/shared-infra/http';
 import { AuthService } from './features/auth/service';
 import { AuthRestV1Router } from './api/rest/v1/router';
-import { AlloyDBOmniAuthAdapter } from './infra/adapters/postgres/alloydb-omni-auth.adapter';
 import { RealPostgresAuthAdapter } from './infra/adapters/postgres/real-postgres-auth.adapter';
 import { RedisCacheAdapter } from './infra/adapters/redis/redis-cache.adapter';
 import { RealRedisCacheAdapter } from './infra/adapters/redis/real-redis-cache.adapter';
@@ -26,20 +25,15 @@ import { runMigrations } from '../database/migrate';
 
 initAuthTracing();
 
-const isMockDb = AUTH_CONFIG.server.useMockDb;
 const isMockRedis = AUTH_CONFIG.server.useMockRedis;
 
-if (!isMockDb) {
-  runMigrations().catch((err: any) => {
-    console.warn('[db-migrate] Auto-migration status:', err?.message || err);
-  });
-}
+runMigrations().catch((err: any) => {
+  console.warn('[db-migrate] Auto-migration status:', err?.message || err);
+});
 
 const port = AUTH_CONFIG.server.port;
 const dbUrl = AUTH_CONFIG.db.url;
-export const repositoryAdapter: AuthRepositoryPort = isMockDb
-  ? new AlloyDBOmniAuthAdapter()
-  : new RealPostgresAuthAdapter(dbUrl);
+export const repositoryAdapter: AuthRepositoryPort = new RealPostgresAuthAdapter(dbUrl);
 
 export const authEventProducer = new AuthEventProducer();
 export const authEventConsumer = new AuthEventConsumer();
@@ -82,8 +76,6 @@ export const service = new AuthService(
   undefined,
   mailerAdapter,
   { from: AUTH_CONFIG.mailer.from, appName: 'LLM Observability', appUrl: process.env.APP_URL || 'http://localhost:3000' },
-  undefined,
-  undefined,
   dnsResolverAdapter,
   geoIpAdapter,
 );

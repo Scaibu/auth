@@ -210,3 +210,31 @@ User clicks "Sign In" button (Frontend User Action)
                                                     ├── router.push('/dashboard') [Next.js Router Navigation]
                                                     └── router.refresh() [Next.js Page Cache Refresh]
 ```
+
+---
+
+## 4. Keycloak Migration & API Integration Layer
+
+To standardize enterprise identity management, compliance, and credential lifecycle while reducing hand-rolled cryptographic maintenance, `@observability/auth` integrates Keycloak as the authoritative Identity Provider (IdP).
+
+### 4.1 Architectural Division of Responsibilities
+
+| Responsibility Area | Handled By | Details |
+|---|---|---|
+| **Identity & Authentication** | Keycloak | Password management, brute force defense, MFA (TOTP/WebAuthn), and session issuance. |
+| **Token Minting & Signing** | Keycloak OIDC | OpenID Connect standard endpoints (`/protocol/openid-connect/token`, `/certs`). |
+| **Token Verification** | `KeycloakJwtVerifier` | Local JWKS cached cryptographic signature and standard claim validation. |
+| **User & Tenant Management** | `KeycloakApiAdapter` | Keycloak Admin REST API integration for user provisioning and lifecycle syncing. |
+| **Tenancy & Application Policies** | `@observability/auth` | Row-Level Security (RLS), multi-tenant org mapping, ReBAC relations, and API key management. |
+
+### 4.2 Keycloak API Endpoints Integrated
+
+- **Token Endpoint**: `POST /realms/{realm}/protocol/openid-connect/token` (Direct password grant & refresh token exchange).
+- **Token Revocation & Sign-Out**: `POST /realms/{realm}/protocol/openid-connect/revoke` and `POST /realms/{realm}/protocol/openid-connect/logout`.
+- **JWKS Key Discovery**: `GET /realms/{realm}/protocol/openid-connect/certs`.
+- **UserInfo Profile**: `GET /realms/{realm}/protocol/openid-connect/userinfo`.
+- **Admin REST Operations**: `POST /admin/realms/{realm}/users`, `PUT /admin/realms/{realm}/users/{id}`, and `DELETE /admin/realms/{realm}/users/{id}`.
+
+### 4.3 Backward Compatibility & Coexistence Guarantees
+
+Existing database models, organizational domain claiming, ReBAC policies, and audit logging pipelines remain intact. The application facade [AuthService](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/features/auth/service.ts) delegates sign-in and session verification to Keycloak while continuing to provide native application context and audit trails.

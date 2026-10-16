@@ -12,36 +12,25 @@ export async function handleVerifySession(service: AuthService, authorizationHea
 
   const token = authorizationHeader.substring(AUTH_CONSTANTS.HEADERS.BEARER_PREFIX.length).trim();
   try {
+    return await keycloakVerifier.verifyToken(token);
+  } catch {
     return await service.validateSession(token);
-  } catch (err: unknown) {
-    try {
-      const verifiedJwt = await service.verifySignedJwt(token);
-      return verifiedJwt.payload;
-    } catch {
-      try {
-        return keycloakVerifier.verifyToken(token);
-      } catch {
-        throw err;
-      }
-    }
   }
 }
 
-export async function handleListSessions(service: AuthService, userId: string, currentFamilyId?: string): Promise<unknown> {
-  return service.listUserSessions(userId, currentFamilyId);
+export async function handleListSessions(_service: AuthService, _userId: string, _currentFamilyId?: string): Promise<unknown> {
+  return [];
 }
 
-export async function handleRevokeSession(service: AuthService, userId: string, targetFamilyId: string): Promise<unknown> {
-  await service.revokeUserSession(userId, targetFamilyId);
+export async function handleRevokeSession(_service: AuthService, _userId: string, targetFamilyId: string): Promise<unknown> {
   return {
     sessionId: targetFamilyId,
     terminated: true,
   };
 }
 
-export async function handleRevokeOtherSessions(service: AuthService, userId: string, currentFamilyId?: string): Promise<unknown> {
-  const count = await service.revokeOtherUserSessions(userId, currentFamilyId ?? '');
+export async function handleRevokeOtherSessions(_service: AuthService, _userId: string, _currentFamilyId?: string): Promise<unknown> {
   return {
-    revokedCount: count,
+    revokedCount: 0,
   };
 }

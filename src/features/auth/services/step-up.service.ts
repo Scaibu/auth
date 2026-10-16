@@ -30,7 +30,7 @@ export interface StepUpVerifyInput {
 export class StepUpDomainService {
   constructor(
     private readonly repo: AuthRepositoryPort,
-    private readonly mfaPort: MfaPort
+    private readonly mfaPort?: MfaPort
   ) {}
 
   public async issueReauthToken(userId: string, input: StepUpVerifyInput): Promise<{ reauthToken: string; expiresInSeconds: number }> {
@@ -49,7 +49,7 @@ export class StepUpDomainService {
         }
         authenticated = true;
       } else if (input.totp_code) {
-        if (!user.mfa_enabled || !user.mfa_secret) {
+        if (!user.mfa_enabled || !user.mfa_secret || !this.mfaPort) {
           throw new InvalidMfaCodeError('MFA not configured on this account');
         }
         const isTotpValid = this.mfaPort.verifyTotpCode(user.mfa_secret, input.totp_code);

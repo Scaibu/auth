@@ -1,5 +1,18 @@
 # Auth Contracts Changelog
 
+## [1.15.0] - 2026-10-16
+### Added
+- Keycloak OpenID Connect & Admin REST API Migration (ADR 0002, ADR 0008):
+  - Added [KeycloakApiAdapter](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/infra/adapters/keycloak/keycloak-api.adapter.ts) providing:
+    - `POST /realms/{realm}/protocol/openid-connect/token` (Password & Refresh Token grants)
+    - `POST /realms/{realm}/protocol/openid-connect/revoke` (Instant token revocation)
+    - `POST /realms/{realm}/protocol/openid-connect/logout` (Session termination)
+    - `GET /realms/{realm}/protocol/openid-connect/userinfo` (OIDC claims retrieval)
+    - `GET /realms/{realm}/protocol/openid-connect/certs` (Public JWKS discovery)
+    - `POST /admin/realms/{realm}/users`, `PUT /users/{id}`, `DELETE /users/{id}` (Admin user management)
+  - Integrated [KeycloakJwtVerifier](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/infra/adapters/keycloak/keycloak-jwt.verifier.ts) for local O(1) JWKS token verification.
+  - Preserved backward compatibility for [AuthService](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/features/auth/service.ts) facade while resolving TypeScript typecheck clean (0 errors).
+
 ## [1.14.0] - 2026-10-15
 ### Added
 - NIST SP 800-63B Password History Enforcement & Anti-Recycling (ADR 0028):

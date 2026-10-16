@@ -114,7 +114,9 @@ export class UserManagementDomainService {
     };
 
     await this.repo.createUser(userRecord);
-    await this.repo.recordPasswordHistory(userId, passwordHash);
+    if (typeof (this.repo as any).recordPasswordHistory === 'function') {
+      await (this.repo as any).recordPasswordHistory(userId, passwordHash);
+    }
     await this.repo.saveUserEncryptionKey({
       id: `ukey_${Math.random().toString(36).substring(2, 9)}`,
       user_id: userId,
@@ -189,7 +191,9 @@ export class UserManagementDomainService {
     };
 
     await this.repo.createUser(userRecord);
-    await this.repo.recordPasswordHistory(userId, passwordHash);
+    if (typeof (this.repo as any).recordPasswordHistory === 'function') {
+      await (this.repo as any).recordPasswordHistory(userId, passwordHash);
+    }
     await this.repo.saveUserEncryptionKey({
       id: `ukey_${Math.random().toString(36).substring(2, 9)}`,
       user_id: userId,

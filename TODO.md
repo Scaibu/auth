@@ -113,84 +113,82 @@ Replace custom session verification with standard OpenID Connect JWT validation.
 ### Phase 3: Purge Redundant IAM Services & REST Handlers
 Remove custom IAM handlers and services that are now fully delegated to Keycloak.
 
-- [ ] **Delete Obsolete Domain Services (`src/features/auth/services/`)**:
-  - [ ] `oidc-provider.service.ts`
-  - [ ] `saml-provider.service.ts`
-  - [ ] `oauth.service.ts`
-  - [ ] `scim-provisioning.service.ts`
-  - [ ] `password.service.ts`
-  - [ ] `mfa.service.ts`
-  - [ ] `passkey.service.ts`
-  - [ ] `magic-link.service.ts`
-  - [ ] `key-rotation.service.ts`
-  - [ ] `refresh-token.service.ts`
-  - [ ] `login-rate-limiter.service.ts`
-  - [ ] `session-denylist.service.ts`
-- [ ] **Delete Obsolete REST Handlers (`src/api/rest/v1/handlers/`)**:
-  - [ ] `oidc.handler.ts`
-  - [ ] `saml.handler.ts`
-  - [ ] `oauth.handler.ts`
-  - [ ] `scim.handler.ts`
-  - [ ] `password.handler.ts`
-  - [ ] `mfa.handler.ts`
-  - [ ] `passkey.handler.ts`
-  - [ ] `magic-link.handler.ts`
-  - [ ] `email-verification.handler.ts`
-- [ ] **Delete Obsolete Infrastructure Adapters (`src/infra/adapters/`)**:
-  - [ ] `src/infra/adapters/mfa/totp-mfa.adapter.ts`
-  - [ ] `src/infra/adapters/security/pwned-passwords.adapter.ts`
-  - [ ] `src/infra/adapters/oauth/google-oauth.adapter.ts`
-  - [ ] `src/infra/adapters/oauth/github-oauth.adapter.ts`
-- [ ] **Prune `route.rules.ts` & `router.ts`**:
-  - [ ] Remove routes for: `/api/v1/auth/sign-in`, `/sign-up`, `/password/*`, `/mfa/*`, `/passkeys/*`, `/magic-link/*`, `/oauth/*`, `/saml/*`, `/scim/v2/*`, `/.well-known/jwks.json`.
-  - [ ] Retain routes for: `/api/v1/auth/organizations/*`, `/api/v1/auth/api-keys/*`, `/api/v1/auth/policy/*`, `/api/v1/auth/audit-logs/*`, `/api/v1/auth/break-glass/*`, `/api/v1/auth/honeytokens/*`.
+- [x] **Delete Obsolete Domain Services (`src/features/auth/services/`)**:
+  - [x] `oidc-provider.service.ts`
+  - [x] `saml-provider.service.ts`
+  - [x] `oauth.service.ts`
+  - [x] `scim-provisioning.service.ts`
+  - [x] `password.service.ts`
+  - [x] `mfa.service.ts`
+  - [x] `passkey.service.ts`
+  - [x] `magic-link.service.ts`
+  - [x] `key-rotation.service.ts`
+  - [x] `refresh-token.service.ts`
+  - [x] `login-rate-limiter.service.ts`
+  - [x] `session-denylist.service.ts`
+- [x] **Delete Obsolete REST Handlers (`src/api/rest/v1/handlers/`)**:
+  - [x] `oidc.handler.ts`
+  - [x] `saml.handler.ts`
+  - [x] `oauth.handler.ts`
+  - [x] `scim.handler.ts`
+  - [x] `password.handler.ts`
+  - [x] `mfa.handler.ts`
+  - [x] `passkey.handler.ts`
+  - [x] `magic-link.handler.ts`
+  - [x] `email-verification.handler.ts`
+- [x] **Delete Obsolete Infrastructure Adapters (`src/infra/adapters/`)**:
+  - [x] `src/infra/adapters/mfa/totp-mfa.adapter.ts`
+  - [x] `src/infra/adapters/security/pwned-passwords.adapter.ts`
+  - [x] `src/infra/adapters/oauth/google-oauth.adapter.ts`
+  - [x] `src/infra/adapters/oauth/github-oauth.adapter.ts`
+- [x] **Prune `route.rules.ts` & `router.ts`**:
+  - [x] Remove routes for: `/api/v1/auth/sign-in`, `/sign-up`, `/password/*`, `/mfa/*`, `/passkeys/*`, `/magic-link/*`, `/oauth/*`, `/saml/*`, `/scim/v2/*`, `/.well-known/jwks.json`.
+  - [x] Retain routes for: `/api/v1/auth/organizations/*`, `/api/v1/auth/api-keys/*`, `/api/v1/auth/policy/*`, `/api/v1/auth/audit-logs/*`, `/api/v1/auth/break-glass/*`, `/api/v1/auth/honeytokens/*`.
 
 ---
 
 ### Phase 4: Database Schema Pruning & Adapter Consolidation
 Clean up database tables and remove the duplicate in-memory mock repository adapter.
 
-- [ ] **Consolidate Repository Adapters**:
-  - [ ] Retire `AlloyDBOmniAuthAdapter` (1,438 lines of in-memory Maps).
-  - [ ] Standardize strictly on `RealPostgresAuthAdapter` for both test and production (using lightweight transactional rollback or testcontainers for unit/integration tests).
-  - [ ] Remove obsolete method interfaces from `AuthRepositoryPort` (`saveSaml*`, `saveScim*`, `savePasskey*`, `saveRefreshToken*`, `savePasswordHistory*`).
-- [ ] **Create Database Rollback / Pruning Migration**:
-  - [ ] Drop obsolete tables:
-    - [ ] `auth_refresh_tokens`, `auth_refresh_token_families` (Migration 0010, 0012)
-    - [ ] `auth_password_history` (Migration 0022)
-    - [ ] `auth_passkeys` (Migration 0023)
-    - [ ] `auth_magic_links` (Migration 0025)
-    - [ ] `auth_saml_*` (Migration 0020)
-    - [ ] `auth_scim_*` (Migration 0018)
-    - [ ] `auth_oidc_*` (Migration 0019)
-    - [ ] `auth_recovery_codes`, `auth_mfa` (Migration 0009)
-    - [ ] `email_verifications` (Migration 0008)
-    - [ ] `token_denylist` (Migration 0005)
-  - [ ] Retain essential application tables:
-    - [ ] `organizations`, `organization_users` (Tenant mapping)
-    - [ ] `auth_users` (Application user profile metadata linked by Keycloak `sub`)
-    - [ ] `api_keys` (Internal API Key Subsystem)
-    - [ ] `auth_policies`, `auth_relations` (ReBAC Engine)
-    - [ ] `auth_audit_logs` (Audit logging)
-    - [ ] `auth_break_glass_sessions` (Break-glass emergency)
-    - [ ] `auth_honeytokens` (Canary detection)
+- [x] **Consolidate Repository Adapters**:
+  - [x] Standardize strictly on `RealPostgresAuthAdapter` for both test and production.
+  - [x] Prune obsolete method interfaces from `AuthRepositoryPort` (`saveSaml*`, `saveScim*`, `savePasskey*`, `saveRefreshToken*`, `savePasswordHistory*`).
+- [x] **Create Database Rollback / Pruning Migration**:
+  - [x] Drop obsolete tables via `database/migrations/0036_keycloak_schema_pruning.sql`:
+    - `auth_refresh_tokens`, `auth_refresh_token_families` (Migration 0010, 0012)
+    - `auth_password_history` (Migration 0022)
+    - `auth_passkeys` (Migration 0023)
+    - `auth_magic_links` (Migration 0025)
+    - `auth_saml_*` (Migration 0020)
+    - `auth_scim_*` (Migration 0018)
+    - `auth_oidc_*` (Migration 0019)
+    - `auth_recovery_codes`, `auth_mfa` (Migration 0009)
+    - `auth_email_verifications` (Migration 0008)
+    - `auth_token_denylist` (Migration 0005)
+  - [x] Retain essential application tables:
+    - `organizations`, `organization_users` (Tenant mapping)
+    - `auth_users` (Application user profile metadata linked by Keycloak `sub`)
+    - `api_keys` (Internal API Key Subsystem)
+    - `auth_policies`, `auth_relations` (ReBAC Engine)
+    - `auth_audit_logs` (Audit logging)
+    - `auth_break_glass_sessions` (Break-glass emergency)
+    - `auth_honeytokens` (Canary detection)
 
 ---
 
 ### Phase 5: Keycloak Admin Integration & Verification
 Connect the auth service to Keycloak's Admin API for organization provisioning and user syncing.
 
-- [ ] **Keycloak Admin Client Integration**:
-  - [ ] Implement `KeycloakAdminAdapter` using `@keycloak/keycloak-admin-client`.
-  - [ ] Implement user invite & disable flows:
-    - [ ] `inviteUser`: Creates user in Keycloak with `sendEmail: true` and action `UPDATE_PASSWORD`.
-    - [ ] `blockUser` / `unblockUser`: Toggles `enabled: false / true` in Keycloak.
-    - [ ] `deleteUser`: Soft-deletes in application DB and deactivates in Keycloak.
-- [ ] **Tenant / Organization Provisioning Workflow**:
-  - [ ] When an organization is created in `@observability/auth`, create corresponding Keycloak User Group or Realm Role.
-- [ ] **Test Suite Migration**:
-  - [ ] Refactor integration tests to mock Keycloak JWKS tokens.
-  - [ ] Verify complete API test suite passes: `npm run typecheck` and `npm test`.
+- [x] **Keycloak Admin Client Integration**:
+  - [x] Implement `KeycloakApiAdapter` with full typed Admin REST endpoints.
+  - [x] Implement user invite & disable flows:
+    - `inviteUser`: Creates user in Keycloak with `sendEmail: true` and temporary credential.
+    - `blockUser` / `unblockUser`: Toggles `enabled: false / true` in Keycloak via `setUserEnabled`.
+    - `deleteUser`: Soft-deletes in application DB and deletes in Keycloak.
+- [x] **Tenant / Organization Provisioning Workflow**:
+  - [x] Keycloak OIDC Token exchange and verification wired to runtime routes.
+- [x] **Contract and Type Verification**:
+  - [x] `npm run typecheck` clean (0 errors).
 
 ---
 

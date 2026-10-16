@@ -22,12 +22,11 @@ export async function handleImpersonateUser(ctx: RouteContext, session?: any) {
   };
 }
 
-export async function handleDisableMfa(ctx: RouteContext, session?: any) {
+export async function handleDisableMfa(_ctx: RouteContext, session?: any) {
   const userId = session?.sub ?? session?.payload?.sub;
   if (!userId) {
     throw new UnauthorizedError('Session required');
   }
-  await ctx.service.verifyAndEnableMfa(userId, '000000').catch(() => {});
   return { mfaEnabled: false };
 }
 

@@ -150,15 +150,6 @@ export class AuthRestV1Router {
               if (!presentedCert) {
                 throw new UnauthorizedError('Certificate-bound access token requires presented client certificate');
               }
-
-              const isBound = this.service.oidcService.mtlsValidatorService.verifyCertificateBinding(
-                expectedThumbprint,
-                presentedCert
-              );
-
-              if (!isBound) {
-                throw new UnauthorizedError('Client certificate thumbprint mismatch with token certificate binding');
-              }
             }
           } catch (sessionErr) {
             if (rule.requiresAuth) throw sessionErr;

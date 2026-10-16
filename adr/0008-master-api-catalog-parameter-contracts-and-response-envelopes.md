@@ -1074,3 +1074,33 @@ curl -s -X GET "http://localhost:3001/api/v1/auth/audit-logs?event_type=ORG_SWIT
   "error": null
 }
 ```
+
+---
+
+## 4. Keycloak Migration API Catalog & Contracts
+
+In accordance with the Keycloak delegation architecture, standard OpenID Connect endpoints and Keycloak Admin REST APIs are integrated alongside existing service routes.
+
+### 4.1 Keycloak OpenID Connect Endpoints
+
+#### `POST /realms/{realm}/protocol/openid-connect/token`
+- **Purpose**: Authenticate via Resource Owner Password Credentials Grant or exchange Refresh Token.
+- **Headers**: `Content-Type: application/x-www-form-urlencoded`
+- **Payload Parameters**:
+  - `grant_type`: `password` | `refresh_token`
+  - `client_id`: OAuth client ID (`auth-service`)
+  - `client_secret`: Optional client secret
+  - `username`: User email address
+  - `password`: User password
+  - `scope`: `openid profile email`
+
+#### `POST /realms/{realm}/protocol/openid-connect/revoke`
+- **Purpose**: Instant token revocation.
+- **Parameters**: `token`, `token_type_hint` (`refresh_token` | `access_token`), `client_id`.
+
+#### `POST /realms/{realm}/protocol/openid-connect/logout`
+- **Purpose**: Backchannel or user logout invalidating active Keycloak sessions.
+- **Parameters**: `client_id`, `refresh_token`.
+
+#### `GET /realms/{realm}/protocol/openid-connect/certs`
+- **Purpose**: Authoritative JSON Web Key Set (JWKS) discovery endpoint providing public EdDSA / RS256 signing keys for cryptographic verification.

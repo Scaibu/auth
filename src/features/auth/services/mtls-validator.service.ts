@@ -1,6 +1,13 @@
 import { createHash, X509Certificate } from 'crypto';
 import { UnauthorizedError } from '../../../shared/errors/auth.errors';
-import type { OAuthClientRecord } from '../ports/oidc-repository.port';
+
+/** Minimal OAuth client shape needed for mTLS validation (Keycloak owns the full record). */
+export interface MtlsOAuthClientRecord {
+  readonly token_endpoint_auth_method?: string | null;
+  readonly tls_client_auth_subject_dn?: string | null;
+  readonly certificate_thumbprint?: string | null;
+}
+type OAuthClientRecord = MtlsOAuthClientRecord;
 
 export interface ClientCertificateExtraction {
   readonly clientCertRaw?: string;

@@ -8,7 +8,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3001
       - USE_REAL_DB=true
       - AUTH_DB_HOST=auth-service-db
@@ -70,27 +70,18 @@ services:
       - default
 
   auth-db:
-    image: google/alloydbomni:latest
+    image: postgres:17-alpine
     container_name: auth-service-db
-    shm_size: '1gb'
-    deploy:
-      resources:
-        limits:
-          memory: 4G
+    shm_size: '512mb'
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=llmobs_s3cret_2026
       - POSTGRES_DB=llm_observability
-      - ALLOYDB_ENABLE_COLUMNAR_ENGINE=false
     command: >
       postgres
-      -c shared_buffers=256MB
-      -c google_columnar_engine.enabled=off
-      -c google_ml_integration.enabled=off
-      -c google_db_advisor.enabled=off
-      -c google_storage.replay_prefetcher_enabled=off
+      -c shared_buffers=128MB
       -c max_connections=100
     volumes:
       - auth_db_data:/var/lib/postgresql/data
@@ -99,7 +90,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 30s
+      start_period: 10s
     restart: unless-stopped
     networks:
       - default
@@ -114,7 +105,7 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_URL=jdbc:postgresql://auth-service-db:5432/llm_observability
       - KC_DB_USERNAME=admin
       - KC_DB_PASSWORD=llmobs_s3cret_2026
       - KC_DB_SCHEMA=public

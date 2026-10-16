@@ -1,7 +1,8 @@
-import { AlloyDBOmniAuthAdapter } from './alloydb-omni-auth.adapter';
+import { RealPostgresAuthAdapter } from './real-postgres-auth.adapter';
 
 /**
- * PostgreSQL / AlloyDB Omni Auth Repository Adapter Alias.
- * Re-exports AlloyDBOmniAuthAdapter for PostgreSQL interface compatibility.
+ * PostgreSQL Auth Repository Adapter.
+ * Canonical implementation backed by RealPostgresAuthAdapter.
+ * The AlloyDBOmniAuthAdapter (in-memory mock) has been retired.
  */
-export class PostgresAuthAdapter extends AlloyDBOmniAuthAdapter {}
+export class PostgresAuthAdapter extends RealPostgresAuthAdapter {}

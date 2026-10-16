@@ -1,29 +1,93 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { AuthService } from '../../service';
-import { AlloyDBOmniAuthAdapter } from '../../../../infra/adapters/postgres/alloydb-omni-auth.adapter';
-import { AUTH_CONSTANTS } from '../../../../shared/constants/auth.constants';
-
-export async function runAuthServiceUnitTest(): Promise<boolean> {
-  const repo = new AlloyDBOmniAuthAdapter();
-  const service = new AuthService(repo);
-
-  const result = await service.signIn({
-    email: AUTH_CONSTANTS.DEFAULT_ADMIN_EMAIL,
-    password: 'password123',
-    ip_address: '127.0.0.1',
-    user_agent: 'UnitTest/1.0',
-  });
-
-  if (!result.token || result.payload.email !== AUTH_CONSTANTS.DEFAULT_ADMIN_EMAIL) {
-    throw new Error('signIn failed');
-  }
-
-  return true;
-}
+import type { AuthRepositoryPort } from '../../repository';
 
 describe('AuthService Feature Unit Test', () => {
-  it('should run auth service unit test successfully', async () => {
-    const ok = await runAuthServiceUnitTest();
-    expect(ok).toBe(true);
+  it('should instantiate AuthService with a typed mock repository', () => {
+    // AuthService delegates identity to Keycloak — no in-memory adapter needed.
+    // This smoke test validates the constructor wires without errors.
+    const mockRepo = {
+      createOrganization: vi.fn(),
+      listOrganizationsByUserId: vi.fn(),
+      getOrganizationById: vi.fn(),
+      updateOrganization: vi.fn(),
+      deleteOrganization: vi.fn(),
+      createUser: vi.fn(),
+      createOrganizationAndUser: vi.fn(),
+      listUsersByOrgId: vi.fn(),
+      blockUser: vi.fn(),
+      unblockUser: vi.fn(),
+      deleteUser: vi.fn(),
+      updateUserProfile: vi.fn(),
+      updateUserRole: vi.fn(),
+      updateUserPermissions: vi.fn(),
+      purgeExpiredSoftDeletes: vi.fn(),
+      findUserByEmail: vi.fn(),
+      findUserById: vi.fn(),
+      exportUserData: vi.fn(),
+      recordAuditLog: vi.fn(),
+      fetchUserAuditLogs: vi.fn(),
+      saveApiKey: vi.fn(),
+      listApiKeysByOrgId: vi.fn(),
+      findApiKeyByHash: vi.fn(),
+      revokeApiKey: vi.fn(),
+      updateApiKeyUsage: vi.fn(),
+      updateApiKeyAllowlist: vi.fn(),
+      findApiKeyMeta: vi.fn(),
+      flagApiKeyAnomaly: vi.fn(),
+      saveClaimedDomain: vi.fn(),
+      findClaimedDomainById: vi.fn(),
+      findClaimedDomainByName: vi.fn(),
+      listClaimedDomainsByOrgId: vi.fn(),
+      updateClaimedDomainStatus: vi.fn(),
+      updateClaimedDomainSettings: vi.fn(),
+      deleteClaimedDomain: vi.fn(),
+      listPendingOrVerifiedDomains: vi.fn(),
+      findBlockedDomain: vi.fn(),
+      listBlockedDomains: vi.fn(),
+      saveBlockedDomain: vi.fn(),
+      deleteBlockedDomain: vi.fn(),
+      recordLoginHistory: vi.fn(),
+      getLatestLoginLocation: vi.fn(),
+      saveRelationTuple: vi.fn(),
+      deleteRelationTuple: vi.fn(),
+      findRelationTuples: vi.fn(),
+      saveCustomRole: vi.fn(),
+      findCustomRoleById: vi.fn(),
+      findCustomRoleByName: vi.fn(),
+      listCustomRolesByOrgId: vi.fn(),
+      updateCustomRole: vi.fn(),
+      deleteCustomRole: vi.fn(),
+      assignUserCustomRoles: vi.fn(),
+      listUserCustomRoles: vi.fn(),
+      recordRoleAuditLog: vi.fn(),
+      saveWebhookSubscription: vi.fn(),
+      findWebhookSubscriptionById: vi.fn(),
+      listWebhookSubscriptionsByOrgId: vi.fn(),
+      updateWebhookSubscription: vi.fn(),
+      deleteWebhookSubscription: vi.fn(),
+      recordWebhookDelivery: vi.fn(),
+      listWebhookDeliveriesBySubscriptionId: vi.fn(),
+      saveUserEncryptionKey: vi.fn(),
+      findUserEncryptionKey: vi.fn(),
+      shredUserEncryptionKey: vi.fn(),
+      saveBreakGlassSession: vi.fn(),
+      findBreakGlassSessionById: vi.fn(),
+      findBreakGlassSessionByHash: vi.fn(),
+      listActiveBreakGlassSessions: vi.fn(),
+      terminateBreakGlassSession: vi.fn(),
+      saveHoneytoken: vi.fn(),
+      findHoneytokenByHash: vi.fn(),
+      recordHoneytokenTrip: vi.fn(),
+      listHoneytokensByOrgId: vi.fn(),
+      revokeHoneytoken: vi.fn(),
+      fetchAuditLogsForWormSealing: vi.fn(),
+      saveWormAuditArchive: vi.fn(),
+      findWormAuditArchiveById: vi.fn(),
+      listWormAuditArchives: vi.fn(),
+    } satisfies AuthRepositoryPort;
+
+    const service = new AuthService(mockRepo as any);
+    expect(service).toBeDefined();
   });
 });

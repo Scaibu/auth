@@ -1,0 +1,149 @@
+services:
+  auth-service:
+    image: chiefj/llm-obs-auth:latest
+    build:
+      context: ..
+      dockerfile: auth/Dockerfile
+    container_name: observability-auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - USE_REAL_DB=true
+      - AUTH_DB_HOST=auth-service-db
+      - AUTH_DB_PORT=5432
+      - AUTH_DB_USER=admin
+      - AUTH_DB_PASSWORD=llmobs_s3cret_2026
+      - AUTH_DB_NAME=llm_observability
+      - DATABASE_URL=postgresql://admin:llmobs_s3cret_2026@auth-service-db:5432/llm_observability
+      - AUTH_REDIS_HOST=llmobs-redis-ledger
+      - AUTH_REDIS_PORT=6379
+      - AUTH_REDIS_PASSWORD=llmobs_redis_s3cret_2026
+      - REDIS_URL=redis://:llmobs_redis_s3cret_2026@llmobs-redis-ledger:6379/0
+      - KAFKA_BROKERS=llmobs-kafka-broker:9092
+      - KAFKA_CLIENT_ID=auth-client
+      - KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+      - JWT_SECRET=super-secure-production-auth-jwt-secret-key-replace-in-env-file-minimum-32-chars!
+      - SERVICE_REGISTRY_URL=http://llmobs-service-registry:31426
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://llmobs-otel-collector:4318
+      - OTEL_EXPORTER_OTLP_GRPC_ENDPOINT=llmobs-otel-collector:4317
+      - OTEL_SERVICE_NAME=auth-service
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - AUTH_BREACHED_PASSWORD_ENABLED=true
+      - AUTH_BREACHED_PASSWORD_BASE_URL=https://api.pwnedpasswords.com/range
+      - AUTH_BREACHED_PASSWORD_TIMEOUT_MS=1500
+      - AUTH_BREACHED_PASSWORD_USER_AGENT=llm-observability-auth/1.0.0
+      - AUTH_GEOIP_PROVIDER=http
+      - AUTH_GEOIP_HTTP_ENDPOINT=https://ipwho.is
+      - AUTH_GEOIP_TIMEOUT_MS=1500
+      - MAILER_PROVIDER=mock
+      - MAILER_FROM=noreply@auth.local
+      - AUTH_MFA_ISSUER=LLMObservability
+      - AUTH_MFA_STEP_WINDOW=1
+      - AUTH_SECURITY_HEADERS_ENABLED=true
+      - AUTH_SECURITY_HEADERS_HSTS_ENABLED=true
+      - AUTH_SECURITY_HEADERS_CSP_ENABLED=true
+      - AUTH_OIDC_ISSUER=http://localhost:3001
+      - AUTH_OIDC_CODE_TTL_MS=300000
+      - AUTH_OIDC_TOKEN_TTL_SECONDS=3600
+      - AUTH_SAML_SP_ENTITY_ID=http://localhost:3001/api/v1/auth/saml/metadata
+      - AUTH_SAML_ACS_URL=http://localhost:3001/api/v1/auth/saml/acs
+      - AUTH_SAML_CLOCK_SKEW_MS=120000
+      - AUTH_SAML_RELAY_STATE_TTL_MS=300000
+      - AUTH_PASSWORD_HISTORY_LIMIT=10
+      - AUTH_WEBAUTHN_RP_ID=localhost
+      - AUTH_WEBAUTHN_RP_NAME="Observability Cloud"
+      - AUTH_WEBAUTHN_ORIGIN=http://localhost:3001
+      - AUTH_WEBAUTHN_CHALLENGE_TTL_MS=300000
+      - AUTH_WEBHOOK_TOLERANCE_MS=300000
+      - AUTH_WEBHOOK_DEFAULT_RETRIES=5
+      - AUTH_MASTER_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - AUTH_MASTER_KEY_ID=kek_v1_root
+      - AUTH_BLIND_INDEX_KEY=blind_index_secret_key_minimum_32_chars_long_entropy_seed
+
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+
+  auth-db:
+    image: google/alloydbomni:latest
+    container_name: auth-service-db
+    shm_size: '2gb'
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=llmobs_s3cret_2026
+      - POSTGRES_DB=llm_observability
+      - ALLOYDB_ENABLE_COLUMNAR_ENGINE=false
+    command: >
+      postgres
+      -c shared_buffers=1024MB
+      -c google_columnar_engine.enabled=off
+      -c google_ml_integration.enabled=off
+      -c google_db_advisor.enabled=off
+      -c google_storage.replay_prefetcher_enabled=off
+      -c max_connections=100
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d llm_observability"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - default
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: auth-service-keycloak
+    command: start-dev --import-realm --features=opentelemetry
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://auth-service-db:5432/llm_observability
+      - KC_DB_USERNAME=admin
+      - KC_DB_PASSWORD=llmobs_s3cret_2026
+      - KC_DB_SCHEMA=public
+      - KC_HTTP_ENABLED=true
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+      - KC_TRACING_ENABLED=true
+      - KC_TRACING_ENDPOINT=http://llmobs-otel-collector:4317
+      - KC_TRACING_PROTOCOL=grpc
+      - KC_TRACING_SERVICE_NAME=auth-service-keycloak
+      - KC_TRACING_SAMPLER_TYPE=always_on
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_STRICT=false
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`keycloak.llmobs.local`) || PathPrefix(`/auth`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    extra_hosts:
+      - "llmobs-otel-collector:host-gateway"
+    volumes:
+      - ./deploy/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+
+volumes:
+  auth_db_data:
+
+networks:
+  default:
+    name: llmobs-auth-network
+    external: true
