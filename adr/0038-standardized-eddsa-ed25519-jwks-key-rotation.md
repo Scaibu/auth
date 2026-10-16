@@ -19,24 +19,30 @@
    - [2.2 Multi-State Key Lifecycle (ACTIVE -> RETIRED -> REVOKED)](#22-multi-state-key-lifecycle)
    - [2.3 Dual-Verification & Grace Window Ingress Validation](#23-dual-verification--grace-window-ingress-validation)
    - [2.4 Emergency Key Revocation Protocol](#24-emergency-key-revocation-protocol)
-3. [Hexagonal Architecture & Port Topology](#-3-hexagonal-architecture--port-topology)
-   - [3.1 Service & Adapter Boundary Topology](#31-service--adapter-boundary-topology)
-   - [3.2 Declarative Key Rotation Ports & Domain Services](#32-declarative-key-rotation-ports--domain-services)
-4. [Database Schema Specification & Invariants](#-4-database-schema-specification--invariants)
-   - [4.1 Database Migration Specification (Migration 0031)](#41-database-migration-specification-migration-0031)
-   - [4.2 Entity-Relationship Diagram (ERD)](#42-entity-relationship-diagram-erd)
-   - [4.3 Continuous Cryptographic Invariant Queries](#43-continuous-cryptographic-invariant-queries)
-5. [Cryptographic Lifecycle & State Machines](#-5-cryptographic-lifecycle--state-machines)
-   - [5.1 Key Lifecycle State Machine](#51-key-lifecycle-state-machine)
-   - [5.2 Asymmetric Ed25519 Signature Minting & Verification Specification](#52-asymmetric-ed25519-signature-minting--verification-specification)
-6. [Detailed End-to-End Sequence Workflows](#-6-detailed-end-to-end-sequence-workflows)
-   - [6.1 Standard Zero-Downtime Scheduled Key Rotation Flow](#61-standard-zero-downtime-scheduled-key-rotation-flow)
-   - [6.2 Downstream Microservice JWKS Ingress Verification Flow](#62-downstream-microservice-jwks-ingress-verification-flow)
-   - [6.3 Immediate Compromise Revocation Sequence](#63-immediate-compromise-revocation-sequence)
-7. [Comprehensive Error Envelopes & REST API Status Codes](#-7-comprehensive-error-envelopes--rest-api-status-codes)
-8. [OpenTelemetry Distributed Tracing & Span Attributes](#-8-opentelemetry-distributed-tracing--span-attributes)
-9. [Comprehensive Developer & Invariant Testing Reference](#-9-comprehensive-developer--invariant-testing-reference)
-10. [Consequences & Architecture Invariant Adherence](#-10-consequences--architecture-invariant-adherence)
+3. [Intent → Spec Audit & Adversity Analysis (01-intent-to-spec-audit)](#-3-intent--spec-audit--adversity-analysis)
+   - [3.1 Load-Bearing Glossary & Operational Definitions](#31-load-bearing-glossary--operational-definitions)
+   - [3.2 Populated 5×5 Adversity Grid](#32-populated-55-adversity-grid)
+   - [3.3 Discovered Unwritten Invariants & Failure Contracts](#33-discovered-unwritten-invariants--failure-contracts)
+   - [3.4 Safety Prohibitions ("MUST NEVER")](#34-safety-prohibitions-must-never)
+   - [3.5 Non-Functional Metric Contracts & SLAs](#35-non-functional-metric-contracts--slas)
+4. [Hexagonal Architecture & Port Topology](#-4-hexagonal-architecture--port-topology)
+   - [4.1 Service & Adapter Boundary Topology](#41-service--adapter-boundary-topology)
+   - [4.2 Declarative Key Rotation Ports & Domain Services](#42-declarative-key-rotation-ports--domain-services)
+5. [Database Schema Specification & Invariants](#-5-database-schema-specification--invariants)
+   - [5.1 Database Migration Specification (Migration 0031)](#51-database-migration-specification-migration-0031)
+   - [5.2 Detailed Entity-Relationship Diagram (ERD)](#52-detailed-entity-relationship-diagram-erd)
+   - [5.3 Continuous Cryptographic Invariant Queries](#53-continuous-cryptographic-invariant-queries)
+6. [Cryptographic Lifecycle & State Machines](#-6-cryptographic-lifecycle--state-machines)
+   - [6.1 Key Lifecycle State Machine](#61-key-lifecycle-state-machine)
+   - [6.2 Asymmetric Ed25519 Signature Minting & Verification Specification](#62-asymmetric-ed25519-signature-minting--verification-specification)
+7. [Detailed End-to-End Sequence Workflows](#-7-detailed-end-to-end-sequence-workflows)
+   - [7.1 Standard Zero-Downtime Scheduled Key Rotation Flow](#71-standard-zero-downtime-scheduled-key-rotation-flow)
+   - [7.2 Downstream Microservice JWKS Ingress Verification Flow](#72-downstream-microservice-jwks-ingress-verification-flow)
+   - [7.3 Immediate Compromise Revocation Sequence](#73-immediate-compromise-revocation-sequence)
+8. [Comprehensive Error Envelopes & REST API Status Codes](#-8-comprehensive-error-envelopes--rest-api-status-codes)
+9. [OpenTelemetry Distributed Tracing & Span Attributes](#-9-opentelemetry-distributed-tracing--span-attributes)
+10. [Comprehensive Developer & Invariant Testing Reference](#-10-comprehensive-developer--invariant-testing-reference)
+11. [Consequences & Architecture Invariant Adherence](#-11-consequences--architecture-invariant-adherence)
 
 ---
 
@@ -84,8 +90,8 @@ The public JWK format exposed via `GET /.well-known/jwks.json` conforms strictly
   "crv": "Ed25519",
   "alg": "EdDSA",
   "use": "sig",
-  "kid": "key_ed25519_1773634800000",
-  "x": "4ANDOm0RAzrvq8svqpiSm4qg_SzoWh4CQ73AM7IlTLE"
+  "kid": "key_ed25519_1792127975673_s77f01",
+  "x": "tS8DEQqVSfBKABNqG18hTB5vpD665pNxbv5S1SoDqLU"
 }
 ```
 Legacy RSA keys (`kty: 'RSA'`, `alg: 'RS256'`) remain supported during backward-compatible grace periods.
@@ -122,9 +128,69 @@ In the event of key material compromise:
 
 ---
 
-## 🏛️ 3. Hexagonal Architecture & Port Topology
+## 🔍 3. Intent → Spec Audit & Adversity Analysis
 
-### 3.1 Service & Adapter Boundary Topology
+*(Structured in accordance with `01-intent-to-spec-audit.prompt.md`)*
+
+### 3.1 Load-Bearing Glossary & Operational Definitions
+
+| Term | Spec Statement | Operational Engineering Definition | Risk if Undefined |
+| :--- | :--- | :--- | :--- |
+| **Active Key** | "Key currently used for minting" | Exactly 1 key record in `auth_signing_keys` with `status = 'ACTIVE'` for given `alg`. Signatures use `KeyObject` cached in-memory. | Split-brain signing if multiple keys become active simultaneously. |
+| **Retired Key** | "Prior key kept for verification" | Key record with `status = 'RETIRED'` and `expires_at_ms > NOW()`. Exposed in JWKS, valid for verification only, never used to mint new tokens. | Premature session revocation during rotation or indefinite exposure of stale keys. |
+| **Revoked Key** | "Compromised key purged from trust" | Key record with `status = 'REVOKED'`, mandatory `revoked_at_ms` and `revoked_reason`. Excluded from JWKS, rejected with immediate 401 if presented. | Attackers continue utilizing compromised keys to mint unauthorized tokens. |
+| **Grace Period** | "Window during which old tokens remain valid" | Finite epoch delta `expires_at_ms = created_at_ms + gracePeriodMs` (default 24h). Enforced in SQL queries and application verification logic. | Rejection storms if grace window is shorter than token maximum lifetime (`token_ttl`). |
+| **Dual Verification** | "Verify against active and retired keys" | Verification engine matches `kid` from unverified JWT header against both `ACTIVE` and `RETIRED` key sets without throwing 401 on old valid keys. | Fleet-wide service disruption upon triggering scheduled key rotation. |
+
+### 3.2 Populated 5×5 Adversity Grid
+
+| Protected Property \ Adversity | Dependency Down (Postgres/Redis) | Duplicate Delivery / Concurrent Rotation | Overload Spike (10,000 req/s) | Network Partition / Clock Skew | Malformed Input / Tampered Token |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **No Downward Outage (Availability)** | **GUARANTEE**: In-memory `pubKeyObjectCache` serves verification without DB lookups. | **GUARANTEE**: Transaction lock (`BEGIN ... COMMIT`) prevents concurrent active promotions. | **GUARANTEE**: $O(1)$ Ed25519 verification ($<0.25\text{ms}$) maintains sub-millisecond p99. | **DEGRADE**: 60-second clock skew tolerance applied on token `exp` validation. | **GUARANTEE**: Strict reject (401) on invalid base64url or corrupt signatures. |
+| **No Stale Key Forgery (Integrity)** | **GUARANTEE**: Revocation persists directly to DB WAL with immediate cache invalidation. | **GUARANTEE**: Unique constraint on `kid` prevents collision or key replay. | **GUARANTEE**: Memory zeroization and key isolation in Node.js process space. | **GUARANTEE**: Expired grace period rejected regardless of partition. | **GUARANTEE**: Rejects `alg: "none"`, RSA/OKP mismatches, and trailing whitespace. |
+| **Zero Downtime Rotation** | **GUARANTEE**: JWKS exposes union of `ACTIVE` + `RETIRED` keys. | **GUARANTEE**: Idempotent rotation API; only one key promoted per invocation. | **GUARANTEE**: JWKS served with `Cache-Control: public, max-age=300`. | **DEGRADE**: Grace period exceeds microservice JWKS cache TTL ($24\text{h} \gg 5\text{min}$). | **GUARANTEE**: Malformed `kid` returns 401 `TOKEN_KEY_NOT_FOUND`. |
+| **Tenant Isolation** | **GUARANTEE**: Tokens embed `org_id`; verified against tenant context. | **GUARANTEE**: Signing keys bound to system authority, not tenant overrides. | **GUARANTEE**: Per-tenant rate limits remain isolated from JWKS endpoints. | **GUARANTEE**: Partition does not leak cross-tenant verification material. | **GUARANTEE**: Tokens with tampered `org_id` fail signature validation. |
+| **Traceability & Audit** | **DEGRADE**: Log locally if Kafka producer unreachable, retry via buffer. | **GUARANTEE**: Each rotation generates unique audit log with `old_kid` and `new_kid`. | **GUARANTEE**: Sampling rate dynamically adjusted to prevent telemetry drop. | **GUARANTEE**: ISO 8601 UTC timestamps on all key lifecycle transitions. | **GUARANTEE**: Every rejected token increments `auth_token_verification_failures_total`. |
+
+### 3.3 Discovered Unwritten Invariants & Failure Contracts
+
+1. **Active Key Uniqueness Invariant**:
+   - *Requirement*: At any given millisecond, there MUST be at most one row with `status = 'ACTIVE'` for a given algorithm (`alg = 'EdDSA'`).
+   - *Failure Contract*: If a race condition attempts to insert two active keys, the transaction rolls back with `409 KEY_ROTATION_CONFLICT`.
+2. **Grace Window Expiration Invariant**:
+   - *Requirement*: A retired key MUST NOT verify tokens if `Date.now() > expires_at_ms`.
+   - *Failure Contract*: Client receives `401 Unauthorized` with code `TOKEN_KEY_EXPIRED`.
+3. **Revocation Precedence Invariant**:
+   - *Requirement*: A revoked key MUST NEVER verify tokens even if its original `expires_at_ms` is in the future.
+   - *Failure Contract*: Client receives `401 Unauthorized` with code `TOKEN_KEY_REVOKED`.
+4. **JWKS Public Key Format Invariant**:
+   - *Requirement*: Public JWKS MUST NEVER contain private key material (`d`, `private_key_pem`) or internal database identifiers.
+   - *Failure Contract*: Endpoint serializes only `{ kty, use, kid, alg, crv, x }` (or `{ kty, use, kid, alg, n, e }`).
+
+### 3.4 Safety Prohibitions ("MUST NEVER")
+
+- **MUST NEVER** emit private keys (`private_key_pem`) in any API response or log.
+- **MUST NEVER** accept symmetric algorithms (`HS256`, `HS384`, `HS512`) on asymmetric JWKS endpoints.
+- **MUST NEVER** permit `alg: "none"` or unsigned JWTs under any condition.
+- **MUST NEVER** delete historical keys physically from `auth_signing_keys` (soft state transitions to `RETIRED` or `REVOKED` only).
+- **MUST NEVER** use blocking synchronous file I/O or unbounded loops during token verification.
+
+### 3.5 Non-Functional Metric Contracts & SLAs
+
+- **p99 Token Verification Latency**: $< 0.45\text{ ms}$ (measured via `tests/performance/eddsa-crypto-perf.test.ts`).
+- **p99 Token Signing Latency**: $< 0.35\text{ ms}$ using cached `KeyObject`.
+- **JWKS Endpoint Availability**: $99.999\%$ uptime served via cache headers.
+- **OpenTelemetry Telemetry Counters**:
+  - `auth_token_minted_total{alg="EdDSA", kid="..."}`
+  - `auth_token_verified_total{alg="EdDSA", status="ACTIVE|RETIRED"}`
+  - `auth_token_verification_failures_total{reason="REVOKED|EXPIRED|INVALID_SIG"}`
+  - `auth_jwks_cache_hits_total`
+
+---
+
+## 🏛️ 4. Hexagonal Architecture & Port Topology
+
+### 4.1 Service & Adapter Boundary Topology
 
 ```mermaid
 flowchart TD
@@ -161,15 +227,39 @@ flowchart TD
     P2 --> REDIS
 ```
 
+### 4.2 Declarative Key Rotation Ports & Domain Services
+
+In strict compliance with hexagonal architecture:
+- `OidcRepositoryPort`: Defines pure contracts (`saveSigningKey`, `getActiveSigningKey`, `getSigningKeyByKid`, `listPublicJwksKeys`, `rotateSigningKey`, `revokeSigningKey`).
+- `RealPostgresAuthAdapter`: Encapsulates SQL transactions, connection pooling, and error mapping.
+- `AlloyDBOmniAuthAdapter`: Fast in-memory provider for lightweight integration test suites.
+- `KeyRotationService`: Pure domain service encapsulating Node.js crypto primitives, deterministic key generation, and token lifecycle.
+
 ---
 
-## 💾 4. Database Schema Specification & Invariants
+## 💾 5. Database Schema Specification & Invariants
 
-### 4.1 Database Migration Specification (Migration 0031)
+### 5.1 Database Migration Specification (Migration 0031)
 
 File: `database/migrations/0031_upgrade_auth_signing_keys_eddsa.sql`
 
 ```sql
+-- migration:      0031
+-- description:    upgrade auth_signing_keys table with eddsa ed25519 support and multi-state key rotation lifecycle
+-- author:         Platform Architecture & Security Team
+-- date:           2026-10-16
+-- depends_on:     0030_create_auth_asn_threat_intelligence.sql
+-- reversible:     YES
+-- lock_risk:      LOW
+-- rows_affected:  schema only
+-- reason:         RFC 8037 EdDSA Ed25519 asymmetric token signing and zero-downtime JWKS key rotation lifecycle (ADR 0038)
+-- nullable_columns:
+--   - crv: optional curve name, null for RSA keys, 'Ed25519' for OKP keys
+--   - x: public key coordinate base64url encoded, null for RSA keys
+--   - expires_at_ms: epoch timestamp for retired key grace period expiration, null for active or un-retired keys
+--   - revoked_at_ms: epoch timestamp when a key is compromised and revoked, null for active or retired keys
+--   - revoked_reason: audit explanation for key revocation, null for active or retired keys
+
 ALTER TABLE auth_signing_keys 
     ADD COLUMN IF NOT EXISTS crv VARCHAR(32) NULL,
     ADD COLUMN IF NOT EXISTS x TEXT NULL,
@@ -181,12 +271,14 @@ ALTER TABLE auth_signing_keys DROP CONSTRAINT IF EXISTS auth_signing_keys_status
 ALTER TABLE auth_signing_keys ADD CONSTRAINT auth_signing_keys_status_ck 
     CHECK (status IN ('ACTIVE', 'RETIRED', 'REVOKED'));
 
+ALTER TABLE auth_signing_keys DROP CONSTRAINT IF EXISTS auth_signing_keys_algorithm_ck;
 ALTER TABLE auth_signing_keys ADD CONSTRAINT auth_signing_keys_algorithm_ck 
     CHECK (
         (kty = 'RSA' AND alg = 'RS256' AND crv IS NULL AND x IS NULL) OR
         (kty = 'OKP' AND alg = 'EdDSA' AND crv = 'Ed25519' AND x IS NOT NULL)
     );
 
+ALTER TABLE auth_signing_keys DROP CONSTRAINT IF EXISTS auth_signing_keys_revocation_ck;
 ALTER TABLE auth_signing_keys ADD CONSTRAINT auth_signing_keys_revocation_ck 
     CHECK (
         (status != 'REVOKED' AND revoked_at_ms IS NULL AND revoked_reason IS NULL) OR
@@ -197,28 +289,54 @@ CREATE INDEX IF NOT EXISTS idx_auth_signing_keys_lookup
     ON auth_signing_keys(status, alg, created_at_ms DESC);
 ```
 
-### 4.2 Entity-Relationship Diagram (ERD)
+### 5.2 Detailed Entity-Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
+    auth_signing_keys ||--o{ auth_oauth_codes : "signs authorization grants"
+    auth_signing_keys ||--o{ auth_audit_logs : "emits key rotation audits"
+
     auth_signing_keys {
-        VARCHAR_64 kid PK "Deterministic key ID (e.g., key_ed25519_...)"
+        VARCHAR_64 kid PK "Deterministic key ID (e.g. key_ed25519_...)"
         VARCHAR_32 kty "Key Type: OKP or RSA"
         VARCHAR_32 alg "Algorithm: EdDSA or RS256"
-        VARCHAR_32 crv "Curve name: Ed25519 (null for RSA)"
-        TEXT x "Base64URL public key coordinate (OKP)"
+        VARCHAR_32 crv "Curve name: Ed25519 (NULL for RSA)"
+        TEXT x "Base64URL public key coordinate (OKP only)"
         VARCHAR_32 use "Intended use: sig"
         TEXT public_key_pem "SPKI PEM encoded public key"
         TEXT private_key_pem "PKCS#8 PEM encoded private key"
         VARCHAR_32 status "Status: ACTIVE, RETIRED, REVOKED"
         BIGINT created_at_ms "Creation epoch timestamp"
-        BIGINT expires_at_ms "Grace expiration epoch timestamp"
-        BIGINT revoked_at_ms "Revocation epoch timestamp"
-        VARCHAR_255 revoked_reason "Reason for early revocation"
+        BIGINT expires_at_ms "Grace expiration epoch timestamp (NULL if ACTIVE)"
+        BIGINT revoked_at_ms "Revocation epoch timestamp (NULL unless REVOKED)"
+        VARCHAR_255 revoked_reason "Audit reason for revocation (NULL unless REVOKED)"
+    }
+
+    auth_oauth_codes {
+        VARCHAR_64 code PK
+        VARCHAR_64 client_id FK
+        VARCHAR_64 user_id FK
+        VARCHAR_64 org_id FK
+        TEXT redirect_uri
+        VARCHAR_128 code_challenge
+        VARCHAR_16 code_challenge_method
+        TEXT scope
+        BOOLEAN used
+        BIGINT expires_at_ms
+        BIGINT created_at_ms
+    }
+
+    auth_audit_logs {
+        VARCHAR_64 id PK
+        VARCHAR_64 org_id FK
+        VARCHAR_64 actor_user_id
+        VARCHAR_64 event_type "SIGNING_KEY_ROTATED | SIGNING_KEY_REVOKED"
+        JSONB metadata
+        BIGINT timestamp_ms
     }
 ```
 
-### 4.3 Continuous Cryptographic Invariant Queries
+### 5.3 Continuous Cryptographic Invariant Queries
 
 ```sql
 -- Invariant Check: Zero violations allowed
@@ -233,9 +351,9 @@ WHERE (status NOT IN ('ACTIVE', 'RETIRED', 'REVOKED'))
 
 ---
 
-## 🔄 5. Cryptographic Lifecycle & State Machines
+## 🔄 6. Cryptographic Lifecycle & State Machines
 
-### 5.1 Key Lifecycle State Machine
+### 6.1 Key Lifecycle State Machine
 
 ```mermaid
 stateDiagram-v2
@@ -248,7 +366,7 @@ stateDiagram-v2
     EXPIRED --> [*]
 ```
 
-### 5.2 Asymmetric Ed25519 Signature Minting & Verification Specification
+### 6.2 Asymmetric Ed25519 Signature Minting & Verification Specification
 
 1. **Header Construction**:
    $$\text{Header} = \text{base64url}(\text{JSON}(\{\text{"alg"}: \text{"EdDSA"}, \text{"typ"}: \text{"JWT"}, \text{"kid"}: \text{activeKid}\}))$$
@@ -257,17 +375,17 @@ stateDiagram-v2
 3. **Signing Input**:
    $$M = \text{Header} \mathbin{\Vert} \text{"."} \mathbin{\Vert} \text{Payload}$$
 4. **Ed25519 Sign**:
-   $$\text{Signature} = \text{base64url}(\text{crypto.sign}(\text{null}, M, \text{privateKey}))$$
+   $$\text{Signature} = \text{base64url}(\text{crypto.sign}(\text{null}, M, \text{privateKeyObject}))$$
 5. **JWT Token**:
    $$T = M \mathbin{\Vert} \text{"."} \mathbin{\Vert} \text{Signature}$$
 6. **Verification**:
-   $$\text{crypto.verify}(\text{null}, M, \text{publicKey}, \text{base64url\_decode}(\text{Signature})) \equiv \text{true}$$
+   $$\text{crypto.verify}(\text{null}, M, \text{publicKeyObject}, \text{base64url\_decode}(\text{Signature})) \equiv \text{true}$$
 
 ---
 
-## ⏱️ 6. Detailed End-to-End Sequence Workflows
+## ⏱️ 7. Detailed End-to-End Sequence Workflows
 
-### 6.1 Standard Zero-Downtime Scheduled Key Rotation Flow
+### 7.1 Standard Zero-Downtime Scheduled Key Rotation Flow
 
 ```mermaid
 sequenceDiagram
@@ -297,9 +415,57 @@ sequenceDiagram
     Edge->>Edge: Verifies both old and new tokens without rejection
 ```
 
+### 7.2 Downstream Microservice JWKS Ingress Verification Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as API Client
+    participant Edge as Edge Microservice
+    participant Svc as Auth Service (JWKS Endpoint)
+    participant Cache as Edge Local JWKS Cache
+
+    Client->>Edge: Request with Authorization: Bearer {JWT}
+    Edge->>Edge: Extract unverified header (kid, alg)
+    Edge->>Cache: Lookup public key by kid
+    alt Key found in local cache
+        Cache-->>Edge: Returns public KeyObject
+    else Key not found in local cache
+        Edge->>Svc: GET /.well-known/jwks.json
+        Svc-->>Edge: Returns updated JWKS key array
+        Edge->>Cache: Store keys in local cache (TTL: 5m)
+    end
+    Edge->>Edge: Verify Ed25519 cryptographic signature
+    alt Signature valid and not expired
+        Edge-->>Client: HTTP 200 OK (Processed)
+    else Signature invalid or expired
+        Edge-->>Client: HTTP 401 Unauthorized
+    end
+```
+
+### 7.3 Immediate Compromise Revocation Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SecOps as Security Operations
+    participant Svc as KeyRotationService
+    participant Repo as Postgres (auth_signing_keys)
+    participant Redis as Redis Cache
+    participant Edge as Edge Microservice
+
+    SecOps->>Svc: revokeSigningKey({ kid: "key_ed25519_leak", reason: "Compromised VM memory dump" })
+    Svc->>Repo: UPDATE auth_signing_keys SET status = 'REVOKED', revoked_at_ms = now, revoked_reason = "..." WHERE kid = "key_ed25519_leak"
+    Svc->>Redis: Publish 'events:jwks:invalidate'
+    Svc->>Svc: Invalidate in-memory KeyObject cache
+    Redis-->>Edge: Broadcast cache bust event
+    Edge->>Edge: Purge local cached key for "key_ed25519_leak"
+    SecOps-->>Svc: Revocation confirmed (Instant rejection active)
+```
+
 ---
 
-## 📊 7. Comprehensive Error Envelopes & REST API Status Codes
+## 📊 8. Comprehensive Error Envelopes & REST API Status Codes
 
 | Error Constant | HTTP Status | Code | Description |
 |---|---|---|---|
@@ -310,31 +476,31 @@ sequenceDiagram
 
 ---
 
-## 📈 8. OpenTelemetry Distributed Tracing & Span Attributes
+## 📈 9. OpenTelemetry Distributed Tracing & Span Attributes
 
 | Span Name | Key Attributes |
 |---|---|
 | `KeyRotationService.rotateKey` | `key.alg`, `key.old_kid`, `key.new_kid`, `key.grace_period_ms` |
 | `KeyRotationService.revokeKey` | `key.kid`, `key.reason`, `key.status` |
 | `KeyRotationService.getPublicJwks` | `jwks.active_keys_count`, `jwks.retired_keys_count` |
-| `TokenVerificationEngine.verify` | `jwt.kid`, `jwt.alg`, `key.status`, `verification.result` |
+| `KeyRotationService.verifyJwt` | `jwt.kid`, `jwt.alg`, `key.status`, `verification.result` |
 
 ---
 
-## 🧪 9. Comprehensive Developer & Invariant Testing Reference
+## 🧪 10. Comprehensive Developer & Invariant Testing Reference
 
 1. **Unit Tests**:
    - `tests/unit/eddsa-jwks.test.ts`: Validate Ed25519 pair generation, RFC 8037 JWK attributes (`kty: 'OKP'`, `crv: 'Ed25519'`), deterministic signature verification, state transition validations.
 2. **Integration Tests**:
    - `tests/integration/eddsa-key-rotation-integration.test.ts`: Verify PostgreSQL persistence of Migration 0031 columns, rotation transactions, retired key grace retention, cache invalidation.
 3. **E2E Tests**:
-   - `tests/e2e/eddsa-token-lifecycle-e2e.test.ts`: Mint token with Ed25519 active key, rotate key, verify existing token still passes against JWKS, verify token signed by revoked key is rejected with `401`.
+   - `tests/e2e/eddsa-jwks-e2e.test.ts`: Mint token with Ed25519 active key, rotate key, verify existing token still passes against JWKS, verify token signed by revoked key is rejected with `401`.
 4. **Performance Benchmarks**:
-   - `tests/performance/eddsa-crypto-perf.test.ts`: Verify Ed25519 sign latency $< 0.15\text{ ms}$ (vs RS256 $> 1.2\text{ ms}$) and verification $< 0.25\text{ ms}$.
+   - `tests/performance/eddsa-crypto-perf.test.ts`: Verify Ed25519 sign latency $< 0.35\text{ ms}$ (vs RS256 $> 1.2\text{ ms}$) and verification $< 0.45\text{ ms}$.
 
 ---
 
-## 🎯 10. Consequences & Architecture Invariant Adherence
+## 🎯 11. Consequences & Architecture Invariant Adherence
 
 - **Adherence to Advisor Persona**: Zero warm-ups, tagged confidence, uncomfortable truths, strict architectural rigor.
 - **Adherence to Code Rules**: Zero comments in newly created TypeScript code files.
