@@ -1104,3 +1104,24 @@ In accordance with the Keycloak delegation architecture, standard OpenID Connect
 
 #### `GET /realms/{realm}/protocol/openid-connect/certs`
 - **Purpose**: Authoritative JSON Web Key Set (JWKS) discovery endpoint providing public EdDSA / RS256 signing keys for cryptographic verification.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RouteDispatchResult>
+        │   dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        │   ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        │   ├── validateSchema(schema: ZodSchema<T>, data: unknown): T
+        │   ├── handler(ctx: RouteContext): Promise<TResult>
+        │   └── createSuccessResponse(data: TResult, message: string, meta: ResponseMeta): ApiResponse<TResult>
+        ├── createSuccessResponse(data: RouteDispatchResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RouteDispatchResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RouteDispatchResult>, headers: Record<string, string> }
+```

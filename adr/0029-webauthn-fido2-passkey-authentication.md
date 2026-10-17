@@ -355,3 +355,23 @@ stateDiagram-v2
 - **Response Envelopes**: All endpoints adhere to [2-apis.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/2-apis.writing.rule.md) with strict envelope wrapping (`success`, `statusCode`, `data`, `meta`).
 - **Zero Inline Comments Doctrine**: Handlers strictly follow [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md).
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<PasskeyAuthResult>
+        │   verifyPasskeyAuthentication(response: PasskeyAssertionResponse): Promise<PasskeyAuthResult>
+        │   ├── getStoredCredential(credentialId: string): Promise<PasskeyCredentialRecord>
+        │   ├── verifySignature(clientData: Buffer, authData: Buffer, sig: Buffer, pubKey: Buffer): boolean
+        │   └── updateCounter(credentialId: string, newCounter: number): Promise<void>
+        ├── createSuccessResponse(data: PasskeyAuthResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<PasskeyAuthResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<PasskeyAuthResult>, headers: Record<string, string> }
+```

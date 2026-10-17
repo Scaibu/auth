@@ -512,3 +512,23 @@ curl -X POST http://localhost:3001/oauth/token \
 - **Clean Code & Policy Conformance**:
   - Migration `0027_add_m2m_client_credentials.sql` adheres strictly to [05-db-writing-rules.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/05-db-writing-rules.md).
   - Clean separation between OIDC orchestration and repository adapters.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<M2mTokenResponse>
+        │   issueM2mToken(clientId: string, clientSecret: string, scope: string): Promise<M2mTokenResponse>
+        │   ├── authenticateClient(clientId: string, clientSecret: string): Promise<ClientRecord>
+        │   ├── validateRequestedScopes(allowedScopes: string[], requested: string): string[]
+        │   └── signM2mJwt(client: ClientRecord, scopes: string[]): string
+        ├── createSuccessResponse(data: M2mTokenResponse, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<M2mTokenResponse>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<M2mTokenResponse>, headers: Record<string, string> }
+```

@@ -213,3 +213,23 @@ User Action (Sign-In / Sign-Out / Session Request)
    - **Email Lockout Threshold**: Maximum of 5 failed attempts per email address (`MAX_FAILED_PER_EMAIL`) triggers a 15-minute account lockout (`EMAIL_LOCKOUT_MS`).
 4. **OpenTelemetry Full Visibility**: Every rate-limit check and session denylist lookup is wrapped in `withSpan()`, attaching client `ip`, target `email`, and `token.jti` to distributed traces for Grafana Tempo debugging.
 5. **Decoupled Cache Interface (`ICachePort`)**: Services depend on the `ICachePort` interface, allowing pluggable execution between the lightweight `RedisCacheAdapter` (in-process) and distributed `ioredis` clusters.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RateLimitResult>
+        │   checkRateLimit(identifier: string, rule: RateLimitRule): Promise<RateLimitResult>
+        │   ├── evalSha(scriptSha: string, keys: string[], args: (string | number)[]): Promise<[number, number]>
+        │   ├── isAllowed(currentCount: number, limit: number): boolean
+        │   └── recordAttempt(identifier: string, success: boolean): Promise<void>
+        ├── createSuccessResponse(data: RateLimitResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RateLimitResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RateLimitResult>, headers: Record<string, string> }
+```

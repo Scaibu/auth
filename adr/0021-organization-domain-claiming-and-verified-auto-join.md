@@ -364,3 +364,23 @@ All DNS and domain operations must emit semantic OpenTelemetry spans adhering to
 | **DNS Cache Poisoning / Spoofing** | Attacker poisons local resolver to return false positive verification | DNS queries enforce short TTL, bypass OS cache using authoritative public DNS resolvers with retry fallback |
 | **Corporate Account Takeover** | Attacker registers unverified email and auto-joins target corporate workspace | Auto-join strictly requires `email_verified: true` (via OTP verification or federated OIDC assertion) |
 | **Silent Domain Ownership Expiry** | Company forgets to renew domain; attacker acquires domain and inherits auto-join | Background worker performs continuous daily re-checks; auto-suspends auto-join if TXT is missing |
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<DomainVerificationResult>
+        │   verifyDomainOwnership(domainId: string): Promise<DomainVerificationResult>
+        │   ├── resolveDnsTxtRecord(domain: string): Promise<string[]>
+        │   ├── verifyVerificationToken(records: string[], expectedToken: string): boolean
+        │   └── markDomainVerified(domainId: string): Promise<void>
+        ├── createSuccessResponse(data: DomainVerificationResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<DomainVerificationResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<DomainVerificationResult>, headers: Record<string, string> }
+```

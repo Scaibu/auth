@@ -272,3 +272,23 @@ stateDiagram-v2
 - **Negative**:
   - Dependent on email infrastructure delivery latency (mitigated by 15-minute token TTL).
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<SignInResult>
+        │   verifyMagicLinkToken(token: string): Promise<SignInResult>
+        │   ├── hashToken(token: string): string
+        │   ├── consumeMagicLink(tokenHash: string): Promise<MagicLinkRecord>
+        │   └── issueUserSession(userId: string): Promise<SignInResult>
+        ├── createSuccessResponse(data: SignInResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<SignInResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<SignInResult>, headers: Record<string, string> }
+```

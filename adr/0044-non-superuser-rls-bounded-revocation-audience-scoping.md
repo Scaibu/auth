@@ -236,3 +236,23 @@ The implementation is verified by dedicated automated test suites:
 ### Negative Consequences / Trade-offs
 - Setting tenant context via `SET LOCAL` requires wrapping all tenant reads/writes in explicit database transactions.
 - Local DB status re-checks for API keys add a primary-key read query on API key authentication (mitigated by B-tree index on user ID and active connection pooling).
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<void>
+        │   enforceTenantRlsContext(client: PoolClient, tenantId: string, userId: string): Promise<void>
+        │   ├── query("SET LOCAL app.current_tenant_id = $1", [tenantId]): Promise<QueryResult<void>>
+        │   ├── query("SET LOCAL app.current_user_id = $1", [userId]): Promise<QueryResult<void>>
+        │   └── assertNonSuperuserRole(client: PoolClient): Promise<void>
+        ├── createSuccessResponse(data: void, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<void>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<void>, headers: Record<string, string> }
+```

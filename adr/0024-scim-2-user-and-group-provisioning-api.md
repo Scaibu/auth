@@ -348,3 +348,23 @@ All SCIM schemas, paths, headers, and error codes are centralized in `AUTH_CONST
 - `ERROR_UNIQUENESS = 'uniqueness'`
 - `ERROR_INVALID_VALUE = 'invalidValue'`
 - `ERROR_NO_TARGET = 'noTarget'`
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<ScimUserResource>
+        │   handleScimUserCreate(payload: ScimUserCreateDto): Promise<ScimUserResource>
+        │   ├── mapScimToInternalUser(payload: ScimUserCreateDto): CreateUserInput
+        │   ├── createUser(input: CreateUserInput): Promise<AuthUserRecord>
+        │   └── formatScimUserResource(user: AuthUserRecord): ScimUserResource
+        ├── createSuccessResponse(data: ScimUserResource, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<ScimUserResource>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<ScimUserResource>, headers: Record<string, string> }
+```

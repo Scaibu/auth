@@ -262,3 +262,24 @@ Trace instrumentation records cryptographic spans without ever logging plaintext
 3. **Round-Trip Parity Test**: `decryptEnvelope(encryptEnvelope(plaintext, key, ctx), key, ctx) === plaintext`.
 4. **Tamper Rejection Test**: Flipping a single bit in ciphertext or tag throws `SecurityError('Field ciphertext authentication tag verification failed')`.
 5. **AAD Cross-Field Splicing Test**: Attempting to decrypt `name_encrypted` using `{ fieldName: 'email' }` throws authentication failure.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   encryptPiiField(plaintext: string, dek: Buffer): EncryptedEnvelope
+        │   ├── generateIv(): Buffer
+        │   ├── createCipheriv("aes-256-gcm", dek, iv): CipherGCM
+        │   ├── computeAuthTag(cipher: CipherGCM): Buffer
+        │   └── formatEncryptedPayload(ciphertext: Buffer, iv: Buffer, tag: Buffer): string
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

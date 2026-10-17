@@ -484,3 +484,23 @@ curl -X POST http://localhost:3001/api/v1/auth/sign-in \
 - **Code Standards Compliance**:
   - Conforms strictly to [3.shared.code.writing.rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/3.shared.code.writing.rule.md) (pure functional utilities in `src/shared/utils/`).
   - Zero inline comments in accordance with platform policies.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   sanitizeIdentityString(rawInput: string): string
+        │   ├── normalizeNfkc(input: string): string
+        │   ├── detectConfusables(normalized: string): boolean
+        │   └── assertAsciiSafeEmail(email: string): string
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

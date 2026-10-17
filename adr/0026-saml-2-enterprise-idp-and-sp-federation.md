@@ -346,3 +346,23 @@ The service:
 4. Checks and records `assertion_id` in `auth_saml_assertion_replay` to prevent replay attacks.
 5. Locates or Just-In-Time (JIT) provisions the user with `ROLE_MEMBER` and issues a valid session JWT.
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<SamlAssertionResult>
+        │   processSamlAssertion(samlResponseXml: string): Promise<SamlAssertionResult>
+        │   ├── validateXmlSignature(xml: string, cert: string): boolean
+        │   ├── decryptAssertion(xml: string, privateKey: string): Promise<string>
+        │   └── extractSamlAttributes(decryptedXml: string): Record<string, string>
+        ├── createSuccessResponse(data: SamlAssertionResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<SamlAssertionResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<SamlAssertionResult>, headers: Record<string, string> }
+```

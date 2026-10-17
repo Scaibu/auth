@@ -518,3 +518,23 @@ sequenceDiagram
 - **Adherence to Code Rules**: Zero comments in newly created TypeScript code files.
 - **Zero Downtime**: Downstream services verifying JWTs via JWKS experience no rejection during scheduled key rotation.
 - **State Integrity**: Database CHECK constraints guarantee complete state and cryptographic parameter consistency.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<JwksKeyRecord>
+        │   rotateSigningKeypair(): Promise<JwksKeyRecord>
+        │   ├── generateKeyPair("ed25519"): Promise<KeyPairSyncResult>
+        │   ├── registerNewKey(keyRecord: JwksKeyRecord): Promise<void>
+        │   └── archiveExpiredKeys(retentionDays: number): Promise<void>
+        ├── createSuccessResponse(data: JwksKeyRecord, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<JwksKeyRecord>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<JwksKeyRecord>, headers: Record<string, string> }
+```

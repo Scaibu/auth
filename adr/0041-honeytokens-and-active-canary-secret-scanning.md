@@ -233,3 +233,23 @@ sequenceDiagram
 - **Prometheus Metrics**:
   - `auth_honeytoken_trips_total{org_id="...", status="TRIPPED"}` (Counter)
   - `auth_honeytoken_active_gauge{org_id="..."}` (Gauge)
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<void>
+        │   triggerHoneytokenAlert(tokenValue: string, reqContext: RequestContext): Promise<void>
+        │   ├── matchHoneytoken(token: string): Promise<HoneytokenRecord | null>
+        │   ├── autoBlockSourceIp(ip: string, ttl: number): Promise<void>
+        │   └── publishSecurityAlert(alert: HoneytokenAlert): Promise<void>
+        ├── createSuccessResponse(data: void, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<void>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<void>, headers: Record<string, string> }
+```

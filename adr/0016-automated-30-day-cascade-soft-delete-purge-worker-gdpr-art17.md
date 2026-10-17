@@ -196,3 +196,25 @@ Add composite/partial indexes to optimize the cutoff purge scan:
 ### Negative / Mitigations
 - **Non-Recoverable Hard Deletion**: Once purged, records cannot be restored.
   - *Mitigation*: The 30-day grace period is strictly enforced (`deleted_at < NOW() - INTERVAL '30 days'`).
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<PurgeSummaryResult>
+        │   runPurgeWorkerJob(): Promise<PurgeSummaryResult>
+        │   ├── queryExpiredTombstones(cutoffDate: Date): Promise<string[]>
+        │   ├── purgeUserDataCascade(userId: string): Promise<void>
+        │   │   ├── deleteUserCredentials(userId: string): Promise<void>
+        │   │   └── deleteUserAuditLogs(userId: string): Promise<void>
+        │   └── emitPurgeAuditEvent(summary: PurgeSummaryResult): Promise<void>
+        ├── createSuccessResponse(data: PurgeSummaryResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<PurgeSummaryResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<PurgeSummaryResult>, headers: Record<string, string> }
+```

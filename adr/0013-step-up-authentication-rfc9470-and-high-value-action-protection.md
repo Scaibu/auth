@@ -572,3 +572,23 @@ Performance evaluation using in-memory cryptographic verification:
 - **Token Verification & Guard Assertion**: `p50 < 0.04ms`, `p99 < 0.09ms`.
 - **E2E Benchmark Throughput**: > 25,000 req/sec in single-core Node.js v20 runtime.
 - **Test Coverage**: 100% path coverage spanning valid execution, 403 step-up challenges, 401 token expiry, and user-mismatch security boundaries in `tests/integration/step-up-auth-e2e.test.ts`.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<StepUpVerificationResult>
+        │   assertStepUp(userId: string, reauthToken?: string): Promise<StepUpVerificationResult>
+        │   ├── verifyStepUpToken(reauthToken: string): StepUpTokenPayload
+        │   ├── assertMaxAge(issuedAt: number, maxAgeSeconds: number): void
+        │   └── authorizeSensitiveAction(action: string, userId: string): Promise<void>
+        ├── createSuccessResponse(data: StepUpVerificationResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<StepUpVerificationResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<StepUpVerificationResult>, headers: Record<string, string> }
+```

@@ -489,3 +489,23 @@ When running behind reverse proxies (AWS ALB, Cloudflare, Nginx, Envoy):
 - **Trusted Proxy Stripping**: The edge gateway must either take the direct socket address (`req.socket.remoteAddress`) or strip untrusted hops using a verified `trusted_proxies` CIDR table before passing `client_ip` to `verifyApiKey`.
 - **Zero Inline Comments Doctrine**: Handlers strictly follow [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md) with self-documenting types and structured try/catch/finally telemetry.
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<void>
+        │   enforceApiKeyQuotaAndAllowlist(apiKeyId: string, clientIp: string): Promise<void>
+        │   ├── getCachedApiKeyMetadata(apiKeyId: string): Promise<ApiKeySecurityMeta>
+        │   ├── assertIpInAllowlist(clientIp: string, cidrRanges: string[]): void
+        │   └── incrementSlidingQuota(apiKeyId: string, limit: number): Promise<void>
+        ├── createSuccessResponse(data: void, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<void>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<void>, headers: Record<string, string> }
+```

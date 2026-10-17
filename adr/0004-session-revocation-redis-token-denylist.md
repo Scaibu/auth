@@ -124,3 +124,29 @@ User clicks "Sign Out" button (Frontend User Action)
 1. **O(1) Redis Lookup**: Session validation performs an instant `O(1)` key lookup against Redis before allowing requests to proceed.
 2. **Automatic Key Expiration**: Redis entries are set with `TTL = remaining_jwt_seconds` so memory is auto-reclaimed once the JWT naturally expires.
 3. **Frontend Auto-Logout Handling**: When client receives 401 (`TOKEN_EXPIRED` / `UNAUTHORIZED`), stale cookies are purged automatically, prompting the user to re-authenticate.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RouteDispatchResult>
+        │   dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        │   └── handler(ctx: RouteContext): Promise<SignOutResult>
+        │       └── handleSignOut(service: AuthService, authHeader?: string): Promise<SignOutResult>
+        │           ├── verifyToken(token: string): AuthTokenPayload
+        │           └── signOut(token: string): Promise<void>
+        │               ├── revokeSessionInKeycloak(token: string): Promise<void>
+        │               │   └── fetch(url: string, init: RequestInit): Promise<Response>
+        │               └── denylistToken(jti: string, ttlSeconds: number): Promise<void>
+        │                   └── set(key: string, value: string, "EX", ttlSeconds: number): Promise<string>
+        │   
+        ├── createSuccessResponse(data: RouteDispatchResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RouteDispatchResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RouteDispatchResult>, headers: Record<string, string> }
+```

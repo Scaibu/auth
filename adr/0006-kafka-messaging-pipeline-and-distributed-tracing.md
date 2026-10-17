@@ -143,3 +143,24 @@ Domain Event Triggered (e.g. User Sign-In Success)
 
 - **Trace Propagation**: Verified via `[CentralMessagingTracer] PRODUCE SPAN STARTED [traceId=2b6395f2fe098406e91aa6789bd6d919, spanId=9ee9f4d8f4568b23]`.
 - **Grafana Visualization**: Querying `{ messaging.system = "kafka" }` or searching by `traceId` displays the complete 7-span waterfall graph connecting HTTP request -> Kafka producer -> Kafka consumer -> CQRS projection.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RecordMetadata>
+        │   publishEvent(topic: string, event: AuthEventPayload): Promise<RecordMetadata>
+        │   ├── serializeAvroJson(payload: AuthEventPayload): Buffer
+        │   ├── injectTraceContext(carrier: Record<string, string>): void
+        │   └── send(record: ProducerRecord): Promise<RecordMetadata[]>
+        │       └── handlePublishAck(metadata: RecordMetadata[]): void
+        ├── createSuccessResponse(data: RecordMetadata, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RecordMetadata>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RecordMetadata>, headers: Record<string, string> }
+```

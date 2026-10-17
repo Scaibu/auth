@@ -314,3 +314,23 @@ PORT=3005 ./auth/tests/e2e/test-curl-endpoints.sh
 - [ADR 0008: Master API Catalog, Parameter Contracts & Response Envelopes](./0008-master-api-catalog-parameter-contracts-and-response-envelopes.md)
 - [Auth Production Dockerfile](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/Dockerfile)
 - [E2E cURL Test Suite](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/tests/e2e/test-curl-endpoints.sh)
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<Server>
+        │   startServer(port: number, env: AppConfig): Promise<Server>
+        │   ├── configureV8MemoryLimits(maxOldSpaceMb: number): void
+        │   ├── runMigrations(): Promise<void>
+        │   └── listen(port: number): Server
+        ├── createSuccessResponse(data: Server, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<Server>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<Server>, headers: Record<string, string> }
+```

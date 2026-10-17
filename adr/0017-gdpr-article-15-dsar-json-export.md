@@ -197,3 +197,23 @@ erDiagram
 
 1. **Security**: Zero credential leakage is mathematically enforced. Password hashes, TOTP seeds, and active refresh secret tokens are omitted from queries and schema builders.
 2. **Performance**: Asynchronous single-roundtrip aggregation per user; bounded query filters for audit trails to avoid large memory dumps.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<DsarExportArchive>
+        │   exportUserDataArchive(userId: string): Promise<DsarExportArchive>
+        │   ├── aggregateUserRecords(userId: string): Promise<UserPersonalDataBundle>
+        │   ├── bundleMetadata(userData: UserPersonalDataBundle): DsarExportArchive
+        │   └── generatePresignedDownloadUrl(archive: DsarExportArchive): Promise<string>
+        ├── createSuccessResponse(data: DsarExportArchive, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<DsarExportArchive>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<DsarExportArchive>, headers: Record<string, string> }
+```

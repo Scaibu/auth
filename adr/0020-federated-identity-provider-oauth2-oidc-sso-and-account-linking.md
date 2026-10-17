@@ -677,3 +677,24 @@ it('should provision new account via Microsoft callback with mock code', async (
   expect(callbackRes.payload.data.user.email).toBe('corpuser@enterprise.com');
 });
 ```
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<FederatedSignInResult>
+        │   handleFederatedCallback(provider: string, code: string, state: string): Promise<FederatedSignInResult>
+        │   ├── validateOauthState(state: string): void
+        │   ├── exchangeCodeForIdpTokens(provider: string, code: string): Promise<IdpTokenResponse>
+        │   ├── parseIdpUserInfo(tokenResponse: IdpTokenResponse): FederatedUserProfile
+        │   └── linkOrProvisionFederatedUser(profile: FederatedUserProfile): Promise<AuthUserRecord>
+        ├── createSuccessResponse(data: FederatedSignInResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<FederatedSignInResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<FederatedSignInResult>, headers: Record<string, string> }
+```

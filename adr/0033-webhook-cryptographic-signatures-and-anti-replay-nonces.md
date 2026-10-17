@@ -863,3 +863,23 @@ Performance benchmarks executed on Linux x86_64 Node.js runtime:
   - Stateless service design adhering to [4-functions-and-classes-writing-rule.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/4-functions-and-classes-writing-rule.md).
   - Database migration follows [05-db-writing-rules.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/folder-structure/05-db-writing-rules.md).
   - Pure cryptographic utilities in `src/shared/utils/webhook-signer.util.ts`.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<void>
+        │   dispatchWebhookEvent(subscription: WebhookSubscription, event: WebhookPayload): Promise<void>
+        │   ├── signWebhookPayload(payload: string, secret: string, timestamp: number): string
+        │   ├── appendSignatureHeaders(req: RequestInit, sig: string, ts: number): void
+        │   └── recordDeliveryAttempt(status: number, executionTime: number): Promise<void>
+        ├── createSuccessResponse(data: void, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<void>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<void>, headers: Record<string, string> }
+```

@@ -123,3 +123,32 @@ User selects new Organization from dropdown (Frontend User Action)
 1. **N-to-N Mapping**: User and Organization relationships are decoupled via `auth_user_organizations` table.
 2. **Context Switching**: Switching active organization generates a fresh, signed JWT token with updated scope without forcing full re-authentication.
 3. **Database RLS**: Database queries set `SET LOCAL app.current_org_id = 'org_xxx'` to guarantee multi-tenant row isolation.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RouteDispatchResult>
+        │   dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        │   └── handler(ctx: RouteContext): Promise<TenantSwitchResult>
+        │       └── handleSwitchOrganization(service: AuthService, body: unknown, authHeader?: string): Promise<TenantSwitchResult>
+        │           ├── verifyToken(token: string): AuthTokenPayload
+        │           ├── switchOrganization(userId: string, targetOrgId: string): Promise<TenantSwitchResult>
+        │           │   ├── verifyUserMembership(userId: string, orgId: string): Promise<OrganizationMemberRecord | null>
+        │           │   │   └── query(text: string, values: unknown[]): Promise<QueryResult<OrganizationMemberRecord>>
+        │           │   ├── setLocalTenantRls(client: PoolClient, orgId: string): Promise<void>
+        │           │   │   └── query("SET LOCAL app.current_tenant_id = $1", [orgId]): Promise<QueryResult<void>>
+        │           │   └── mintScopedToken(user: AuthUserRecord, orgId: string, role: string): Promise<string>
+        │           │       └── sign(payload: JwtPayload, secret: string, options: SignOptions): string
+        │           └── createSuccessResponse(data: TenantSwitchResult, message: string, meta: ResponseMeta): ApiResponse<TenantSwitchResult>
+        │   
+        ├── createSuccessResponse(data: RouteDispatchResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RouteDispatchResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RouteDispatchResult>, headers: Record<string, string> }
+```

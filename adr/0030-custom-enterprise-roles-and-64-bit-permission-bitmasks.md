@@ -343,3 +343,22 @@ flowchart LR
 - **Negative**:
   - Maximum 63 bits per permission set (extensible with multi-word arrays when needed).
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   evaluateBitmaskPermissions(userRoles: string[], requiredBitmask: bigint): boolean
+        │   ├── computeAggregatedBitmask(roles: string[]): bigint
+        │   └── assertPermissionBits(computedMask: bigint, requiredMask: bigint): boolean
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

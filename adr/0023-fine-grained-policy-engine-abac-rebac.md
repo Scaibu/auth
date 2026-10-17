@@ -419,3 +419,23 @@ All relations, object types, error codes, and audit events are declared in `src/
   - Attributes: `tenant.org_id`, `policy.subject_type`, `policy.subject_id`, `policy.action`, `policy.object_type`, `policy.object_id`, `policy.allowed`, `policy.depth`.
 - Root Span: `auth.policy.relation_mutated`
   - Attributes: `tenant.org_id`, `policy.relation`, `policy.mutation_type`.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<PolicyDecisionResult>
+        │   evaluateAccessPolicy(request: AccessPolicyRequest): Promise<PolicyDecisionResult>
+        │   ├── resolveSubjectAttributes(subjectId: string): Promise<SubjectAttributes>
+        │   ├── evaluateRelationGraph(subject: string, relation: string, object: string): Promise<boolean>
+        │   └── executePolicyRules(policies: PolicyRule[], env: PolicyEnvironment): boolean
+        ├── createSuccessResponse(data: PolicyDecisionResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<PolicyDecisionResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<PolicyDecisionResult>, headers: Record<string, string> }
+```

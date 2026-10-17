@@ -480,3 +480,23 @@ Spans emitted:
 ### 10.2 Negative Consequences & Mitigations
 - **Irreversibility**: Accidental invocation cannot be recovered. Mitigated by mandating Step-Up reauthentication (`X-Reauth-Token`).
 - **Additional Table Overhead**: Requires one additional row per user in `auth_user_encryption_keys` (indexed on `user_id`, consuming ~200 bytes per record).
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<ShredResult>
+        │   shredUserDataKey(userId: string): Promise<ShredResult>
+        │   ├── locateUserDek(userId: string): Promise<EncryptedDekRecord>
+        │   ├── overwriteKeyZeroBytes(keyId: string): Promise<void>
+        │   └── deleteDekRecord(keyId: string): Promise<void>
+        ├── createSuccessResponse(data: ShredResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<ShredResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<ShredResult>, headers: Record<string, string> }
+```

@@ -195,3 +195,25 @@ sequenceDiagram
    npm run auth
    ```
    *Expected Output*: `[db-migrate] ✓ All database migrations applied` with zero connection drop retries.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<T>
+        │   executeTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T>
+        │   ├── connect(): Promise<PoolClient>
+        │   ├── query("BEGIN"): Promise<QueryResult<void>>
+        │   ├── work(client: PoolClient): Promise<T>
+        │   ├── query("COMMIT"): Promise<QueryResult<void>>
+        │   └── release(): void
+        ├── createSuccessResponse(data: T, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<T>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<T>, headers: Record<string, string> }
+```

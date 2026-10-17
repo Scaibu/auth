@@ -334,3 +334,23 @@ const OPENTELEMETRY_ASN_DEFENSE_ATTRIBUTES = {
 
 ### 10.2 Negative Consequences & Mitigations
 - **Shared IP / Carrier-Grade NAT (CGNAT) False Positives**: Mobile carriers (e.g. Jio, EE, T-Mobile) often aggregate thousands of users under a single ASN. Mitigated by setting residential ASN limits high (200 req/min) and defaulting to soft CAPTCHA challenges before hard 429 blocks.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<AsnThreatScore>
+        │   analyzeAsnRiskVelocity(clientIp: string): Promise<AsnThreatScore>
+        │   ├── resolveAsn(ip: string): Promise<AsnRecord>
+        │   ├── queryAsnFailureRateWindow(asn: number, windowSeconds: number): Promise<number>
+        │   └── enforceProgressiveDelayIfSpike(score: number): Promise<void>
+        ├── createSuccessResponse(data: AsnThreatScore, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<AsnThreatScore>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<AsnThreatScore>, headers: Record<string, string> }
+```

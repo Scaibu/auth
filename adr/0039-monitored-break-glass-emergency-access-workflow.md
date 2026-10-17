@@ -482,3 +482,23 @@ sequenceDiagram
 - **Zero Standing Superuser Risk**: Eliminates permanent backdoor accounts; access expires automatically.
 - **Full Traceability**: All privileged operations bind directly to an incident ticket in SIEM logs.
 - **State Integrity**: Database CHECK constraints guarantee complete state consistency.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<BreakGlassSession>
+        │   activateBreakGlassAccess(input: BreakGlassRequest): Promise<BreakGlassSession>
+        │   ├── verifyApprovals(approvalSignatures: string[]): boolean
+        │   ├── mintElevatedShortLivedToken(userId: string, durationSeconds: number): string
+        │   └── dispatchHighPriorityAlerts(session: BreakGlassSession): Promise<void>
+        ├── createSuccessResponse(data: BreakGlassSession, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<BreakGlassSession>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<BreakGlassSession>, headers: Record<string, string> }
+```

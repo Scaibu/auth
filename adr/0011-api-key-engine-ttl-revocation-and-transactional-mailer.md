@@ -1067,3 +1067,24 @@ All endpoints, paths, and provider parameters are externalized in `src/config/ma
 - **Dedicated Mailer Tests**: 22 unit tests in `mailer.test.ts` verifying fail-fast guards, SigV4 signing, SendGrid formatting, SMTP message creation, and factory provider fallbacks.
 - **Contract Integrity**: OpenAPI v1 contract tests passing (`tests/contract/auth-openapi.test.ts`).
 - **Database E2E Verification**: All 37 live API endpoints validated with live PostgreSQL/AlloyDB Omni (port 5432) and Redis (port 6379) via `tests/e2e/test-curl-endpoints.sh`.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<ApiKeyGeneratedResult>
+        │   createApiKey(orgId: string, input: CreateApiKeyInput): Promise<ApiKeyGeneratedResult>
+        │   ├── generateSecureRandomToken(prefix: string, length: number): string
+        │   ├── hashApiKey(token: string): string
+        │   ├── insertApiKey(hashedKey: string, meta: ApiKeyMeta): Promise<ApiKeyRecord>
+        │   └── sendNotificationMail(to: string, template: EmailTemplate): Promise<void>
+        ├── createSuccessResponse(data: ApiKeyGeneratedResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<ApiKeyGeneratedResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<ApiKeyGeneratedResult>, headers: Record<string, string> }
+```

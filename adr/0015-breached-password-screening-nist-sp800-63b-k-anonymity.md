@@ -234,3 +234,23 @@ Every password screening invocation is instrumented with an OpenTelemetry child 
 | DoS via 3rd party HIBP API outage | Configurable 1500ms timeout with circuit breaker / fail-open | **Zero availability impact** |
 | Malicious slow-response injection | `AbortController` timeout budget | **Deterministic latency bounds** |
 | Weak password reuse during reset | Verified at Sign-up, Reset Password, and Change Password | **Comprehensive coverage** |
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<BreachCheckResult>
+        │   screenPasswordBreach(password: string): Promise<BreachCheckResult>
+        │   ├── computeSha1Hash(password: string): { prefix: string, suffix: string }
+        │   ├── queryKAnonymityApi(prefix: string): Promise<string[]>
+        │   └── matchSuffix(rangeHashes: string[], suffix: string): boolean
+        ├── createSuccessResponse(data: BreachCheckResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<BreachCheckResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<BreachCheckResult>, headers: Record<string, string> }
+```

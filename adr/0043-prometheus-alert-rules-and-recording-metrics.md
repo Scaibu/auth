@@ -251,3 +251,22 @@ spec:
 - **Adheres to Zero Unbounded Cardinality**: All metric labels are strictly bounded enums.
 - **SLA/SLO Verification**: Provides mathematical proofs of 99.9% uptime and <300ms p95 latency.
 - **Immediate Threat Interception**: Zero-latency notification on Honeytoken triggers and regulatory WORM sealing failures.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   recordHttpMetric(method: string, route: string, status: number, durationMs: number): void
+        │   ├── incrementCounter("http_requests_total", { method, route, status }): void
+        │   └── recordHistogram("http_request_duration_seconds", durationMs / 1000, { route }): void
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

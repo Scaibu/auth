@@ -487,3 +487,24 @@ Sustained benchmarks measured across 5,000 iterations:
 | Recovery Code SHA-256 Hashing | ~50,000 ops/sec | 0.02 ms | < 0.05 ms |
 | Batch 10-Recovery Code Generation | ~12,500 ops/sec | 0.08 ms | < 0.35 ms |
 | Two-Stage Challenge Resolution | ~8,000 ops/sec | 0.12 ms | < 0.45 ms |
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<MfaVerifyResult>
+        │   verifyMfaTotp(userId: string, code: string): Promise<MfaVerifyResult>
+        │   ├── getDecryptedMfaSecret(userId: string): Promise<string>
+        │   ├── verifyTotpCode(secret: string, code: string, window: number): boolean
+        │   ├── markMfaVerified(sessionId: string): Promise<void>
+        │   └── mintMfaSessionToken(user: AuthUserRecord): string
+        ├── createSuccessResponse(data: MfaVerifyResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<MfaVerifyResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<MfaVerifyResult>, headers: Record<string, string> }
+```

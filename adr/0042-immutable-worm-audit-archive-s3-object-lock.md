@@ -615,3 +615,23 @@ curl -X GET http://localhost:3001/api/v1/auth/audit/worm/archives/worm_arc_4a8f9
   - *Mitigation*: Segments are sealed in scheduled windows (e.g. hourly or daily), while the active transactional table retains the raw stream.
 - **Retention Lock Risk**: If a bad retention period (e.g. 50 years) is set on an S3 Object Lock bucket in Compliance mode, AWS will refuse deletion until the year 2076.
   - *Mitigation*: Ingress schema enforces a strict `z.number().int().min(1).max(50)` guardrail with a default of 7 years.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<WormSealReceipt>
+        │   sealAuditBatchWorm(batchId: string, records: AuditRecord[]): Promise<WormSealReceipt>
+        │   ├── serializeDeterministicJson(records: AuditRecord[]): Buffer
+        │   ├── computeSha256Digest(content: Buffer): string
+        │   └── uploadS3ObjectLock(content: Buffer, hash: string, retentionYears: number): Promise<PutObjectOutput>
+        ├── createSuccessResponse(data: WormSealReceipt, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<WormSealReceipt>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<WormSealReceipt>, headers: Record<string, string> }
+```

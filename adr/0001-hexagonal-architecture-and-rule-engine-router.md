@@ -125,3 +125,23 @@ HTTP Request Received (Any Endpoint)
 ## 🔐 CORS & Security Configuration
 
 The server enforces wildcard CORS preflight handling (`Access-Control-Allow-Headers: *`) to ensure custom OpenTelemetry headers (`traceparent`, `tracestate`, `x-request-id`, `x-correlation-id`) are accepted seamlessly without preflight blocks.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── evaluateRules(rules: readonly Rule[], ctx: RuleEvaluationContext): Promise<RuleEngineResult>
+        │   └── executeRule(rule: Rule, ctx: RuleEvaluationContext): Promise<boolean>
+        ├── handler(ctx: RouteContext): Promise<RouteExecutionResult>
+        │   └── handleRoute(service: AuthService, body: unknown, headers: Record<string, string>): Promise<RouteExecutionResult>
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+// RuleEngineResult    = { passed: boolean, violatedRule?: Rule, errorFactory?: AuthErrorFactory }
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+```

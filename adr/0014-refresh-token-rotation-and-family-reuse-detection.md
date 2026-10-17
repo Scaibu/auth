@@ -501,3 +501,25 @@ The rotation implementation has been validated against sustained load benchmarks
 - **Average Latency**: **1.85ms per complete rotation** (including SHA-256 hashing, family tree validation, token consumption, new generation generation, and access token JWT signing).
 - **Heap Stability**: Memory delta across 10,000 iterations remained < 50MB with zero unbounded map expansion or descriptor leaks.
 - **Automated Validation Script**: Executable via [`./tests/scripts/test-all-flows.sh`](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/tests/scripts/test-all-flows.sh).
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<KeycloakTokenResponse>
+        │   └── handleRefreshToken(service: AuthService, body: unknown): Promise<KeycloakTokenResponse>
+        │       ├── validateRefreshTokenInput(body: unknown): string
+        │       └── refreshAccessToken(refreshToken: string): Promise<KeycloakTokenResponse>
+        │           └── fetch(url: string, init: RequestInit): Promise<Response>
+        │               └── json(): Promise<KeycloakTokenResponse>
+        ├── createSuccessResponse(data: KeycloakTokenResponse, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<KeycloakTokenResponse>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// KeycloakTokenResponse = { access_token: string, expires_in: number, refresh_token: string, refresh_expires_in: number, token_type: string }
+// ApiResponse<T>        = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult   = { statusCode: number, payload: ApiResponse<KeycloakTokenResponse>, headers: Record<string, string> }
+```

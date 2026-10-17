@@ -177,3 +177,28 @@ User Clicks "Sign In" / Executes API Request
 # Search by Kafka Event Name
 { .messaging.system = "kafka" && .messaging.kafka.event_name = "USER_SIGNED_IN" }
 ```
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<void>
+        │   runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+        │   ├── startActiveSpan(name: string, options: SpanOptions, fn: (span: Span) => Promise<void>): Promise<void>
+        │   │   ├── extractContext(headers: IncomingHttpHeaders): Context
+        │   │   ├── setSpanAttributes(span: Span, attributes: Record<string, unknown>): void
+        │   │   └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        │   │       └── handler(ctx: RouteContext): Promise<unknown>
+        │   │           └── traceBusinessOperation(operationName: string, fn: () => Promise<T>): Promise<T>
+        │   └── span.end(): void
+        │   
+        ├── createSuccessResponse(data: void, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<void>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<void>, headers: Record<string, string> }
+```

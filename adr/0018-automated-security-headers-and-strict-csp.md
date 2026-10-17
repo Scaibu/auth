@@ -107,3 +107,23 @@ AUTH_SECURITY_HEADERS_CORP=same-origin
 1. **Zero Credential / Token Leaks**: Third-party iframe embeddings and untrusted scripts are rejected at the browser network layer.
 2. **Zero Code Changes for Operators**: Operators can toggle headers or switch CSP to `Report-Only` mode purely via `.env` configuration.
 3. **Full Policy Conformance**: Follows Hexagonal Architecture, pure configuration isolation in `config/`, and zero inline comments in runtime implementations.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   computeSecurityHeaders(config: SecurityHeadersConfig): { headers: Record<string, string>, nonce: string }
+        │   ├── generateCspNonce(): string
+        │   ├── buildContentSecurityPolicy(nonce: string): string
+        │   └── applyStrictTransportSecurity(maxAge: number): Record<string, string>
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

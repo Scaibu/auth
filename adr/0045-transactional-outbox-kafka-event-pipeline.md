@@ -568,3 +568,23 @@ The implementation is verified through comprehensive automated test suites:
    - *Mitigation*: The `idx_auth_outbox_published_at` index enables the scheduled retention worker (`PurgeRetentionWorker`) to prune `PUBLISHED` records older than 7 days.
 2. **At-Least-Once Delivery**: Network partitions between the relay worker and Kafka can result in a message being re-sent.
    - *Mitigation*: Downstream event consumers implement idempotency using unique event UUIDs (`id` field) via Redis / distributed key-value stores.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<OutboxBatchResult>
+        │   processOutboxEventsBatch(batchSize: number): Promise<OutboxBatchResult>
+        │   ├── fetchPendingOutboxRecords(batchSize: number): Promise<OutboxRecord[]>
+        │   ├── publishToKafka(record: OutboxRecord): Promise<RecordMetadata>
+        │   └── markOutboxEventsProcessed(recordIds: string[]): Promise<void>
+        ├── createSuccessResponse(data: OutboxBatchResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<OutboxBatchResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<OutboxBatchResult>, headers: Record<string, string> }
+```

@@ -358,3 +358,23 @@ All OIDC endpoints, grant types, and PKCE parameters are declared in `AUTH_CONST
 - `SCOPE_EMAIL = 'email'`
 - `DEFAULT_TOKEN_EXPIRY_SECONDS = 3600`
 - `DEFAULT_CODE_EXPIRY_MS = 300000`
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   getOpenIdConfiguration(): OpenIdDiscoveryDocument
+        │   ├── buildIssuerUrl(): string
+        │   ├── getSupportedClaims(): string[]
+        │   └── getSupportedSigningAlgorithms(): string[]
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```

@@ -281,3 +281,24 @@ All configuration keys and risk factors are declared in `AUTH_CONSTANTS`:
 - `AUDIT_EVENT_RISK_CHALLENGE_RESOLVED = 'RISK_CHALLENGE_RESOLVED'`
 - `AUDIT_EVENT_HIGH_RISK_BLOCKED = 'HIGH_RISK_SIGNIN_BLOCKED'`
 
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<RiskScoreResult>
+        │   evaluateSignOnRisk(context: RiskEvaluationContext): Promise<RiskScoreResult>
+        │   ├── computeVelocityScore(ip: string, email: string): Promise<number>
+        │   ├── evaluateGeoAnomaly(ip: string, userId: string): Promise<number>
+        │   ├── calculateAggregateRisk(scores: number[]): RiskDecision
+        │   └── triggerRiskChallengeIfRequired(decision: RiskDecision): Promise<void>
+        ├── createSuccessResponse(data: RiskScoreResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<RiskScoreResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<RiskScoreResult>, headers: Record<string, string> }
+```

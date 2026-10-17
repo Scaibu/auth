@@ -349,3 +349,24 @@ AUTH_SESSION_INACTIVITY_TTL_SECONDS=604800
 2. **Current Device Immunity**: Bulk revocation (`DELETE /api/v1/auth/sessions`) mathematically excludes `currentFamilyId`. The caller's session is never severed.
 3. **Zero Magic Strings**: All endpoint paths, query keys, and error codes are declared in shared constants modules.
 4. **Zero Inline Comments**: Self-documenting code driven by explicit TypeScript types and file header docblocks.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<SessionTerminationResult>
+        │   terminateRemoteSession(userId: string, targetSessionId: string): Promise<SessionTerminationResult>
+        │   ├── assertSessionOwnership(userId: string, sessionId: string): Promise<boolean>
+        │   ├── revokeSessionInKeycloak(sessionId: string): Promise<void>
+        │   ├── publishSessionRevocationEvent(sessionId: string): Promise<void>
+        │   └── denylistSessionTokens(sessionId: string): Promise<void>
+        ├── createSuccessResponse(data: SessionTerminationResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<SessionTerminationResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<SessionTerminationResult>, headers: Record<string, string> }
+```

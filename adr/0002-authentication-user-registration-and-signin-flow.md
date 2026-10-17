@@ -238,3 +238,32 @@ To standardize enterprise identity management, compliance, and credential lifecy
 ### 4.3 Backward Compatibility & Coexistence Guarantees
 
 Existing database models, organizational domain claiming, ReBAC policies, and audit logging pipelines remain intact. The application facade [AuthService](file:///home/btpl-lap-22/live/llm-obs-node-packages/auth/src/features/auth/service.ts) delegates sign-in and session verification to Keycloak while continuing to provide native application context and audit trails.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<SignInResult>
+        │   └── handleSignIn(service: AuthService, body: unknown, headers: Record<string, string>): Promise<SignInResult>
+        │       ├── validateSchema(schema: ZodSchema<SignInInput>, data: unknown): SignInInput
+        │       ├── extractClientContext(headers: Record<string, string>): ClientContext
+        │       └── signIn(input: SignInInput): Promise<SignInResult>
+        │           ├── signInWithPassword(email: string, password: string): Promise<KeycloakTokenResponse>
+        │           │   └── fetch(url: string, init: RequestInit): Promise<Response>
+        │           │       └── json(): Promise<KeycloakTokenResponse>
+        │           ├── verifyToken(token: string): AuthTokenPayload
+        │           │   ├── decode(token: string): JwtPayload
+        │           │   └── mapToTenantContext(rawPayload: Record<string, unknown>): TenantContext
+        │           └── findUserByEmail(email: string): Promise<AuthUserRecord | null>
+        │               └── query(text: string, values: unknown[]): Promise<QueryResult<AuthUserRecord>>
+        ├── createSuccessResponse(data: SignInResult, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<SignInResult>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// SignInResult          = { token: string, payload: AuthTokenPayload, user: AuthUserRecord }
+// KeycloakTokenResponse = { access_token: string, expires_in: number, refresh_token: string, token_type: string }
+// ApiResponse<T>        = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+```

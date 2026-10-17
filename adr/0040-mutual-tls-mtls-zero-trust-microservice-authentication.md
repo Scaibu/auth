@@ -353,3 +353,23 @@ sequenceDiagram
 - **Positive**: Eliminates bearer token exfiltration and replay attacks across microservices; achieves complete NIST SP 800-207 Zero-Trust compliance.
 - **Negative**: Requires downstream microservices to verify `cnf` against client TLS certificates when handling bound tokens.
 - **Invariant Adherence**: Fully compliant with hexagonal architecture, strict condition rules ([06-writing-conditions.md](file:///home/btpl-lap-22/live/llm-obs-node-packages/llm-obs-policies/rules/code-quality/coding-standards/06-writing-conditions.md)), and zero-comments TypeScript coding standards.
+
+## Execution Flow (Call Stack Tree)
+
+```text
+createServer(listener: (req: IncomingMessage, res: ServerResponse) => void): Server
+└── runWithHttpTracing(req: IncomingMessage, res: ServerResponse, fn: () => Promise<void>): Promise<void>
+    └── dispatch(method: string, path: string, body: unknown, headers: Record<string, string>): Promise<RouteDispatchResult>
+        ├── matchRoute(method: string, path: string): { rule: RouteRule, params: Record<string, string> } | null
+        ├── handler(ctx: RouteContext): Promise<unknown>
+        │   verifyClientCertificate(cert: PeerCertificate): MtlsIdentity
+        │   ├── verifyCertChain(cert: PeerCertificate, ca: Buffer): boolean
+        │   ├── extractSpiffeIdOrCommonName(cert: PeerCertificate): string
+        │   └── assertServiceAuthorized(serviceId: string, targetEndpoint: string): void
+        ├── createSuccessResponse(data: unknown, message: string, meta: ResponseMeta, statusCode: number): ApiResponse<unknown>
+        └── end(chunk: string): ServerResponse
+
+// Type Reference:
+// ApiResponse<T>      = { success: boolean, statusCode: number, message: string, data: T, meta: ResponseMeta }
+// RouteDispatchResult = { statusCode: number, payload: ApiResponse<unknown>, headers: Record<string, string> }
+```
