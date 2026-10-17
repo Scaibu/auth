@@ -29,7 +29,7 @@
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "redirectUris": [
         "http://localhost:3000/auth/callback",
@@ -55,7 +55,7 @@
       "secret": "auth_admin_client_secret_minimum_32_chars!",
       "protocol": "openid-connect",
       "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "attributes": {
         "access.token.lifespan": "3600"
@@ -78,11 +78,42 @@
       }
     ]
   },
-  "defaultDefaultClientScopes": [
-    "web-origins",
-    "acr",
-    "roles",
-    "profile",
-    "email"
+  "users": [
+    {
+      "username": "admin@llmobs.local",
+      "email": "admin@llmobs.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "AdminPass123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "user@llmobs.local",
+      "email": "user@llmobs.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Standard",
+      "lastName": "Member",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "UserPass123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "member"
+      ]
+    }
   ]
 }

@@ -34,7 +34,7 @@ services:
       - KEYCLOAK_ISSUER_URL=http://auth-service-keycloak:8080/realms/llm-observability
       - KEYCLOAK_REALM=llm-observability
       - KEYCLOAK_CLIENT_ID=auth-service-admin
-      - KEYCLOAK_CLIENT_SECRET=auth-service-admin-secret
+      - KEYCLOAK_CLIENT_SECRET=auth_admin_client_secret_minimum_32_chars!
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - AUTH_GEOIP_PROVIDER=http
@@ -94,8 +94,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
       - KC_DB=postgres
       - KC_DB_URL=jdbc:postgresql://auth-service-db:5432/llm_observability
       - KC_DB_USERNAME=admin
@@ -105,6 +105,7 @@ services:
       - KC_HEALTH_ENABLED=true
       - KC_METRICS_ENABLED=true
       - KC_TRACING_ENABLED=true
+      
       - KC_TRACING_ENDPOINT=http://llmobs-otel-collector:4317
       - KC_TRACING_PROTOCOL=grpc
       - KC_TRACING_SERVICE_NAME=auth-service-keycloak
@@ -116,13 +117,26 @@ services:
       - "traefik.http.routers.keycloak.rule=Host(`keycloak.llmobs.local`) || PathPrefix(`/auth`)"
       - "traefik.http.routers.keycloak.entrypoints=web"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
-    extra_hosts:
-      - "llmobs-otel-collector:host-gateway"
     volumes:
       - ./deploy/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json:ro
     depends_on:
       auth-db:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - default
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: llmobs-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "31417:4318"
+      - "31418:4317"
     restart: unless-stopped
     networks:
       - default

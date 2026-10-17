@@ -263,7 +263,7 @@ KEYCLOAK_BASE_URL=http://localhost:8080
 KEYCLOAK_ISSUER_URL=http://localhost:8080/realms/llm-observability
 KEYCLOAK_REALM=llm-observability
 KEYCLOAK_CLIENT_ID=auth-service-admin
-KEYCLOAK_CLIENT_SECRET=auth-service-admin-secret
+KEYCLOAK_CLIENT_SECRET=auth_admin_client_secret_minimum_32_chars!
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=admin
 
