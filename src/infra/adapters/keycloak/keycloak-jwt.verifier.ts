@@ -113,10 +113,13 @@ export class KeycloakJwtVerifier {
     const sub = rawPayload.sub || rawPayload.user_id || 'anonymous';
     const email = rawPayload.email || `${sub}@observability.internal`;
 
+    const realmRoles: string[] = Array.isArray(rawPayload.realm_access?.roles) ? rawPayload.realm_access.roles : [];
+    const matchedRole = realmRoles.find((r: string) => ['admin', 'member', 'viewer'].includes(r)) || 'member';
+
     const tenantOrg: TenantContext = rawPayload.org || rawPayload.organization || {
       org_id: rawPayload.org_id || rawPayload.tenant_id || 'org_default',
       org_name: 'Default Organization',
-      role: rawPayload.realm_access?.roles?.[0] || 'member',
+      role: matchedRole as 'admin' | 'member' | 'viewer',
       permissions: [],
     };
 

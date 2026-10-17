@@ -141,6 +141,17 @@ services:
     networks:
       - default
 
+  redis:
+    image: redis:7-alpine
+    container_name: llmobs-redis-ledger
+    command: redis-server --requirepass llmobs_redis_s3cret_2026
+    ports:
+      - "6379:6379"
+      - "31413:6379"
+    restart: unless-stopped
+    networks:
+      - default
+
 volumes:
   auth_db_data:
 
